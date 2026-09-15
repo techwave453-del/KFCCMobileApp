@@ -33,7 +33,7 @@ class MediaRepository(context: Context) {
                 "api/media/$id/featured",
                 FeaturedMediaRequest(featured)
             )
-            if (response.status !in 200..299) {
+            if (response.status.value !in 200..299) {
                 error("Unable to update featured media (${response.status.value}).")
             }
             Result.success<Unit>(Unit)
