@@ -26,7 +26,7 @@ class AdminUsersRepository(context: Context) {
     private val adminRepository = AdminRepository(context.applicationContext)
 
     private suspend fun check(response: HttpResponse) {
-        if (response.status !in 200..299) {
+        if (response.status.value !in 200..299) {
             val message = try {
                 response.body<JsonObject>()["error"]?.jsonPrimitive?.contentOrNull
             } catch (_: Exception) {
