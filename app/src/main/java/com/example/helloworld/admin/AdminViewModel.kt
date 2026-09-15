@@ -27,7 +27,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            _user.value = repository.restoreSession()
+            val restored = repository.restoreSession()
+            _user.value = restored?.takeIf { it.is_active }
             _isLoading.value = false
         }
     }
@@ -37,11 +38,16 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             _error.value = null
             val result = repository.login(username, password)
-            if (result.ok && result.user != null) {
-                // The login endpoint intentionally returns only session identity.
-                // Load /api/admin/me immediately so the mobile UI gets the server's
-                // authoritative role and granular permission set.
-                _user.value = repository.restoreSession() ?: result.user
+            if (result.ok) {
+                // Never trust role/permissions from the login response alone.
+                // /api/admin/me is the authoritative post-login authorization state.
+                val authoritativeUser = repository.restoreSession()
+                if (authoritativeUser != null && authoritativeUser.is_active) {
+                    _user.value = authoritativeUser
+                } else {
+                    _user.value = null
+                    _error.value = "Your administrator session could not be verified. Please sign in again."
+                }
             } else {
                 _error.value = result.error ?: "Invalid username or password."
             }
