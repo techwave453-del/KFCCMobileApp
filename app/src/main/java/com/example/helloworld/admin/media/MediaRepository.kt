@@ -13,7 +13,7 @@ private data class FeaturedMediaRequest(val featured: Boolean)
 class MediaRepository(context: Context) {
     private val adminRepository = AdminRepository(context.applicationContext)
 
-    suspend fun load(): Result<List<AdminMediaItem>> = runCatching<List<AdminMediaItem>> {
+    suspend fun load(): Result<List<AdminMediaItem>> = runCatching {
         val response = adminRepository.authenticatedGet("api/media")
         if (response.status != HttpStatusCode.OK) {
             error("Media service returned ${response.status.value}.")
@@ -22,7 +22,7 @@ class MediaRepository(context: Context) {
     }
 
     /** Marks/unmarks a video as featured. The server enforces video-only targets and uniqueness. */
-    suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching<Unit> {
+    suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/media/$id/featured",
             FeaturedMediaRequest(featured)
