@@ -14,7 +14,7 @@ class MediaRepository(context: Context) {
         if (response.status != HttpStatusCode.OK) {
             error("Media service returned ${response.status.value}.")
         }
-        response.body()
+        response.body<List<AdminMediaItem>>()
     }
 
     /**
