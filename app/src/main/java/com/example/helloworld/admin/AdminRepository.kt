@@ -20,12 +20,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.Json
 
 class AdminRepository(context: Context) {
-    companion object {
-        private const val PREFS = "kfcc_admin_session"
-        private const val COOKIE_KEY = "session_cookie"
-    }
-
-    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val sessionStore = SessionStore(context)
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
@@ -33,30 +28,36 @@ class AdminRepository(context: Context) {
         install(HttpCookies)
     }
 
-    private fun sessionCookie(): String? = prefs.getString(COOKIE_KEY, null)
+    private fun sessionCookie(): String? = sessionStore.get()
 
     private fun saveSession(response: HttpResponse) {
         val cookie = response.headers.getAll(HttpHeaders.SetCookie)
             ?.firstOrNull()
             ?.substringBefore(';')
             ?.takeIf { it.contains('=') }
-        if (!cookie.isNullOrBlank()) {
-            prefs.edit().putString(COOKIE_KEY, cookie).apply()
-        }
+        if (!cookie.isNullOrBlank()) sessionStore.save(cookie)
     }
 
-    private fun clearSession() = prefs.edit().remove(COOKIE_KEY).apply()
+    private fun clearSession() = sessionStore.clear()
+
+    private fun io.ktor.client.request.HttpRequestBuilder.withSessionCookie() {
+        sessionCookie()?.let {
+            cookie(it.substringBefore('='), it.substringAfter('='))
+        }
+    }
 
     suspend fun restoreSession(): AdminUser? {
         return try {
             val response = client.get(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_ME_PATH) {
-                sessionCookie()?.let { cookie(it.substringBefore('='), it.substringAfter('=')) }
+                withSessionCookie()
             }
-            if (response.status == HttpStatusCode.OK) {
-                response.body<AdminMeResponse>().user
-            } else {
-                if (response.status == HttpStatusCode.Unauthorized) clearSession()
-                null
+            when (response.status) {
+                HttpStatusCode.OK -> response.body<AdminMeResponse>().user
+                HttpStatusCode.Unauthorized -> {
+                    clearSession()
+                    null
+                }
+                else -> null
             }
         } catch (_: Exception) {
             null
@@ -87,7 +88,7 @@ class AdminRepository(context: Context) {
     suspend fun logout() {
         try {
             client.post(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_LOGOUT_PATH) {
-                sessionCookie()?.let { cookie(it.substringBefore('='), it.substringAfter('=')) }
+                withSessionCookie()
             }
         } catch (_: Exception) {
         } finally {
