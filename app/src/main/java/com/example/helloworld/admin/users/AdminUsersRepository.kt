@@ -40,7 +40,8 @@ class AdminUsersRepository(context: Context) {
         return try {
             val response = adminRepository.authenticatedGet("api/admin/users")
             check(response)
-            Result.success(response.body<List<AdminManagedUser>>())
+            val users: List<AdminManagedUser> = response.body()
+            Result.success<List<AdminManagedUser>>(users)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -50,7 +51,8 @@ class AdminUsersRepository(context: Context) {
         return try {
             val response = adminRepository.authenticatedGet("api/admin/access/requests")
             check(response)
-            Result.success(response.body<List<AdminAccessRequest>>())
+            val requests: List<AdminAccessRequest> = response.body()
+            Result.success<List<AdminAccessRequest>>(requests)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -63,7 +65,7 @@ class AdminUsersRepository(context: Context) {
                 ApproveRequestBody(role, permissions)
             )
             check(response)
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -73,7 +75,7 @@ class AdminUsersRepository(context: Context) {
         return try {
             val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
             check(response)
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -86,7 +88,7 @@ class AdminUsersRepository(context: Context) {
                 StatusRequestBody(active)
             )
             check(response)
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -96,7 +98,7 @@ class AdminUsersRepository(context: Context) {
         return try {
             val response = adminRepository.authenticatedDelete("api/admin/users/$id")
             check(response)
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -109,7 +111,7 @@ class AdminUsersRepository(context: Context) {
                 PermissionsRequestBody(permissions)
             )
             check(response)
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
