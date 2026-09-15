@@ -1,7 +1,7 @@
 package com.example.helloworld.admin
 
-import com.example.helloworld.config.AppConfig
 import android.content.Context
+import com.example.helloworld.config.AppConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -47,10 +47,7 @@ class AdminRepository(context: Context) {
         }
     }
 
-    /**
-     * Authenticated GET for every admin feature module.
-     * Modules must not read or store the session cookie themselves.
-     */
+    /** Authenticated GET shared by every admin feature module. */
     suspend fun authenticatedGet(path: String): HttpResponse {
         val response = client.get(AppConfig.ADMIN_API_BASE_URL + path.trimStart('/')) {
             withSessionCookie()
@@ -59,11 +56,8 @@ class AdminRepository(context: Context) {
         return response
     }
 
-    /**
-     * Authenticated JSON PUT for every admin feature module.
-     * Modules must not create their own HTTP client or session store.
-     */
-    suspend fun authenticatedPut(path: String, body: Any): HttpResponse {
+    /** Authenticated JSON PUT shared by admin feature modules. */
+    suspend fun authenticatedPut(path: String, body: Map<String, String>): HttpResponse {
         val response = client.put(AppConfig.ADMIN_API_BASE_URL + path.trimStart('/')) {
             withSessionCookie()
             contentType(ContentType.Application.Json)
