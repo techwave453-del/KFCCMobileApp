@@ -25,6 +25,7 @@ import kotlinx.serialization.json.Json
 class AdminRepository(context: Context) {
     private val sessionStore = SessionStore(context.applicationContext)
     private val client = HttpClient(CIO) {
+        expectSuccess = false
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
         }
@@ -33,11 +34,6 @@ class AdminRepository(context: Context) {
 
     private fun sessionCookie(): String? = sessionStore.get()
 
-    /**
-     * Persist the exact Express session cookie returned by the web API.
-     * Production currently uses __Host-kfc.sid; older deployments may use
-     * kfc.sid or connect.sid. Never assume the first Set-Cookie is the session.
-     */
     private fun saveSession(response: HttpResponse) {
         val cookies = response.headers.getAll(HttpHeaders.SetCookie)
             .orEmpty()
@@ -51,18 +47,11 @@ class AdminRepository(context: Context) {
             .mapNotNull { name -> cookies.firstOrNull { it.startsWith("$name=") } }
             .firstOrNull()
 
-        if (!cookie.isNullOrBlank()) {
-            sessionStore.save(cookie)
-        }
+        if (!cookie.isNullOrBlank()) sessionStore.save(cookie)
     }
 
     private fun clearSession() = sessionStore.clear()
 
-    /**
-     * Native requests explicitly identify the canonical API origin and carry
-     * the persisted Express session cookie. The server remains authoritative
-     * for authentication and authorization.
-     */
     private fun HttpRequestBuilder.withApiHeaders() {
         header(HttpHeaders.Accept, ContentType.Application.Json.toString())
         header(HttpHeaders.Origin, AppConfig.ADMIN_API_ORIGIN)
@@ -122,11 +111,7 @@ class AdminRepository(context: Context) {
     suspend fun restoreSession(): AdminUser? {
         return try {
             val response = authenticatedGet(AppConfig.ADMIN_ME_PATH)
-            if (response.status == HttpStatusCode.OK) {
-                response.body<AdminMeResponse>().user
-            } else {
-                null
-            }
+            if (response.status == HttpStatusCode.OK) response.body<AdminMeResponse>().user else null
         } catch (_: Exception) {
             null
         }
@@ -151,9 +136,7 @@ class AdminRepository(context: Context) {
                 }
             }
         } catch (e: Exception) {
-            AdminLoginResponse(
-                error = e.message ?: "Unable to connect to the administrator service."
-            )
+            AdminLoginResponse(error = e.message ?: "Unable to connect to the administrator service.")
         }
     }
 
@@ -161,7 +144,6 @@ class AdminRepository(context: Context) {
         try {
             authenticatedPost(AppConfig.ADMIN_LOGOUT_PATH)
         } catch (_: Exception) {
-            // Local logout must still succeed if the network is unavailable.
         } finally {
             clearSession()
         }
