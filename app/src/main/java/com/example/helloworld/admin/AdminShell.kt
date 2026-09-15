@@ -1,5 +1,6 @@
 package com.example.helloworld.admin
 
+import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,52 +42,45 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.helloworld.admin.identity.ChurchIdentityScreen
 import com.example.helloworld.admin.media.MediaCenterScreen
+import com.example.helloworld.admin.users.AdminUsersScreen
+import com.example.helloworld.admin.users.AdminUsersViewModel
 
 @Composable
 fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
     val user by viewModel.user.collectAsState()
     val loading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    var mediaCenterOpen by remember { mutableStateOf(false) }
+    var openModule by remember { mutableStateOf<String?>(null) }
+    val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
             loading && user == null -> LoadingAdminScreen()
-            user == null -> AdminLoginScreen(
-                loading = loading,
-                error = error,
-                onLogin = viewModel::login,
-                onClearError = viewModel::clearError
-            )
-            mediaCenterOpen && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> Column(Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { mediaCenterOpen = false }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back to admin dashboard")
-                    }
-                    Text("Admin Dashboard / Media Center", style = MaterialTheme.typography.titleMedium)
-                }
-                MediaCenterScreen(modifier = Modifier.weight(1f))
-            }
-            else -> AdminDashboardScreen(
-                user = user,
-                onLogout = viewModel::logout,
-                onMediaCenter = { mediaCenterOpen = true }
-            )
+            user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
+            openModule == "identity" && user.hasPermission(AdminPermissions.IDENTITY_VIEW) -> ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(modifier = Modifier.fillMaxSize()) }
+            openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) { MediaCenterScreen(modifier = Modifier.fillMaxSize()) }
+            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = AdminUsersViewModel.Factory(application)), onBack = { openModule = null }) }
+            else -> AdminDashboardScreen(user, viewModel::logout, { openModule = "identity" }, { openModule = "media" }, { openModule = "users" })
         }
     }
 }
 
 @Composable
+private fun ModuleFrame(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back to admin dashboard") }
+            Text("Admin Dashboard / $title", style = MaterialTheme.typography.titleMedium)
+        }
+        content()
+    }
+}
+
+@Composable
 private fun LoadingAdminScreen() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressIndicator()
         Spacer(Modifier.height(16.dp))
         Text("Checking administrator session…")
@@ -94,28 +88,19 @@ private fun LoadingAdminScreen() {
 }
 
 @Composable
-private fun AdminLoginScreen(
-    loading: Boolean,
-    error: String?,
-    onLogin: (String, String) -> Unit,
-    onClearError: () -> Unit
-) {
+private fun AdminLoginScreen(loading: Boolean, error: String?, onLogin: (String, String) -> Unit, onClearError: () -> Unit) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
         Icon(Icons.Default.AdminPanelSettings, contentDescription = null)
         Spacer(Modifier.height(12.dp))
         Text("KFCC Administration", style = MaterialTheme.typography.headlineMedium)
         Text("Secure access to church administration", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(value = username, onValueChange = { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(username, { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(value = password, onValueChange = { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        if (error != null) {
-            Spacer(Modifier.height(12.dp))
-            Text(error, color = MaterialTheme.colorScheme.error)
-        }
+        OutlinedTextField(password, { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        if (error != null) { Spacer(Modifier.height(12.dp)); Text(error, color = MaterialTheme.colorScheme.error) }
         Spacer(Modifier.height(20.dp))
         Button(onClick = { onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !loading, modifier = Modifier.fillMaxWidth()) {
             if (loading) CircularProgressIndicator(modifier = Modifier.height(20.dp)) else Text("Sign in")
@@ -126,7 +111,7 @@ private fun AdminLoginScreen(
 private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector)
 
 @Composable
-private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onMediaCenter: () -> Unit) {
+private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onIdentity: () -> Unit, onMediaCenter: () -> Unit, onUsers: () -> Unit) {
     val modules = listOf(
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
         AdminModule("Website Content", "Homepage, pages, services, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
@@ -135,27 +120,24 @@ private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onMediaC
         AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People),
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings)
     )
-
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+    Column(Modifier.fillMaxSize().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(Modifier.weight(1f)) {
                 Text("Admin Dashboard", style = MaterialTheme.typography.headlineSmall)
                 Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}", style = MaterialTheme.typography.bodyMedium)
             }
-            IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, contentDescription = "Sign out") }
+            IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out") }
         }
-        Spacer(Modifier.height(16.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(16.dp))
-        Text("Administration modules", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
+        Text("Administration modules", style = MaterialTheme.typography.titleMedium); Spacer(Modifier.height(8.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(modules) { module ->
                 val allowed = user.hasPermission(module.permission)
-                Card(modifier = Modifier.fillMaxWidth().then(if (allowed && module.title == "Media Center") Modifier.clickable(onClick = onMediaCenter) else Modifier)) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                val action = when (module.title) { "Church Identity" -> onIdentity; "Media Center" -> onMediaCenter; "Users & Permissions" -> onUsers; else -> null }
+                Card(Modifier.fillMaxWidth().then(if (allowed && action != null) Modifier.clickable(onClick = action) else Modifier)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(module.icon, contentDescription = null)
-                        Column(modifier = Modifier.weight(1f).padding(start = 14.dp)) {
+                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
                             Text(module.title, style = MaterialTheme.typography.titleMedium)
                             Text(module.description, style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(4.dp))
