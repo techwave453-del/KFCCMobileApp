@@ -26,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.helloworld.admin.AdminPermissions
 
 @Composable
 fun WebsiteContentScreen(
@@ -40,7 +39,9 @@ fun WebsiteContentScreen(
     val saved by viewModel.saved.collectAsState()
 
     if (loading && content.name.isBlank()) {
-        Column(modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) { CircularProgressIndicator(); Spacer(Modifier.height(12.dp)); Text("Loading website content…") }
+        Column(modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+            CircularProgressIndicator(); Spacer(Modifier.height(12.dp)); Text("Loading website content…")
+        }
         return
     }
 
@@ -65,25 +66,37 @@ fun WebsiteContentScreen(
         }
         item { Text("Services & Events", style = MaterialTheme.typography.titleMedium) }
         itemsIndexed(content.services) { index, service ->
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(service.title, { viewModel.update(content.copy(services = content.services.toMutableList().also { it[index] = service.copy(title = itValue(it, index, it = null)) })) }, label = { Text("Service name") }, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-                OutlinedTextField(service.time, { value -> val list = content.services.toMutableList(); list[index] = service.copy(time = value); viewModel.update(content.copy(services = list)) }, label = { Text("Schedule") }, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-            } }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        service.title,
+                        { value -> val list = content.services.toMutableList(); list[index] = service.copy(title = value); viewModel.update(content.copy(services = list)) },
+                        label = { Text("Service name") }, modifier = Modifier.fillMaxWidth(), enabled = !saving
+                    )
+                    OutlinedTextField(
+                        service.time,
+                        { value -> val list = content.services.toMutableList(); list[index] = service.copy(time = value); viewModel.update(content.copy(services = list)) },
+                        label = { Text("Schedule") }, modifier = Modifier.fillMaxWidth(), enabled = !saving
+                    )
+                }
+            }
         }
         item { Text("Theme", style = MaterialTheme.typography.titleMedium) }
         item {
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(content.theme.mode, { viewModel.update(content.copy(theme = content.theme.copy(mode = it))) }, label = { Text("Appearance: light or dark") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-                OutlinedTextField(content.theme.accent, { viewModel.update(content.copy(theme = content.theme.copy(accent = it))) }, label = { Text("Accent color") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-            } }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(content.theme.mode, { viewModel.update(content.copy(theme = content.theme.copy(mode = it))) }, label = { Text("Appearance: light or dark") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
+                    OutlinedTextField(content.theme.accent, { viewModel.update(content.copy(theme = content.theme.copy(accent = it))) }, label = { Text("Accent color") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
+                }
+            }
         }
         item {
             if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
             if (saved) Text("Website content saved successfully.", color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(4.dp))
-            Button(onClick = viewModel::save, enabled = !saving, modifier = Modifier.fillMaxWidth()) { if (saving) CircularProgressIndicator(modifier = Modifier.height(20.dp)) else Text("Save Website Content") }
+            Button(onClick = viewModel::save, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
+                if (saving) CircularProgressIndicator(modifier = Modifier.height(20.dp)) else Text("Save Website Content")
+            }
         }
     }
 }
-
-private fun itValue(list: List<SiteService>, index: Int, it: Nothing?): String = list[index].title
