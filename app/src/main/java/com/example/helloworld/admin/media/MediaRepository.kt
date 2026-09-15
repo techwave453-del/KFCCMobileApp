@@ -18,12 +18,12 @@ class MediaRepository(context: Context) {
     }
 
     /**
-     * Marks/unmarks a media item as featured.
-     * The server remains responsible for enforcing media.edit permission.
+     * Marks/unmarks a video as featured.
+     * The dedicated server endpoint enforces video-only targets and uniqueness.
      */
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
-            "api/media/$id",
+            "api/media/$id/featured",
             mapOf("featured" to featured)
         )
         if (response.status !in 200..299) {
