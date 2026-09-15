@@ -4,17 +4,37 @@ import android.content.Context
 import com.example.helloworld.admin.AdminRepository
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class ApproveRequestBody(
+    val role: String,
+    val permissions: List<String>
+)
+
+@Serializable
+private data class StatusRequestBody(val is_active: Boolean)
+
+@Serializable
+private data class PermissionsRequestBody(val permissions: List<String>)
 
 /** Server-authoritative Users & Permissions API client. */
 class AdminUsersRepository(context: Context) {
+    private val adminRepository = AdminRepository(context.applicationContext)
+
     private suspend fun check(response: HttpResponse) {
         if (response.status !in 200..299) {
-            val message = try { response.body<Map<String, String>>() ["error"] } catch (_: Exception) { null }
+            val message = try {
+                response.body<JsonObject>()["error"]?.jsonPrimitive?.contentOrNull
+            } catch (_: Exception) {
+                null
+            }
             error(message ?: "Administrator service returned ${response.status.value}.")
         }
     }
-
-    private val adminRepository = AdminRepository(context.applicationContext)
 
     suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/users")
@@ -31,7 +51,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPost(
             "api/admin/access/requests/$id/approve",
-            mapOf<String, Any>("role" to role, "permissions" to permissions)
+            ApproveRequestBody(role, permissions)
         )
         check(response)
     }
@@ -44,7 +64,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/admin/users/$id/status",
-            mapOf<String, Boolean>("is_active" to active)
+            StatusRequestBody(active)
         )
         check(response)
     }
@@ -57,7 +77,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPut(
             "api/admin/users/$id/permissions",
-            mapOf<String, Any>("permissions" to permissions)
+            PermissionsRequestBody(permissions)
         )
         check(response)
     }
