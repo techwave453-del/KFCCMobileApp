@@ -62,7 +62,13 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
             user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
             openModule == "identity" && user.hasPermission(AdminPermissions.IDENTITY_VIEW) -> ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(modifier = Modifier.fillMaxSize()) }
             openModule == "content" && user.hasPermission(AdminPermissions.SITE_EDIT) -> ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(modifier = Modifier.fillMaxSize()) }
-            openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) { MediaCenterScreen(modifier = Modifier.fillMaxSize()) }
+            openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) {
+                MediaCenterScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    canEdit = user.hasPermission(AdminPermissions.MEDIA_EDIT),
+                    canDelete = user.hasPermission(AdminPermissions.MEDIA_DELETE)
+                )
+            }
             openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = AdminUsersViewModel.Factory(application)), onBack = { openModule = null }) }
             else -> AdminDashboardScreen(user, viewModel::logout, { openModule = "identity" }, { openModule = "content" }, { openModule = "media" }, { openModule = "users" })
         }
