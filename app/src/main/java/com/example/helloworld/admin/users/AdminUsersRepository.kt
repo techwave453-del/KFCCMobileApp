@@ -4,10 +4,10 @@ import android.content.Context
 import com.example.helloworld.admin.AdminRepository
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 private data class ApproveRequestBody(
@@ -36,19 +36,19 @@ class AdminUsersRepository(context: Context) {
         }
     }
 
-    suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
+    suspend fun users(): Result<List<AdminManagedUser>> = runCatching<List<AdminManagedUser>> {
         val response = adminRepository.authenticatedGet("api/admin/users")
         check(response)
         response.body<List<AdminManagedUser>>()
     }
 
-    suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching {
+    suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching<List<AdminAccessRequest>> {
         val response = adminRepository.authenticatedGet("api/admin/access/requests")
         check(response)
         response.body<List<AdminAccessRequest>>()
     }
 
-    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
+    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching<Unit> {
         val response = adminRepository.authenticatedPost(
             "api/admin/access/requests/$id/approve",
             ApproveRequestBody(role, permissions)
@@ -56,12 +56,12 @@ class AdminUsersRepository(context: Context) {
         check(response)
     }
 
-    suspend fun rejectRequest(id: Long): Result<Unit> = runCatching {
+    suspend fun rejectRequest(id: Long): Result<Unit> = runCatching<Unit> {
         val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
         check(response)
     }
 
-    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
+    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching<Unit> {
         val response = adminRepository.authenticatedPatch(
             "api/admin/users/$id/status",
             StatusRequestBody(active)
@@ -69,12 +69,12 @@ class AdminUsersRepository(context: Context) {
         check(response)
     }
 
-    suspend fun deleteUser(id: Long): Result<Unit> = runCatching {
+    suspend fun deleteUser(id: Long): Result<Unit> = runCatching<Unit> {
         val response = adminRepository.authenticatedDelete("api/admin/users/$id")
         check(response)
     }
 
-    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
+    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching<Unit> {
         val response = adminRepository.authenticatedPut(
             "api/admin/users/$id/permissions",
             PermissionsRequestBody(permissions)
