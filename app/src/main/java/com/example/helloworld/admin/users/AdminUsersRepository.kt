@@ -36,49 +36,82 @@ class AdminUsersRepository(context: Context) {
         }
     }
 
-    suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
-        val response = adminRepository.authenticatedGet("api/admin/users")
-        check(response)
-        response.body<List<AdminManagedUser>>()
+    suspend fun users(): Result<List<AdminManagedUser>> {
+        return try {
+            val response = adminRepository.authenticatedGet("api/admin/users")
+            check(response)
+            Result.success(response.body<List<AdminManagedUser>>())
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching {
-        val response = adminRepository.authenticatedGet("api/admin/access/requests")
-        check(response)
-        response.body<List<AdminAccessRequest>>()
+    suspend fun accessRequests(): Result<List<AdminAccessRequest>> {
+        return try {
+            val response = adminRepository.authenticatedGet("api/admin/access/requests")
+            check(response)
+            Result.success(response.body<List<AdminAccessRequest>>())
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
-        val response = adminRepository.authenticatedPost(
-            "api/admin/access/requests/$id/approve",
-            ApproveRequestBody(role, permissions)
-        )
-        check(response)
+    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedPost(
+                "api/admin/access/requests/$id/approve",
+                ApproveRequestBody(role, permissions)
+            )
+            check(response)
+            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun rejectRequest(id: Long): Result<Unit> = runCatching {
-        val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
-        check(response)
+    suspend fun rejectRequest(id: Long): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
+            check(response)
+            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
-        val response = adminRepository.authenticatedPatch(
-            "api/admin/users/$id/status",
-            StatusRequestBody(active)
-        )
-        check(response)
+    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedPatch(
+                "api/admin/users/$id/status",
+                StatusRequestBody(active)
+            )
+            check(response)
+            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun deleteUser(id: Long): Result<Unit> = runCatching {
-        val response = adminRepository.authenticatedDelete("api/admin/users/$id")
-        check(response)
+    suspend fun deleteUser(id: Long): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedDelete("api/admin/users/$id")
+            check(response)
+            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
-    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
-        val response = adminRepository.authenticatedPut(
-            "api/admin/users/$id/permissions",
-            PermissionsRequestBody(permissions)
-        )
-        check(response)
+    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedPut(
+                "api/admin/users/$id/permissions",
+                PermissionsRequestBody(permissions)
+            )
+            check(response)
+            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 }
