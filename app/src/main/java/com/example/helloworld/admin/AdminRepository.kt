@@ -1,7 +1,7 @@
 package com.example.helloworld.admin
 
-import android.content.Context
 import com.example.helloworld.config.AppConfig
+import android.content.Context
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -11,6 +11,7 @@ import io.ktor.client.request.cookie
 import io.ktor.client.request.contentType
 import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.plugins.contentnegotiation.json
@@ -20,7 +21,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.Json
 
 class AdminRepository(context: Context) {
-    private val sessionStore = SessionStore(context)
+    private val sessionStore = SessionStore(context.applicationContext)
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
@@ -46,17 +47,38 @@ class AdminRepository(context: Context) {
         }
     }
 
+    /**
+     * Authenticated GET for every admin feature module.
+     * Modules must not read or store the session cookie themselves.
+     */
+    suspend fun authenticatedGet(path: String): HttpResponse {
+        val response = client.get(AppConfig.ADMIN_API_BASE_URL + path.trimStart('/')) {
+            withSessionCookie()
+        }
+        if (response.status == HttpStatusCode.Unauthorized) clearSession()
+        return response
+    }
+
+    /**
+     * Authenticated JSON PUT for every admin feature module.
+     * Modules must not create their own HTTP client or session store.
+     */
+    suspend fun authenticatedPut(path: String, body: Any): HttpResponse {
+        val response = client.put(AppConfig.ADMIN_API_BASE_URL + path.trimStart('/')) {
+            withSessionCookie()
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (response.status == HttpStatusCode.Unauthorized) clearSession()
+        return response
+    }
+
     suspend fun restoreSession(): AdminUser? {
         return try {
-            val response = client.get(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_ME_PATH) {
-                withSessionCookie()
-            }
+            val response = authenticatedGet(AppConfig.ADMIN_ME_PATH)
             when (response.status) {
                 HttpStatusCode.OK -> response.body<AdminMeResponse>().user
-                HttpStatusCode.Unauthorized -> {
-                    clearSession()
-                    null
-                }
+                HttpStatusCode.Unauthorized -> null
                 else -> null
             }
         } catch (_: Exception) {
