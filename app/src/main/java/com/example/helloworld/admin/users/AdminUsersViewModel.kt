@@ -2,6 +2,8 @@ package com.example.helloworld.admin.users
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,5 +30,13 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
         usersResult.onSuccess { _users.value = it }.onFailure { _error.value = it.message }
         repository.accessRequests().onSuccess { _requests.value = it }
         _loading.value = false
+    }
+
+    class Factory(private val application: Application) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(AdminUsersViewModel::class.java)) return AdminUsersViewModel(application) as T
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        }
     }
 }
