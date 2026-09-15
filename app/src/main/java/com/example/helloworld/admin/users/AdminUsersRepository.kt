@@ -7,14 +7,14 @@ import io.ktor.client.statement.HttpResponse
 
 /** Server-authoritative Users & Permissions API client. */
 class AdminUsersRepository(context: Context) {
-    private val adminRepository = AdminRepository(context.applicationContext)
-
     private suspend fun check(response: HttpResponse) {
         if (response.status !in 200..299) {
-            val message = try { response.body<Map<String, String>>()["error"] } catch (_: Exception) { null }
+            val message = try { response.body<Map<String, String>>() ["error"] } catch (_: Exception) { null }
             error(message ?: "Administrator service returned ${response.status.value}.")
         }
     }
+
+    private val adminRepository = AdminRepository(context.applicationContext)
 
     suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/users")
@@ -31,7 +31,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPost(
             "api/admin/access/requests/$id/approve",
-            mapOf("role" to role, "permissions" to permissions)
+            mapOf<String, Any>("role" to role, "permissions" to permissions)
         )
         check(response)
     }
@@ -44,7 +44,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/admin/users/$id/status",
-            mapOf("is_active" to active)
+            mapOf<String, Boolean>("is_active" to active)
         )
         check(response)
     }
@@ -57,7 +57,7 @@ class AdminUsersRepository(context: Context) {
     suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPut(
             "api/admin/users/$id/permissions",
-            mapOf("permissions" to permissions)
+            mapOf<String, Any>("permissions" to permissions)
         )
         check(response)
     }
