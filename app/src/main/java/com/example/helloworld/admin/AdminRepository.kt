@@ -34,30 +34,34 @@ class AdminRepository(context: Context) {
     private fun sessionCookie(): String? = sessionStore.get()
 
     /**
-     * Persist the Express session cookie returned by the web API.
-     * Prefer the session cookie explicitly rather than assuming it is the
-     * first Set-Cookie header returned by the server.
+     * Persist the exact Express session cookie returned by the web API.
+     * Production currently uses __Host-kfc.sid; older deployments may use
+     * kfc.sid or connect.sid. Never assume the first Set-Cookie is the session.
      */
     private fun saveSession(response: HttpResponse) {
-        val cookie = response.headers.getAll(HttpHeaders.SetCookie)
-            ?.asSequence()
-            ?.map { it.substringBefore(';').trim() }
-            ?.firstOrNull { it.startsWith("connect.sid=") && it.contains('=') }
-            ?: response.headers.getAll(HttpHeaders.SetCookie)
-                ?.asSequence()
-                ?.map { it.substringBefore(';').trim() }
-                ?.firstOrNull { it.contains('=') }
+        val cookies = response.headers.getAll(HttpHeaders.SetCookie)
+            .orEmpty()
+            .asSequence()
+            .map { it.substringBefore(';').trim() }
+            .filter { it.contains('=') }
+            .toList()
 
-        if (!cookie.isNullOrBlank()) sessionStore.save(cookie)
+        val cookie = AppConfig.ADMIN_SESSION_COOKIE_NAMES
+            .asSequence()
+            .mapNotNull { name -> cookies.firstOrNull { it.startsWith("$name=") } }
+            .firstOrNull()
+
+        if (!cookie.isNullOrBlank()) {
+            sessionStore.save(cookie)
+        }
     }
 
     private fun clearSession() = sessionStore.clear()
 
     /**
-     * Android is not a browser, so it does not naturally participate in the
-     * browser Origin/Referer checks used by the web admin. Send the API's
-     * canonical origin explicitly and pass the persisted session cookie as a
-     * raw Cookie header so Express receives the exact cookie value.
+     * Native requests explicitly identify the canonical API origin and carry
+     * the persisted Express session cookie. The server remains authoritative
+     * for authentication and authorization.
      */
     private fun HttpRequestBuilder.withApiHeaders() {
         header(HttpHeaders.Accept, ContentType.Application.Json.toString())
@@ -118,7 +122,11 @@ class AdminRepository(context: Context) {
     suspend fun restoreSession(): AdminUser? {
         return try {
             val response = authenticatedGet(AppConfig.ADMIN_ME_PATH)
-            if (response.status == HttpStatusCode.OK) response.body<AdminMeResponse>().user else null
+            if (response.status == HttpStatusCode.OK) {
+                response.body<AdminMeResponse>().user
+            } else {
+                null
+            }
         } catch (_: Exception) {
             null
         }
@@ -131,21 +139,31 @@ class AdminRepository(context: Context) {
                 withJsonContentType()
                 setBody(AdminLoginRequest(username.trim(), password))
             }
+
             if (response.status == HttpStatusCode.OK) {
                 saveSession(response)
                 response.body<AdminLoginResponse>()
             } else {
-                try { response.body<AdminLoginResponse>() }
-                catch (_: Exception) { AdminLoginResponse(error = "Login failed (${response.status.value}).") }
+                try {
+                    response.body<AdminLoginResponse>()
+                } catch (_: Exception) {
+                    AdminLoginResponse(error = "Login failed (${response.status.value}).")
+                }
             }
         } catch (e: Exception) {
-            AdminLoginResponse(error = e.message ?: "Unable to connect to the administrator service.")
+            AdminLoginResponse(
+                error = e.message ?: "Unable to connect to the administrator service."
+            )
         }
     }
 
     suspend fun logout() {
-        try { authenticatedPost(AppConfig.ADMIN_LOGOUT_PATH) }
-        catch (_: Exception) { }
-        finally { clearSession() }
+        try {
+            authenticatedPost(AppConfig.ADMIN_LOGOUT_PATH)
+        } catch (_: Exception) {
+            // Local logout must still succeed if the network is unavailable.
+        } finally {
+            clearSession()
+        }
     }
 }
