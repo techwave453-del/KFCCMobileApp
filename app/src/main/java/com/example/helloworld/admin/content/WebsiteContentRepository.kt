@@ -23,10 +23,13 @@ class WebsiteContentRepository(context: Context) {
     companion object { private const val BASE_URL = "https://kingdomfellowshipchristianchurch.onrender.com/" }
 
     private fun session(): String? = prefs.getString("session_cookie", null)
+    private fun cookieName() = session()?.substringBefore('=')
+    private fun cookieValue() = session()?.substringAfter('=')
 
     suspend fun get(): Result<WebsiteContent> = runCatching {
         val request = client.get(BASE_URL + "api/site/content") {
-            session()?.let { cookie("connect.sid", it) }
+            val name = cookieName(); val value = cookieValue()
+            if (!name.isNullOrBlank() && value != null) cookie(name, value)
         }
         if (!request.status.isSuccess()) error("Unable to load website content (${request.status.value}).")
         Json.decodeFromString<WebsiteContent>(request.bodyAsText())
@@ -34,7 +37,8 @@ class WebsiteContentRepository(context: Context) {
 
     suspend fun save(content: WebsiteContent): Result<Unit> = runCatching {
         val request = client.put(BASE_URL + "api/site/content") {
-            session()?.let { cookie("connect.sid", it) }
+            val name = cookieName(); val value = cookieValue()
+            if (!name.isNullOrBlank() && value != null) cookie(name, value)
             contentType(ContentType.Application.Json)
             setBody(content)
         }
