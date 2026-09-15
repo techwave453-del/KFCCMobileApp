@@ -21,16 +21,15 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,9 +42,9 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
-    val user by viewModel.user.collectAsStateCompat()
-    val loading by viewModel.isLoading.collectAsStateCompat()
-    val error by viewModel.error.collectAsStateCompat()
+    val user by viewModel.user.collectAsState()
+    val loading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
@@ -157,7 +156,7 @@ private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        Divider()
+        HorizontalDivider()
         Spacer(Modifier.height(16.dp))
         Text("Administration modules", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
@@ -184,12 +183,3 @@ private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit) {
         }
     }
 }
-
-@Composable
-private fun <T> StateFlowCompat<T>.collectAsStateCompat(): androidx.compose.runtime.State<T> = collectAsStateCompatImpl()
-
-private typealias StateFlowCompat<T> = kotlinx.coroutines.flow.StateFlow<T>
-
-@Composable
-private fun <T> StateFlowCompat<T>.collectAsStateCompatImpl(): androidx.compose.runtime.State<T> =
-    androidx.compose.runtime.collectAsState(this)
