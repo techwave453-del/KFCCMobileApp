@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -53,13 +54,15 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
     val loading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     var openModule by remember { mutableStateOf<String?>(null) }
+    val application = LocalContext.current.applicationContext as Application
+    val usersViewModel: AdminUsersViewModel = viewModel(factory = AdminUsersViewModel.Factory(application))
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
             loading && user == null -> LoadingAdminScreen()
             user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
             openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) { MediaCenterScreen(modifier = Modifier.fillMaxSize()) }
-            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = viewModel(factory = AdminUsersViewModel.Factory(LocalApplication.current)), onBack = { openModule = null }) }
+            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = usersViewModel, onBack = { openModule = null }) }
             else -> AdminDashboardScreen(user, viewModel::logout, { openModule = "media" }, { openModule = "users" })
         }
     }
@@ -74,10 +77,6 @@ private fun ModuleFrame(title: String, onBack: () -> Unit, content: @Composable 
         }
         content()
     }
-}
-
-private object LocalApplication {
-    @Composable operator fun invoke(): Application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
 }
 
 @Composable
