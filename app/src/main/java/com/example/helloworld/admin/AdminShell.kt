@@ -62,8 +62,7 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
         when {
             loading && user == null -> LoadingAdminScreen()
             user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
-            else -> {
-                val currentUser = user
+            else -> user?.let { currentUser ->
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" ->
                         NoPermissionsScreen(viewModel::logout)
