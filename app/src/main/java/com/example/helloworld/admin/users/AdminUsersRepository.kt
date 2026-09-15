@@ -36,19 +36,19 @@ class AdminUsersRepository(context: Context) {
         }
     }
 
-    suspend fun users(): Result<List<AdminManagedUser>> = runCatching<List<AdminManagedUser>> {
+    suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/users")
         check(response)
         response.body<List<AdminManagedUser>>()
     }
 
-    suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching<List<AdminAccessRequest>> {
+    suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/access/requests")
         check(response)
         response.body<List<AdminAccessRequest>>()
     }
 
-    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching<Unit> {
+    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPost(
             "api/admin/access/requests/$id/approve",
             ApproveRequestBody(role, permissions)
@@ -56,12 +56,12 @@ class AdminUsersRepository(context: Context) {
         check(response)
     }
 
-    suspend fun rejectRequest(id: Long): Result<Unit> = runCatching<Unit> {
+    suspend fun rejectRequest(id: Long): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
         check(response)
     }
 
-    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching<Unit> {
+    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/admin/users/$id/status",
             StatusRequestBody(active)
@@ -69,12 +69,12 @@ class AdminUsersRepository(context: Context) {
         check(response)
     }
 
-    suspend fun deleteUser(id: Long): Result<Unit> = runCatching<Unit> {
+    suspend fun deleteUser(id: Long): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedDelete("api/admin/users/$id")
         check(response)
     }
 
-    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching<Unit> {
+    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPut(
             "api/admin/users/$id/permissions",
             PermissionsRequestBody(permissions)
