@@ -1,6 +1,7 @@
 package com.example.helloworld.admin
 
 import android.content.Context
+import com.example.helloworld.config.AppConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -22,7 +23,6 @@ class AdminRepository(context: Context) {
     companion object {
         private const val PREFS = "kfcc_admin_session"
         private const val COOKIE_KEY = "session_cookie"
-        private const val BASE_URL = "https://kingdomfellowshipchristianchurch.onrender.com/"
     }
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -40,19 +40,24 @@ class AdminRepository(context: Context) {
             ?.firstOrNull()
             ?.substringBefore(';')
             ?.takeIf { it.contains('=') }
-        if (!cookie.isNullOrBlank()) prefs.edit().putString(COOKIE_KEY, cookie).apply()
+        if (!cookie.isNullOrBlank()) {
+            prefs.edit().putString(COOKIE_KEY, cookie).apply()
+        }
     }
 
     private fun clearSession() = prefs.edit().remove(COOKIE_KEY).apply()
 
-    private suspend fun <T> withSession(block: suspend () -> T): T = block()
-
     suspend fun restoreSession(): AdminUser? {
         return try {
-            val response = client.get(BASE_URL + "api/admin/me") {
+            val response = client.get(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_ME_PATH) {
                 sessionCookie()?.let { cookie(it.substringBefore('='), it.substringAfter('=')) }
             }
-            if (response.status == HttpStatusCode.OK) response.body<AdminMeResponse>().user else null
+            if (response.status == HttpStatusCode.OK) {
+                response.body<AdminMeResponse>().user
+            } else {
+                if (response.status == HttpStatusCode.Unauthorized) clearSession()
+                null
+            }
         } catch (_: Exception) {
             null
         }
@@ -60,7 +65,7 @@ class AdminRepository(context: Context) {
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
         return try {
-            val response = client.post(BASE_URL + "api/admin/login") {
+            val response = client.post(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_LOGIN_PATH) {
                 contentType(ContentType.Application.Json)
                 setBody(AdminLoginRequest(username.trim(), password))
             }
@@ -81,7 +86,7 @@ class AdminRepository(context: Context) {
 
     suspend fun logout() {
         try {
-            client.post(BASE_URL + "api/admin/logout") {
+            client.post(AppConfig.ADMIN_API_BASE_URL + AppConfig.ADMIN_LOGOUT_PATH) {
                 sessionCookie()?.let { cookie(it.substringBefore('='), it.substringAfter('=')) }
             }
         } catch (_: Exception) {
