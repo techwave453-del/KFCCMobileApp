@@ -24,22 +24,22 @@ import com.example.helloworld.admin.AdminShell
 import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.ui.ChurchViewModel
 import com.example.helloworld.ui.screens.*
-import com.example.helloworld.ui.theme.HelloWorldTheme
+import com.example.helloworld.ui.theme.KFCCTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            HelloWorldTheme {
-                HelloWorldApp()
+            KFCCTheme {
+                KFCCApp()
             }
         }
     }
 }
 
 @Composable
-fun HelloWorldApp(viewModel: ChurchViewModel = viewModel()) {
+fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
