@@ -5,7 +5,7 @@ import com.example.helloworld.config.AppConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.ContentNegotiation
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.cookie
@@ -20,6 +20,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 class AdminRepository(context: Context) {
@@ -85,7 +86,6 @@ class AdminRepository(context: Context) {
         if (response.status == HttpStatusCode.Unauthorized) clearSession()
     }
 
-    /** Compatibility helper for modules that need to clear an expired session. */
     fun clearStoredSession() = clearSession()
 
     suspend fun restoreSession(): AdminUser? {
@@ -105,7 +105,7 @@ class AdminRepository(context: Context) {
             }
             if (response.status == HttpStatusCode.OK) {
                 saveSession(response)
-                response.body()
+                response.body<AdminLoginResponse>()
             } else {
                 try { response.body<AdminLoginResponse>() }
                 catch (_: Exception) { AdminLoginResponse(error = "Login failed (${response.status.value}).") }
