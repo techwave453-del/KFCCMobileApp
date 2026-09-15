@@ -62,32 +62,38 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
         when {
             loading && user == null -> LoadingAdminScreen()
             user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
-            user.permissions.isEmpty() && user.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
-            openModule == "identity" && user.hasPermission(AdminPermissions.IDENTITY_VIEW) ->
-                ModuleFrame("Church Identity", { openModule = null }) {
-                    ChurchIdentityScreen(modifier = Modifier.fillMaxSize())
-                }
-            openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) ->
-                ModuleFrame("Media Center", { openModule = null }) {
-                    MediaCenterScreen(modifier = Modifier.fillMaxSize())
-                }
-            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) ->
-                ModuleFrame("Users & Permissions", { openModule = null }) {
-                    AdminUsersScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                            factory = AdminUsersViewModel.Factory(application)
-                        ),
-                        onBack = { openModule = null }
+            else -> {
+                val currentUser = user
+                when {
+                    currentUser.permissions.isEmpty() && currentUser.role != "super_admin" ->
+                        NoPermissionsScreen(viewModel::logout)
+                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) ->
+                        ModuleFrame("Church Identity", { openModule = null }) {
+                            ChurchIdentityScreen(modifier = Modifier.fillMaxSize())
+                        }
+                    openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
+                        ModuleFrame("Media Center", { openModule = null }) {
+                            MediaCenterScreen(modifier = Modifier.fillMaxSize())
+                        }
+                    openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
+                        ModuleFrame("Users & Permissions", { openModule = null }) {
+                            AdminUsersScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = AdminUsersViewModel.Factory(application)
+                                ),
+                                onBack = { openModule = null }
+                            )
+                        }
+                    else -> AdminDashboardScreen(
+                        currentUser,
+                        viewModel::logout,
+                        { openModule = "identity" },
+                        { openModule = "media" },
+                        { openModule = "users" }
                     )
                 }
-            else -> AdminDashboardScreen(
-                user,
-                viewModel::logout,
-                { openModule = "identity" },
-                { openModule = "media" },
-                { openModule = "users" }
-            )
+            }
         }
     }
 }
