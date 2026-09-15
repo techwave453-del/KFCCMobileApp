@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AdminRepository(application.applicationContext)
+    // One application-scoped repository is shared with every admin module.
+    private val repository = AdminRepositoryProvider.get(application)
 
     private val _user = MutableStateFlow<AdminUser?>(null)
     val user: StateFlow<AdminUser?> = _user.asStateFlow()
