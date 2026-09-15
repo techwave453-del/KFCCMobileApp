@@ -1,5 +1,6 @@
 package com.example.helloworld
 
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,7 +18,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.admin.AdminShell
+import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.ui.ChurchViewModel
 import com.example.helloworld.ui.screens.*
 import com.example.helloworld.ui.theme.HelloWorldTheme
@@ -40,7 +44,9 @@ fun HelloWorldApp(viewModel: ChurchViewModel = viewModel()) {
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
+    val adminViewModel: AdminViewModel = viewModel(
+        factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)
+    )
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -69,36 +75,15 @@ fun HelloWorldApp(viewModel: ChurchViewModel = viewModel()) {
                         CircularProgressIndicator()
                     }
                 }
-                
+
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(churchInfo, innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(churchInfo, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, innerPadding)
-                    AppDestinations.ADMIN -> {
-                        if (currentUser == null) {
-                            LoginScreen(
-                                viewModel = viewModel,
-                                onLoginSuccess = { /* Stay on Admin, will show Dashboard */ },
-                                innerPadding = innerPadding
-                            )
-                        } else {
-                            var showUpload by remember { mutableStateOf(false) }
-                            if (showUpload) {
-                                MediaUploadScreen(
-                                    viewModel = viewModel,
-                                    onBack = { showUpload = false },
-                                    innerPadding = innerPadding
-                                )
-                            } else {
-                                AdminDashboard(
-                                    viewModel = viewModel,
-                                    onNavigateToUpload = { showUpload = true },
-                                    onLogout = { /* Navigation state handled by currentUser check */ },
-                                    innerPadding = innerPadding
-                                )
-                            }
-                        }
-                    }
+                    AppDestinations.ADMIN -> AdminShell(
+                        viewModel = adminViewModel,
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
