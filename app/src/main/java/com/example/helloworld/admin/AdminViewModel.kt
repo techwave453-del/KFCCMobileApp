@@ -38,7 +38,10 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             _error.value = null
             val result = repository.login(username, password)
             if (result.ok && result.user != null) {
-                _user.value = result.user
+                // The login endpoint intentionally returns only session identity.
+                // Load /api/admin/me immediately so the mobile UI gets the server's
+                // authoritative role and granular permission set.
+                _user.value = repository.restoreSession() ?: result.user
             } else {
                 _error.value = result.error ?: "Invalid username or password."
             }
