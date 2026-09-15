@@ -40,10 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.admin.identity.ChurchIdentityScreen
 import com.example.helloworld.admin.media.MediaCenterScreen
 import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
@@ -54,16 +53,16 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
     val loading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     var openModule by remember { mutableStateOf<String?>(null) }
-    val application = LocalContext.current.applicationContext as Application
-    val usersViewModel: AdminUsersViewModel = viewModel(factory = AdminUsersViewModel.Factory(application))
+    val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
             loading && user == null -> LoadingAdminScreen()
             user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
+            openModule == "identity" && user.hasPermission(AdminPermissions.IDENTITY_VIEW) -> ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(modifier = Modifier.fillMaxSize()) }
             openModule == "media" && user.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) { MediaCenterScreen(modifier = Modifier.fillMaxSize()) }
-            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = usersViewModel, onBack = { openModule = null }) }
-            else -> AdminDashboardScreen(user, viewModel::logout, { openModule = "media" }, { openModule = "users" })
+            openModule == "users" && user.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(modifier = Modifier.fillMaxSize(), viewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = AdminUsersViewModel.Factory(application)), onBack = { openModule = null }) }
+            else -> AdminDashboardScreen(user, viewModel::logout, { openModule = "identity" }, { openModule = "media" }, { openModule = "users" })
         }
     }
 }
@@ -112,7 +111,7 @@ private fun AdminLoginScreen(loading: Boolean, error: String?, onLogin: (String,
 private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector)
 
 @Composable
-private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onMediaCenter: () -> Unit, onUsers: () -> Unit) {
+private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onIdentity: () -> Unit, onMediaCenter: () -> Unit, onUsers: () -> Unit) {
     val modules = listOf(
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
         AdminModule("Website Content", "Homepage, pages, services, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
@@ -134,7 +133,7 @@ private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onMediaC
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(modules) { module ->
                 val allowed = user.hasPermission(module.permission)
-                val action = when (module.title) { "Media Center" -> onMediaCenter; "Users & Permissions" -> onUsers; else -> null }
+                val action = when (module.title) { "Church Identity" -> onIdentity; "Media Center" -> onMediaCenter; "Users & Permissions" -> onUsers; else -> null }
                 Card(Modifier.fillMaxWidth().then(if (allowed && action != null) Modifier.clickable(onClick = action) else Modifier)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(module.icon, contentDescription = null)
