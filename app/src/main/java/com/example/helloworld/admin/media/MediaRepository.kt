@@ -4,6 +4,10 @@ import android.content.Context
 import com.example.helloworld.admin.AdminRepository
 import io.ktor.client.call.body
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class FeaturedMediaRequest(val featured: Boolean)
 
 /** Server-authoritative Media Center API client. */
 class MediaRepository(context: Context) {
@@ -21,7 +25,7 @@ class MediaRepository(context: Context) {
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/media/$id/featured",
-            mapOf<String, Boolean>("featured" to featured)
+            FeaturedMediaRequest(featured)
         )
         if (response.status !in 200..299) {
             error("Unable to update featured media (${response.status.value}).")
