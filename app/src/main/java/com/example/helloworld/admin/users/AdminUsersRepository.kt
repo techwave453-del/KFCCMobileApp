@@ -3,13 +3,13 @@ package com.example.helloworld.admin.users
 import android.content.Context
 import com.example.helloworld.admin.AdminRepository
 import io.ktor.client.call.body
-import io.ktor.http.HttpStatusCode
+import io.ktor.client.statement.HttpResponse
 
 /** Server-authoritative Users & Permissions API client. */
 class AdminUsersRepository(context: Context) {
     private val adminRepository = AdminRepository(context.applicationContext)
 
-    private suspend fun check(response: io.ktor.client.statement.HttpResponse) {
+    private suspend fun check(response: HttpResponse) {
         if (response.status !in 200..299) {
             val message = try { response.body<Map<String, String>>()["error"] } catch (_: Exception) { null }
             error(message ?: "Administrator service returned ${response.status.value}.")
@@ -19,13 +19,13 @@ class AdminUsersRepository(context: Context) {
     suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/users")
         check(response)
-        response.body()
+        response.body<List<AdminManagedUser>>()
     }
 
     suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching {
         val response = adminRepository.authenticatedGet("api/admin/access/requests")
         check(response)
-        response.body()
+        response.body<List<AdminAccessRequest>>()
     }
 
     suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> = runCatching {
