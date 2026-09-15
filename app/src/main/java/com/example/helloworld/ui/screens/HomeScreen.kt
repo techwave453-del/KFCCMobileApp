@@ -13,7 +13,7 @@ import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.ui.components.ChurchHero
 import com.example.helloworld.ui.components.ChurchServiceCard
-import com.example.helloworld.ui.theme.HelloWorldTheme
+import com.example.helloworld.ui.theme.KFCCTheme
 
 @Composable
 fun HomeScreen(info: ChurchInfo, innerPadding: PaddingValues) {
@@ -66,7 +66,7 @@ fun HomeScreen(info: ChurchInfo, innerPadding: PaddingValues) {
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    HelloWorldTheme {
+    KFCCTheme {
         HomeScreen(ChurchContent.default, PaddingValues(0.dp))
     }
 }
