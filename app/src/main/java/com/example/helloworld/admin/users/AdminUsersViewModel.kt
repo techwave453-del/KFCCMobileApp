@@ -20,23 +20,35 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
 
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
-        _loading.value = true
-        _error.value = null
+        _loading.value = true; _error.value = null
         val usersResult = repository.users()
         usersResult.onSuccess { _users.value = it }.onFailure { _error.value = it.message }
-        repository.accessRequests().onSuccess { _requests.value = it }
+        repository.accessRequests().onSuccess { _requests.value = it }.onFailure { if (_error.value == null) _error.value = it.message }
         _loading.value = false
     }
 
+    fun approve(request: AdminAccessRequest, role: String, permissions: List<String>) = action("approve") { repository.approveRequest(request.id, role, permissions) }
+    fun reject(request: AdminAccessRequest) = action("reject") { repository.rejectRequest(request.id) }
+    fun setStatus(user: AdminManagedUser, active: Boolean) = action("status") { repository.setStatus(user.id, active) }
+    fun delete(user: AdminManagedUser) = action("delete") { repository.deleteUser(user.id) }
+    fun setPermissions(user: AdminManagedUser, permissions: List<String>) = action("permissions") { repository.setPermissions(user.id, permissions) }
+
+    private fun action(label: String, operation: suspend () -> Result<Unit>) = viewModelScope.launch {
+        _loading.value = true; _error.value = null; _message.value = null
+        operation().onSuccess { _message.value = "Administrator $label updated."; refresh() }.onFailure { _error.value = it.message ?: "Unable to update administrator." }
+        _loading.value = false
+    }
+
+    fun clearMessage() { _message.value = null }
+
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(AdminUsersViewModel::class.java)) return AdminUsersViewModel(application) as T
-            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = AdminUsersViewModel(application) as T
     }
 }
