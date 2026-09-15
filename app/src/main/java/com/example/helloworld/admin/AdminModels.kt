@@ -61,4 +61,7 @@ object AdminPermissions {
 }
 
 fun AdminUser.hasPermission(permission: String): Boolean =
-    role == "super_admin" || permissions.contains(permission)
+    is_active && (role == "super_admin" || permissions.contains(permission))
+
+fun AdminUser.canEditChurchIdentity(): Boolean =
+    is_active && role == "super_admin" && hasPermission(AdminPermissions.IDENTITY_EDIT)
