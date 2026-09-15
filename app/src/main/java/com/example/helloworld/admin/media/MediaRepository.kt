@@ -19,7 +19,8 @@ class MediaRepository(context: Context) {
             if (response.status != HttpStatusCode.OK) {
                 error("Media service returned ${response.status.value}.")
             }
-            Result.success(response.body<List<AdminMediaItem>>())
+            val media: List<AdminMediaItem> = response.body()
+            Result.success<List<AdminMediaItem>>(media)
         } catch (error: Exception) {
             Result.failure(error)
         }
@@ -35,7 +36,7 @@ class MediaRepository(context: Context) {
             if (response.status !in 200..299) {
                 error("Unable to update featured media (${response.status.value}).")
             }
-            Result.success(Unit)
+            Result.success<Unit>(Unit)
         } catch (error: Exception) {
             Result.failure(error)
         }
