@@ -5,13 +5,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.helloworld.admin.AdminRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class IdentityViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = IdentityRepository(application.applicationContext)
+    private val repository = IdentityRepository(AdminRepository(application.applicationContext))
     private val _identity = MutableStateFlow(ChurchIdentity())
     val identity: StateFlow<ChurchIdentity> = _identity.asStateFlow()
     private val _loading = MutableStateFlow(false)
@@ -28,14 +29,21 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
     fun refresh() = viewModelScope.launch {
         _loading.value = true
         _error.value = null
-        repository.load().onSuccess { _identity.value = it }.onFailure { _error.value = it.message ?: "Unable to load Church Identity." }
+        repository.load()
+            .onSuccess { _identity.value = it }
+            .onFailure { _error.value = it.message ?: "Unable to load Church Identity." }
         _loading.value = false
     }
 
-    fun update(value: ChurchIdentity) { _identity.value = value; _saved.value = false }
+    fun update(value: ChurchIdentity) {
+        _identity.value = value
+        _saved.value = false
+    }
 
     fun save() = viewModelScope.launch {
-        _saving.value = true; _error.value = null; _saved.value = false
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
         repository.save(_identity.value)
             .onSuccess { _identity.value = it; _saved.value = true }
             .onFailure { _error.value = it.message ?: "Unable to save Church Identity." }
