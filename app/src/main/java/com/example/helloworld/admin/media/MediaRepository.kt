@@ -17,14 +17,11 @@ class MediaRepository(context: Context) {
         response.body<List<AdminMediaItem>>()
     }
 
-    /**
-     * Marks/unmarks a video as featured.
-     * The dedicated server endpoint enforces video-only targets and uniqueness.
-     */
+    /** Marks/unmarks a video as featured. The server enforces video-only targets and uniqueness. */
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
         val response = adminRepository.authenticatedPatch(
             "api/media/$id/featured",
-            mapOf("featured" to featured)
+            mapOf<String, Boolean>("featured" to featured)
         )
         if (response.status !in 200..299) {
             error("Unable to update featured media (${response.status.value}).")
