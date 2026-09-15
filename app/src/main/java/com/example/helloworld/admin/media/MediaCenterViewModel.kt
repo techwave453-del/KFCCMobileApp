@@ -20,9 +20,9 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    init { refresh() }
+    init { load() }
 
-    fun refresh() {
+    fun load() {
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
@@ -32,4 +32,6 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
             _loading.value = false
         }
     }
+
+    fun refresh() = load()
 }
