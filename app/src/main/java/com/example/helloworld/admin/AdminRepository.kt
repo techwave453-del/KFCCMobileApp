@@ -9,9 +9,9 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.cookie
-import io.ktor.client.request.contentType
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -50,6 +50,10 @@ class AdminRepository(context: Context) {
         }
     }
 
+    private fun HttpRequestBuilder.withJsonContentType() {
+        header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+    }
+
     private fun url(path: String): String =
         AppConfig.ADMIN_API_BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
 
@@ -60,7 +64,7 @@ class AdminRepository(context: Context) {
         client.post(url(path)) {
             withSessionCookie()
             if (body != null) {
-                contentType(ContentType.Application.Json)
+                withJsonContentType()
                 setBody(body)
             }
         }.also(::clearOnUnauthorized)
@@ -68,14 +72,14 @@ class AdminRepository(context: Context) {
     suspend fun authenticatedPut(path: String, body: Any): HttpResponse =
         client.put(url(path)) {
             withSessionCookie()
-            contentType(ContentType.Application.Json)
+            withJsonContentType()
             setBody(body)
         }.also(::clearOnUnauthorized)
 
     suspend fun authenticatedPatch(path: String, body: Any): HttpResponse =
         client.patch(url(path)) {
             withSessionCookie()
-            contentType(ContentType.Application.Json)
+            withJsonContentType()
             setBody(body)
         }.also(::clearOnUnauthorized)
 
@@ -100,7 +104,7 @@ class AdminRepository(context: Context) {
     suspend fun login(username: String, password: String): AdminLoginResponse {
         return try {
             val response = client.post(url(AppConfig.ADMIN_LOGIN_PATH)) {
-                contentType(ContentType.Application.Json)
+                withJsonContentType()
                 setBody(AdminLoginRequest(username.trim(), password))
             }
             if (response.status == HttpStatusCode.OK) {
