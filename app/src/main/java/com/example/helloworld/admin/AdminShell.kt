@@ -66,7 +66,8 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" ->
                         NoPermissionsScreen(viewModel::logout)
-                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) ->
+                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) &&
+                        currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) ->
                         ModuleFrame("Church Identity", { openModule = null }) {
                             ChurchIdentityScreen(modifier = Modifier.fillMaxSize())
                         }
@@ -104,9 +105,7 @@ private fun ModuleFrame(title: String, onBack: () -> Unit, content: @Composable 
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, "Back to admin dashboard")
-            }
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back to admin dashboard") }
             Text("Admin Dashboard / $title", style = MaterialTheme.typography.titleMedium)
         }
         content()
@@ -158,43 +157,18 @@ private fun AdminLoginScreen(
         Text("KFCC Administration", style = MaterialTheme.typography.headlineMedium)
         Text("Secure access to church administration", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(
-            username,
-            { username = it; if (error != null) onClearError() },
-            label = { Text("Username") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        OutlinedTextField(username, { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            password,
-            { password = it; if (error != null) onClearError() },
-            label = { Text("Password") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        if (error != null) {
-            Spacer(Modifier.height(12.dp))
-            Text(error, color = MaterialTheme.colorScheme.error)
-        }
+        OutlinedTextField(password, { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        if (error != null) { Spacer(Modifier.height(12.dp)); Text(error, color = MaterialTheme.colorScheme.error) }
         Spacer(Modifier.height(20.dp))
-        Button(
-            onClick = { onLogin(username, password) },
-            enabled = username.isNotBlank() && password.isNotBlank() && !loading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Button(onClick = { onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !loading, modifier = Modifier.fillMaxWidth()) {
             if (loading) CircularProgressIndicator(modifier = Modifier.height(20.dp)) else Text("Sign in")
         }
     }
 }
 
-private data class AdminModule(
-    val title: String,
-    val description: String,
-    val permission: String,
-    val icon: ImageVector
-)
+private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector)
 
 @Composable
 private fun AdminDashboardScreen(
@@ -216,10 +190,7 @@ private fun AdminDashboardScreen(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
                 Text("Admin Dashboard", style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}", style = MaterialTheme.typography.bodyMedium)
             }
             IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out") }
         }
@@ -228,29 +199,22 @@ private fun AdminDashboardScreen(
         Spacer(Modifier.height(8.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(modules) { module ->
-                val allowed = user.hasPermission(module.permission)
+                val allowed = user.hasPermission(module.permission) &&
+                    (module.title != "Church Identity" || user.hasPermission(AdminPermissions.IDENTITY_EDIT))
                 val action = when (module.title) {
-                    "Church Identity" -> onIdentity
+                    "Church Identity" -> if (allowed) onIdentity else null
                     "Media Center" -> onMediaCenter
                     "Users & Permissions" -> onUsers
                     else -> null
                 }
-                Card(
-                    Modifier.fillMaxWidth().then(
-                        if (allowed && action != null) Modifier.clickable(onClick = action) else Modifier
-                    )
-                ) {
+                Card(Modifier.fillMaxWidth().then(if (allowed && action != null) Modifier.clickable(onClick = action) else Modifier)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(module.icon, contentDescription = null)
                         Column(Modifier.weight(1f).padding(start = 14.dp)) {
                             Text(module.title, style = MaterialTheme.typography.titleMedium)
                             Text(module.description, style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(4.dp))
-                            Text(
-                                if (allowed) "Access available" else "Permission not assigned",
-                                color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                            Text(if (allowed) "Access available" else "Permission not assigned", color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
