@@ -1,6 +1,7 @@
 package com.example.helloworld.ui.screens
 
 import android.annotation.SuppressLint
+import android.graphics.Color as AndroidColor
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -29,8 +30,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.example.helloworld.data.LiveStream
@@ -180,11 +181,8 @@ private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
         title = { Text(item.title) },
         text = {
-            if (youtubeVideoId(item.url) != null) {
-                YoutubePlayer(url = item.url)
-            } else {
-                ExoPlayerView(url = item.url)
-            }
+            if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
+            else ExoPlayerView(url = item.url)
         }
     )
 }
@@ -196,11 +194,8 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
         title = { Text(liveStream.title.ifBlank { "Live Worship Service" }) },
         text = {
-            if (youtubeVideoId(liveStream.url) != null) {
-                YoutubePlayer(url = liveStream.url)
-            } else {
-                ExoPlayerView(url = liveStream.url)
-            }
+            if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url)
+            else ExoPlayerView(url = liveStream.url)
         }
     )
 }
@@ -209,18 +204,15 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
 @Composable
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
-    val embedUrl = "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
-    // YouTube now requires an HTTP Referer (or equivalent app identity) for embedded
-    // playback. Android WebView requests are otherwise commonly sent without one,
-    // which produces YouTube error 153.
-    val appReferer = "https://com.kfcc.mobile/"
-    val youtubeHeaders = mapOf("Referer" to appReferer)
+    val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https%3A%2F%2Fwww.youtube.com"
+    val youtubeHeaders = mapOf("Referer" to "https://www.youtube.com/")
 
     AndroidView(
         modifier = Modifier.fillMaxWidth().height(220.dp),
         factory = { context ->
             WebView(context).apply {
-                setBackgroundColor(android.graphics.Color.BLACK)
+                setBackgroundColor(AndroidColor.BLACK)
+                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.databaseEnabled = true
@@ -239,9 +231,7 @@ private fun YoutubePlayer(url: String) {
             }
         },
         update = { webView ->
-            if (webView.url != embedUrl) {
-                webView.loadUrl(embedUrl, youtubeHeaders)
-            }
+            if (webView.url != embedUrl) webView.loadUrl(embedUrl, youtubeHeaders)
         }
     )
 }
@@ -267,9 +257,7 @@ private fun ExoPlayerView(url: String) {
             }
     }
 
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
+    DisposableEffect(player) { onDispose { player.release() } }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         AndroidView(
