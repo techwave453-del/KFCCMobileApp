@@ -27,6 +27,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
@@ -176,28 +178,74 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
 
 @Composable
 private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text(item.title) },
-        text = {
-            if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
-            else ExoPlayerView(url = item.url)
-        }
-    )
+    VideoDialog(
+        title = item.title,
+        onDismiss = onDismiss
+    ) {
+        if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
+        else ExoPlayerView(url = item.url)
+    }
 }
 
 @Composable
 private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
-    AlertDialog(
+    VideoDialog(
+        title = liveStream.title.ifBlank { "Live Worship Service" },
+        onDismiss = onDismiss
+    ) {
+        if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url)
+        else ExoPlayerView(url = liveStream.url)
+    }
+}
+
+@Composable
+private fun VideoDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Dialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text(liveStream.title.ifBlank { "Live Worship Service" }) },
-        text = {
-            if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url)
-            else ExoPlayerView(url = liveStream.url)
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2
+                    )
+                    TextButton(onClick = onDismiss) { Text("Close") }
+                }
+
+                // Keep the player at a true widescreen 16:9 ratio instead of
+                // letting the dialog squeeze it into a small rectangular box.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                ) {
+                    content()
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
-    )
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -205,12 +253,10 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
 
-    // Error 152-4 can occur when the embedded player is loaded as if the
-    // embedding page itself were youtube.com. Give the WebView a real
-    // third-party HTTPS origin while keeping YouTube as the iframe source.
-    // This also provides a legitimate HTTP Referer for the embed request.
+    // Give the WebView a real third-party HTTPS origin while keeping YouTube
+    // as the iframe source. This preserves the Referer/context needed by
+    // YouTube's embedded player without pretending the app is youtube.com.
     val embedBaseUrl = "https://kingdomfellowshipchristianchurch.onrender.com/"
-    val origin = "https://kingdomfellowshipchristianchurch.onrender.com"
     val iframeUrl =
         "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fkingdomfellowshipchristianchurch.onrender.com"
 
@@ -218,10 +264,25 @@ private fun YoutubePlayer(url: String) {
         <!doctype html>
         <html>
         <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
-                html, body { margin:0; padding:0; background:#000; width:100%; height:100%; overflow:hidden; }
-                iframe { border:0; width:100%; height:100%; display:block; }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    background: #000;
+                }
+                iframe {
+                    position: absolute;
+                    inset: 0;
+                    border: 0;
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    background: #000;
+                }
             </style>
         </head>
         <body>
@@ -236,10 +297,11 @@ private fun YoutubePlayer(url: String) {
     """.trimIndent()
 
     AndroidView(
-        modifier = Modifier.fillMaxWidth().height(220.dp),
+        modifier = Modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
                 setBackgroundColor(AndroidColor.BLACK)
+                // YouTube's HTML5 video surface needs hardware acceleration.
                 setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
@@ -289,7 +351,7 @@ private fun ExoPlayerView(url: String) {
 
     Column(modifier = Modifier.fillMaxWidth()) {
         AndroidView(
-            modifier = Modifier.fillMaxWidth().height(220.dp),
+            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
             factory = { PlayerView(it).apply {
                 this.player = player
                 useController = true
