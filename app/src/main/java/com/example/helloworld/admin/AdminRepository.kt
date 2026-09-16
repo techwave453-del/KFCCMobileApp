@@ -123,24 +123,41 @@ class AdminRepository(context: Context) {
         fileName: String,
         mimeType: String,
         fields: Map<String, String>
-    ): HttpResponse = client.post(url(path)) {
-        withAuthenticatedHeaders()
-        setBody(
-            MultiPartFormDataContent(
-                formData {
-                    fields.forEach { (name, value) -> append(name, value) }
-                    append(
-                        "file",
-                        bytes,
-                        Headers.build {
-                            append(HttpHeaders.ContentType, mimeType)
-                            append(HttpHeaders.ContentDisposition, "form-data; name=\"file\"; filename=\"$fileName\"")
-                        }
-                    )
-                }
+    ): HttpResponse {
+        // Do not manually include `name="file"` in Content-Disposition.
+        // Ktor's multipart builder writes the field name itself. Supplying the
+        // name a second time can produce a malformed part that Multer/Express
+        // treats as if no file was supplied, which surfaces as "Please select a
+        // file to upload" on the server.
+        val safeFileName = fileName
+            .replace("\\", "_")
+            .replace("\"", "_")
+            .replace("\r", "_")
+            .replace("\n", "_")
+            .ifBlank { "media-file" }
+
+        val safeMimeType = runCatching { ContentType.parse(mimeType) }
+            .getOrElse { ContentType.Application.OctetStream }
+
+        return client.post(url(path)) {
+            withAuthenticatedHeaders()
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        fields.forEach { (name, value) -> append(name, value) }
+                        append(
+                            key = "file",
+                            value = bytes,
+                            headers = Headers.build {
+                                append(HttpHeaders.ContentType, safeMimeType.toString())
+                                append(HttpHeaders.ContentDisposition, "filename=\"$safeFileName\"")
+                            }
+                        )
+                    }
+                )
             )
-        )
-    }.also(::clearOnUnauthorized)
+        }.also(::clearOnUnauthorized)
+    }
 
     private fun clearOnUnauthorized(response: HttpResponse) {
         if (response.status == HttpStatusCode.Unauthorized) clearSession()
