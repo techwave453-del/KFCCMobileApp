@@ -46,7 +46,7 @@ fun HomeScreen(
     onQuickAccess: (String) -> Unit = {}
 ) {
     val fallbackImages = info.services.map { it.imageUrl }
-    fun image(index: Int) = fallbackImages.getOrNull(index % fallbackImages.size).orEmpty()
+    fun image(index: Int) = if (fallbackImages.isEmpty()) "" else fallbackImages[index % fallbackImages.size]
     val quickAccess = listOf(
         QuickAccessItem("Services", "Worship, prayer and fellowship", Icons.Default.MenuBook, image(0)),
         QuickAccessItem("Sermons", "Watch and listen to messages", Icons.Default.PlayCircle, image(1)),
