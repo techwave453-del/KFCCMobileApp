@@ -52,6 +52,6 @@ media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "medi
 youtube-player = { group = "com.pierfrancescosoffritti.androidyoutubeplayer", name = "core", version.ref = "youtubePlayer" }
 
 [plugins]
-android-application = { id = "com.android.application", version.ref = "kotlin" }
+android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
