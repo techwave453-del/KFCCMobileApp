@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -19,16 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.example.helloworld.R
 import com.example.helloworld.admin.AdminShell
 import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.ui.ChurchViewModel
@@ -105,19 +100,24 @@ private fun KfccLoadingScreen(churchName: String) {
             verticalArrangement = Arrangement.spacedBy(18.dp),
             modifier = Modifier.padding(horizontal = 32.dp)
         ) {
+            // Do not load R.mipmap.ic_launcher with painterResource here.
+            // Adaptive launcher icons are XML resources and cannot be decoded
+            // by Compose's painterResource() as a Painter. Using a Material
+            // ImageVector keeps the loading screen safe during startup.
             Surface(
                 modifier = Modifier.size(112.dp),
                 shape = CircleShape,
-                tonalElevation = 8.dp
+                tonalElevation = 8.dp,
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
-                    contentDescription = "KFCC",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "KFCC",
+                        modifier = Modifier.size(58.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
             Text(displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
