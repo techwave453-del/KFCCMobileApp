@@ -20,7 +20,7 @@ class ChurchViewModel : ViewModel() {
     val mediaItems: StateFlow<List<MediaItem>> = _mediaItems.asStateFlow()
     private val _events = MutableStateFlow<List<Event>>(emptyList())
     val events: StateFlow<List<Event>> = _events.asStateFlow()
-    private val _isLoading = MutableStateFlow(false)
+    private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     private val _currentUser = MutableStateFlow<UserInfo?>(null)
     val currentUser: StateFlow<UserInfo?> = _currentUser.asStateFlow()
@@ -32,10 +32,13 @@ class ChurchViewModel : ViewModel() {
     fun refreshData() {
         viewModelScope.launch {
             _isLoading.value = true
-            _churchInfo.value = repository.getSiteContent()
-            _mediaItems.value = repository.getMedia()
-            eventsRepository.getPublicEvents().onSuccess { _events.value = it }
-            _isLoading.value = false
+            try {
+                _churchInfo.value = repository.getSiteContent()
+                _mediaItems.value = repository.getMedia()
+                eventsRepository.getPublicEvents().onSuccess { _events.value = it }
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
