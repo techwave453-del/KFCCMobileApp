@@ -27,17 +27,12 @@ class NotificationRepository {
 
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         val userId = client.auth.currentUserOrNull()?.id ?: return@runCatching emptyList()
-
-        val notifications = client.from("app_notifications")
-            .select()
-            .decodeList<AppNotification>()
-
+        val notifications = client.from("app_notifications").select().decodeList<AppNotification>()
         val reads = client.from("notification_reads")
             .select { filter { eq("user_id", userId) } }
             .decodeList<NotificationRead>()
             .map { it.notificationId }
             .toSet()
-
         notifications
             .map { it.copy(readAt = if (it.id in reads) "read" else null) }
             .sortedByDescending { it.createdAt }
@@ -46,24 +41,15 @@ class NotificationRepository {
     suspend fun markAsRead(notificationId: String): Result<Unit> = runCatching {
         val userId = client.auth.currentUserOrNull()?.id ?: error("Please sign in first.")
         client.from("notification_reads").upsert(
-            mapOf(
-                "notification_id" to notificationId,
-                "user_id" to userId,
-            )
+            mapOf("notification_id" to notificationId, "user_id" to userId)
         )
     }
 
     suspend fun markAllAsRead(notifications: List<AppNotification>): Result<Unit> = runCatching {
         val userId = client.auth.currentUserOrNull()?.id ?: error("Please sign in first.")
-        val unread = notifications.filter { it.readAt == null }
-        if (unread.isNotEmpty()) {
+        notifications.filter { it.readAt == null }.forEach { notification ->
             client.from("notification_reads").upsert(
-                unread.map {
-                    mapOf(
-                        "notification_id" to it.id,
-                        "user_id" to userId,
-                    )
-                }
+                mapOf("notification_id" to notification.id, "user_id" to userId)
             )
         }
     }
