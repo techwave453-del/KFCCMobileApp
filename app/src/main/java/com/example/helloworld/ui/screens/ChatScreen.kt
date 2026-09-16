@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -35,7 +36,6 @@ fun ChatScreen(
     onAdminLoginSuccess: () -> Unit = {}
 ) {
     val signedIn by viewModel.signedIn.collectAsState()
-    val adminUser by adminViewModel.user.collectAsState()
     val authRepository = remember { ChatAuthRepository() }
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -44,7 +44,6 @@ fun ChatScreen(
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var verificationPending by remember { mutableStateOf(false) }
-    var loginAttempted by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     if (signedIn) {
@@ -101,55 +100,67 @@ fun ChatScreen(
                             Spacer(Modifier.height(12.dp))
                         }
                         OutlinedTextField(
-                            value = identifier, 
-                            onValueChange = { identifier = it }, 
-                            modifier = Modifier.fillMaxWidth(), 
-                            label = { Text(if (createAccount) "Email Address" else "Email or Username") }, 
-                            leadingIcon = { Icon(if (createAccount) Icons.Default.MailOutline else Icons.Default.Person, null) }, 
-                            keyboardOptions = KeyboardOptions(keyboardType = if (createAccount) KeyboardType.Email else KeyboardType.Text), 
+                            value = identifier,
+                            onValueChange = { identifier = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(if (createAccount) "Email Address" else "Email or Admin Username") },
+                            leadingIcon = { Icon(if (createAccount) Icons.Default.MailOutline else Icons.Default.Person, null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = if (createAccount) KeyboardType.Email else KeyboardType.Text),
                             singleLine = true
                         )
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
-                        
+
                         if (message != null) {
                             Text(message!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
                         }
-                        
+
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = {
                                 busy = true
                                 message = null
                                 scope.launch {
-                                    if (createAccount) {
-                                        val result = authRepository.signUp(identifier, password, usernameInput)
-                                        if (result.success) {
-                                            verificationPending = true
-                                        } else {
-                                            message = result.message
-                                        }
-                                    } else {
-                                        // Attempt Admin login
-                                        loginAttempted = true
-                                        adminViewModel.login(identifier, password)
-                                        
-                                        // Attempt regular Chat login
-                                        val result = authRepository.signIn(identifier, password)
-                                        if (result.success) {
-                                            val profile = authRepository.completeProfile()
-                                            if (profile.success) {
-                                                viewModel.onSignedIn()
+                                    try {
+                                        if (createAccount) {
+                                            val result = authRepository.signUp(identifier.trim(), password, usernameInput.trim())
+                                            if (result.success) {
+                                                verificationPending = true
                                             } else {
-                                                message = profile.message
+                                                message = result.message
                                             }
                                         } else {
-                                            // If regular login fails, check if admin login succeeded or is in progress
-                                            // Since adminViewModel.login is a side effect that updates state, 
-                                            // we might need to wait or check its error state.
+                                            val loginId = identifier.trim()
+
+                                            if (loginId.contains("@")) {
+                                                // Email identifiers belong to the Supabase community account flow.
+                                                val result = authRepository.signIn(loginId, password)
+                                                if (result.success) {
+                                                    val profile = authRepository.completeProfile()
+                                                    if (profile.success) {
+                                                        viewModel.onSignedIn()
+                                                    } else {
+                                                        message = profile.message
+                                                    }
+                                                } else {
+                                                    message = result.message
+                                                }
+                                            } else {
+                                                // Non-email identifiers belong to the website admin account flow.
+                                                // Do not race Supabase auth and do not send a username to email auth.
+                                                val authenticated = adminViewModel.authenticate(loginId, password)
+                                                if (authenticated) {
+                                                    onAdminLoginSuccess()
+                                                } else {
+                                                    message = adminViewModel.error.value ?: "Invalid administrator username or password."
+                                                }
+                                            }
                                         }
+                                    } catch (e: Exception) {
+                                        message = e.message ?: "Unable to sign in. Please try again."
+                                    } finally {
+                                        busy = false
                                     }
-                                    busy = false
                                 }
                             },
                             enabled = !busy && identifier.isNotBlank() && password.isNotBlank() && (!createAccount || usernameInput.isNotBlank()),
@@ -161,19 +172,12 @@ fun ChatScreen(
                         }
                     }
                 }
-                
-                LaunchedEffect(adminUser) {
-                    if (adminUser != null && loginAttempted) {
-                        loginAttempted = false
-                        onAdminLoginSuccess()
-                    }
-                }
 
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (createAccount) "Already have an account?" else "New to KFCC Community?")
-                    TextButton(onClick = { createAccount = !createAccount; message = null }) { 
-                        Text(if (createAccount) "Sign in" else "Create account") 
+                    TextButton(onClick = { createAccount = !createAccount; message = null }) {
+                        Text(if (createAccount) "Sign in" else "Create account")
                     }
                 }
             }
@@ -192,13 +196,12 @@ private fun CommunityChat(viewModel: ChatViewModel) {
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size) { 
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) 
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // Header
             TopAppBar(
                 title = {
                     Column {
@@ -213,7 +216,6 @@ private fun CommunityChat(viewModel: ChatViewModel) {
             )
             HorizontalDivider()
 
-            // Message List
             if (loading && messages.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
@@ -236,12 +238,11 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                 }
             }
 
-            error?.let { 
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall) 
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = viewModel::clearError, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Dismiss") }
             }
 
-            // Input field
             Surface(
                 tonalElevation = 2.dp,
                 shadowElevation = 8.dp
@@ -271,7 +272,7 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                         enabled = !sending && input.trim().isNotEmpty() && roomId != null,
                         modifier = Modifier.padding(bottom = 4.dp)
                     ) {
-                        if (sending) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) 
+                        if (sending) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                         else Icon(Icons.Default.Send, "Send", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -291,27 +292,27 @@ private fun ChatBubble(message: ChatMessage, own: Boolean) {
             Date()
         }
     }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (own) Arrangement.End else Arrangement.Start
     ) {
         if (!own) {
             Icon(
-                Icons.Default.AccountCircle, 
-                contentDescription = null, 
+                Icons.Default.AccountCircle,
+                contentDescription = null,
                 modifier = Modifier.size(32.dp).align(Alignment.Bottom),
                 tint = MaterialTheme.colorScheme.outline
             )
             Spacer(Modifier.width(8.dp))
         }
-        
+
         Surface(
             color = if (own) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
             shape = RoundedCornerShape(
-                topStart = 16.dp, 
-                topEnd = 16.dp, 
-                bottomStart = if (own) 16.dp else 4.dp, 
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (own) 16.dp else 4.dp,
                 bottomEnd = if (own) 4.dp else 16.dp
             ),
             modifier = Modifier.widthIn(max = 280.dp)
