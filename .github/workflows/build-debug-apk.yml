@@ -24,40 +24,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
-          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
           if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          fi
-          if [ -z "$SDKMANAGER" ]; then
-            echo "Android sdkmanager was not found on the GitHub runner."
-            find "$ANDROID_SDK_ROOT" -maxdepth 4 -type f \( -name sdkmanager -o -name adb \) -print || true
+            echo "sdkmanager was not found under $ANDROID_SDK_ROOT"
+            find "$ANDROID_SDK_ROOT" -maxdepth 4 -type f 2>/dev/null | head -n 200 || true
             exit 1
           fi
-
-          SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
-          echo "Using sdkmanager: $SDKMANAGER"
-          echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
-          echo "ANDROID_SDK_TOOLS=$SDKMANAGER_DIR" >> "$GITHUB_ENV"
-
-      - name: Verify Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$ANDROID_SDK_TOOLS/sdkmanager" --version
+          echo "SDKMANAGER=$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
 
       - name: Accept Android SDK licenses
         shell: bash
         run: |
-          yes | "$ANDROID_SDK_TOOLS/sdkmanager" --licenses > /dev/null || true
+          set -euo pipefail
+          sdkmanager --licenses < /dev/null || true
 
-      - name: Install required Android SDK platform
+      - name: Install required Android SDK packages
         shell: bash
         run: |
           set -euo pipefail
-          "$ANDROID_SDK_TOOLS/sdkmanager" "platforms;android-37" "platform-tools"
+          sdkmanager "platform-tools" "platforms;android-37"
 
       - name: Grant execute permission
         run: chmod +x gradlew
