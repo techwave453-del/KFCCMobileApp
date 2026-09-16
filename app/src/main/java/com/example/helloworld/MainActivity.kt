@@ -7,13 +7,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -46,29 +44,36 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
         factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)
     )
 
-    // Public screens render immediately from safe local defaults. ChurchViewModel
-    // refreshes the latest public content from Supabase in the background.
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = { Icon(it.icon, it.label) },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
-                )
+    // Keep the primary mobile navigation focused on the four things people use most.
+    // Administration remains available to the existing admin surface without taking
+    // a permanent space in the public bottom navigation.
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                AppDestinations.entries.forEach { destination ->
+                    NavigationBarItem(
+                        icon = { Icon(destination.icon, contentDescription = destination.label) },
+                        label = { Text(destination.label) },
+                        selected = destination == currentDestination,
+                        onClick = { currentDestination = destination }
+                    )
+                }
             }
         }
-    ) {
-        Scaffold { innerPadding ->
-            Surface(color = MaterialTheme.colorScheme.background) {
-                when (currentDestination) {
-                    AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding)
-                    AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
-                    AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
-                    AppDestinations.CHAT -> ChatScreen(innerPadding)
-                    AppDestinations.ADMIN -> AdminShell(adminViewModel, Modifier.padding(innerPadding))
-                }
+    ) { innerPadding ->
+        Surface(color = MaterialTheme.colorScheme.background) {
+            when (currentDestination) {
+                AppDestinations.HOME -> HomeScreen(
+                    info = churchInfo,
+                    events = events,
+                    innerPadding = innerPadding,
+                    onOpenChat = { currentDestination = AppDestinations.CHAT },
+                    onOpenMedia = { currentDestination = AppDestinations.MEDIA },
+                    onOpenEvents = { currentDestination = AppDestinations.EVENTS }
+                )
+                AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
+                AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
+                AppDestinations.CHAT -> ChatScreen(innerPadding)
             }
         }
     }
@@ -78,6 +83,5 @@ enum class AppDestinations(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
     EVENTS("Events", Icons.Default.Event),
     MEDIA("Media", Icons.Default.PlayArrow),
-    CHAT("Chat", Icons.Default.Chat),
-    ADMIN("Admin", Icons.Default.AdminPanelSettings)
+    CHAT("Chat", Icons.Default.Chat)
 }
