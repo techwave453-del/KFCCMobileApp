@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,18 +50,22 @@ fun MediaScreen(mediaItems: List<MediaItem>, liveStream: LiveStream, innerPaddin
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF171717))
             ) {
-                Box(Modifier.fillMaxWidth().height(150.dp)) {
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .8f)))))
-                    Row(Modifier.align(Alignment.TopStart).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFE53935)) {
-                            Text("LIVE NOW", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
-                        }
+                Box(Modifier.fillMaxWidth().height(175.dp)) {
+                    val liveThumbnail = youtubeThumbnailUrl(liveStream.url)
+                    if (liveThumbnail != null) {
+                        AsyncImage(liveThumbnail, liveStream.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Box(Modifier.fillMaxSize().background(Color(0xFF0B1730)))
+                    }
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .05f), Color.Black.copy(alpha = .82f)))))
+                    Surface(Modifier.align(Alignment.TopStart).padding(14.dp), shape = RoundedCornerShape(50), color = Color(0xFFE53935)) {
+                        Text("LIVE NOW", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
                     }
                     Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
                         Text(liveStream.title.ifBlank { "Live Worship Service" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Tap to watch live", color = Color.White.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
+                        Text("Tap to watch live", color = Color.White.copy(alpha = .82f), style = MaterialTheme.typography.bodySmall)
                     }
-                    Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .95f)) {
+                    Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .96f)) {
                         Icon(Icons.Default.PlayArrow, "Play live", Modifier.padding(13.dp).size(30.dp), tint = Color.Black)
                     }
                 }
@@ -108,7 +111,7 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
                         val thumbnail = youtubeThumbnailUrl(item.url)
                         if (thumbnail != null) AsyncImage(thumbnail, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         else Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, null, Modifier.size(48.dp)) }
-                        Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.Black.copy(alpha = .7f)) { Icon(Icons.Default.PlayArrow, "Play ${item.title}", Modifier.padding(10.dp).size(28.dp), tint = Color.White) }
+                        Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.Black.copy(alpha = .72f)) { Icon(Icons.Default.PlayArrow, "Play ${item.title}", Modifier.padding(10.dp).size(28.dp), tint = Color.White) }
                     }
                     else -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, null) }
                 }
