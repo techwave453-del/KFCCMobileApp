@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.example.helloworld.data.LocalCache
 import com.example.helloworld.ui.ChurchViewModel
 import com.example.helloworld.ui.screens.*
 import com.example.helloworld.ui.theme.KFCCTheme
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent { KFCCTheme { KFCCApp() } }
     }
