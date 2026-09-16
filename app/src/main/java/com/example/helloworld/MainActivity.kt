@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
@@ -19,9 +20,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.example.helloworld.data.AppPreferences
 import com.example.helloworld.ui.ChurchViewModel
 import com.example.helloworld.ui.screens.*
 import com.example.helloworld.ui.theme.KFCCTheme
@@ -32,13 +35,38 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { KFCCTheme { KFCCApp() } }
+        setContent { KFCCRoot() }
+    }
+}
+
+@Composable
+private fun KFCCRoot() {
+    val context = LocalContext.current
+    val preferences = remember { AppPreferences(context.applicationContext) }
+    var theme by remember { mutableStateOf(preferences.theme) }
+    val darkTheme = when (theme) {
+        "Dark" -> true
+        "Light" -> false
+        else -> isSystemInDarkTheme()
+    }
+
+    KFCCTheme(darkTheme = darkTheme) {
+        KFCCApp(
+            preferences = preferences,
+            theme = theme,
+            onThemeChanged = { theme = it }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
+fun KFCCApp(
+    viewModel: ChurchViewModel = viewModel(),
+    preferences: AppPreferences,
+    theme: String,
+    onThemeChanged: (String) -> Unit,
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
@@ -129,14 +157,14 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
                     AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding) { action ->
                         currentDestination = when (action) {
                             "Services" -> AppDestinations.SERVICES
-                            "Sermons" -> AppDestinations.MEDIA
+                            "Sermons" -> AppDestinations.SERMONS
                             "Giving" -> AppDestinations.GIVING
                             "Events" -> AppDestinations.EVENTS
                             else -> AppDestinations.HOME
                         }
                     }
                     AppDestinations.SERVICES -> ServicesScreen(churchInfo.services, innerPadding)
-                    AppDestinations.SERMONS -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
+                    AppDestinations.SERMONS -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding, title = "Sermons", sermonsOnly = true)
                     AppDestinations.GIVING -> GivingScreen(innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
@@ -144,7 +172,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
                     AppDestinations.CHAT -> ChatScreen(innerPadding)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
                     AppDestinations.PROFILE -> ProfileScreen(innerPadding)
-                    AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
+                    AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding, preferences, theme, onThemeChanged)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
                     AppDestinations.ABOUT -> AboutScreen(innerPadding)
                 }
