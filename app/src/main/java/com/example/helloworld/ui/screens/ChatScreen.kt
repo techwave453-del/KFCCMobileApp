@@ -133,7 +133,6 @@ fun ChatScreen(
                                             val loginId = identifier.trim()
 
                                             if (loginId.contains("@")) {
-                                                // Email identifiers belong to the Supabase community account flow.
                                                 val result = authRepository.signIn(loginId, password)
                                                 if (result.success) {
                                                     val profile = authRepository.completeProfile()
@@ -146,8 +145,6 @@ fun ChatScreen(
                                                     message = result.message
                                                 }
                                             } else {
-                                                // Non-email identifiers belong to the website admin account flow.
-                                                // Do not race Supabase auth and do not send a username to email auth.
                                                 val authenticated = adminViewModel.authenticate(loginId, password)
                                                 if (authenticated) {
                                                     onAdminLoginSuccess()
