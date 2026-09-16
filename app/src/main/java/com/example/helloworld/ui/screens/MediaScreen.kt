@@ -178,14 +178,14 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
     AndroidView(
         factory = { context ->
             PlayerView(context).apply {
-                player = player
+                setPlayer(player)
             }
         },
         modifier = Modifier
             .fillMaxWidth()
             .height(210.dp),
         update = { playerView ->
-            playerView.player = player
+            playerView.setPlayer(player)
         }
     )
 }
