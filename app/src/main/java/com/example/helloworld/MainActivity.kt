@@ -141,7 +141,10 @@ fun KFCCApp(
                     AppDestinations.CHAT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
                     AppDestinations.ACCOUNT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
-                    AppDestinations.PROFILE -> ProfileScreen(innerPadding)
+                    AppDestinations.PROFILE -> ProfileScreen(innerPadding, onSignOut = {
+                        chatViewModel.signOut()
+                        navigate(AppDestinations.ACCOUNT)
+                    })
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding, viewModel = notificationsViewModel)
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
