@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.events.Event
 import com.example.helloworld.events.EventInput
+import com.example.helloworld.admin.media.MediaCenterPicker
 
 @Composable
 fun AdminEventsScreen(
@@ -100,6 +101,7 @@ private fun EventEditor(
     var featured by remember(existing) { mutableStateOf(existing?.featured ?: false) }
     var status by remember(existing) { mutableStateOf(existing?.status ?: "draft") }
     var displayOrder by remember(existing) { mutableStateOf((existing?.display_order ?: 0).toString()) }
+    var pickerTarget by remember { mutableStateOf<String?>(null) }
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -111,8 +113,12 @@ private fun EventEditor(
             item { Field("Category", category) { category = it } }
             item { Field("Short description", shortDescription) { shortDescription = it } }
             item { Field("Description", description, minLines = 3) { description = it } }
-            item { Field("Image URL", image) { image = it } }
-            item { Field("Flyer URL", flyer) { flyer = it } }
+            item {
+                MediaUrlField("Event image", image, "Choose image", onChoose = { pickerTarget = "image" }) { image = it }
+            }
+            item {
+                MediaUrlField("Event flyer", flyer, "Choose flyer", onChoose = { pickerTarget = "flyer" }) { flyer = it }
+            }
             item { Field("Start date/time", startAt) { startAt = it } }
             item { Field("End date/time", endAt) { endAt = it } }
             item { Field("Location", location) { location = it } }
@@ -140,6 +146,32 @@ private fun EventEditor(
                 ) { if (saving) CircularProgressIndicator(Modifier.size(20.dp)) else Text("Save event") }
             }
         }
+    }
+
+    if (pickerTarget != null) {
+        MediaCenterPicker(
+            title = if (pickerTarget == "image") "Choose event image" else "Choose event flyer",
+            allowedTypes = setOf("image", "document"),
+            onDismiss = { pickerTarget = null },
+            onSelected = { url ->
+                if (pickerTarget == "image") image = url else flyer = url
+                pickerTarget = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun MediaUrlField(
+    label: String,
+    value: String,
+    buttonLabel: String,
+    onChoose: () -> Unit,
+    onChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Field(label + " URL", value, onChange = onChange)
+        OutlinedButton(onClick = onChoose, modifier = Modifier.fillMaxWidth()) { Text(buttonLabel + " from Media Center") }
     }
 }
 
