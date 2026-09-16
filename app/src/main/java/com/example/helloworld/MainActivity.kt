@@ -30,11 +30,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            KFCCTheme {
-                KFCCApp()
-            }
-        }
+        setContent { KFCCTheme { KFCCApp() } }
     }
 }
 
@@ -43,6 +39,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
+    val events by viewModel.events.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val adminViewModel: AdminViewModel = viewModel(
         factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)
@@ -52,12 +49,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
         navigationSuiteItems = {
             AppDestinations.entries.forEach {
                 item(
-                    icon = {
-                        Icon(
-                            imageVector = it.icon,
-                            contentDescription = it.label
-                        )
-                    },
+                    icon = { Icon(it.icon, it.label) },
                     label = { Text(it.label) },
                     selected = it == currentDestination,
                     onClick = { currentDestination = it }
@@ -68,34 +60,19 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
         Scaffold { innerPadding ->
             Surface(color = MaterialTheme.colorScheme.background) {
                 if (isLoading && churchInfo.churchName == "Kingdom Fellowship Christian Church") {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
-
                 when (currentDestination) {
-                    AppDestinations.HOME -> HomeScreen(churchInfo, innerPadding)
-                    AppDestinations.EVENTS -> EventsScreen(churchInfo, innerPadding)
+                    AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding)
+                    AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, innerPadding)
-                    AppDestinations.ADMIN -> AdminShell(
-                        viewModel = adminViewModel,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    AppDestinations.ADMIN -> AdminShell(adminViewModel, Modifier.padding(innerPadding))
                 }
             }
         }
     }
 }
 
-enum class AppDestinations(
-    val label: String,
-    val icon: ImageVector,
-) {
-    HOME("Home", Icons.Default.Home),
-    EVENTS("Events", Icons.Default.Event),
-    MEDIA("Media", Icons.Default.PlayArrow),
-    ADMIN("Admin", Icons.Default.AdminPanelSettings),
+enum class AppDestinations(val label: String, val icon: ImageVector) {
+    HOME("Home", Icons.Default.Home), EVENTS("Events", Icons.Default.Event), MEDIA("Media", Icons.Default.PlayArrow), ADMIN("Admin", Icons.Default.AdminPanelSettings)
 }
