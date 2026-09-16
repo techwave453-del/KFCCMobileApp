@@ -204,8 +204,14 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
 @Composable
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
-    val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https%3A%2F%2Fwww.youtube.com"
-    val youtubeHeaders = mapOf("Referer" to "https://www.youtube.com/")
+
+    // YouTube's current Android WebView guidance requires an explicit HTTPS
+    // Referer whose host is the application's store/OS app identifier. Use the
+    // package ID rather than pretending the request originated from YouTube.
+    val appId = "com.kfcc.mobile"
+    val appReferer = "https://$appId/"
+    val embedUrl = "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2F$appId"
+    val youtubeHeaders = mapOf("Referer" to appReferer)
 
     AndroidView(
         modifier = Modifier.fillMaxWidth().height(220.dp),
