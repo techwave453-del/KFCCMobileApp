@@ -27,7 +27,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun ChatScreen(innerPadding: PaddingValues, repository: ChatAuthRepository = remember { ChatAuthRepository() }, chatRepository: ChatRepository = remember { ChatRepository() }) {
+fun ChatScreen(
+    innerPadding: PaddingValues,
+    repository: ChatAuthRepository = remember { ChatAuthRepository() },
+    chatRepository: ChatRepository = remember { ChatRepository() }
+) {
     var signedIn by remember { mutableStateOf(repository.isSignedIn()) }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -35,49 +39,111 @@ fun ChatScreen(innerPadding: PaddingValues, repository: ChatAuthRepository = rem
     var createAccount by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var verificationPending by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     if (signedIn) {
-        CommunityChat(username, repository, chatRepository) { scope.launch { repository.signOut(); signedIn = false } }
+        CommunityChat(username, repository, chatRepository) {
+            scope.launch {
+                repository.signOut()
+                signedIn = false
+                username = ""
+                message = null
+            }
+        }
         return
     }
 
     Surface(Modifier.fillMaxSize().padding(innerPadding)) {
-        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Icon(Icons.Default.Chat, contentDescription = null)
             Text("KFCC Chat", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(if (createAccount) "Create one simple account to join the conversation." else "Welcome back. Sign in to continue chatting.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                if (verificationPending) "We've sent a verification email. Verify your email, then tap the button below."
+                else if (createAccount) "Create one simple account to join the conversation."
+                else "Welcome back. Sign in to continue chatting.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
             Spacer(Modifier.height(24.dp))
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(18.dp)) {
-                    if (createAccount) {
-                        OutlinedTextField(username, { username = it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' || c == '.' } }, Modifier.fillMaxWidth(), label = { Text("Username") }, leadingIcon = { Icon(Icons.Default.Person, null) }, singleLine = true, prefix = { Text("@") })
-                        Spacer(Modifier.height(12.dp))
+
+            if (verificationPending) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(20.dp)) {
+                        Text("Check your email", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        Text("After verifying your email, return here and sign in with the same email and password.")
+                        Spacer(Modifier.height(18.dp))
+                        Button(
+                            onClick = { verificationPending = false; createAccount = false; message = "Enter your verified account details to continue." },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("I've verified my email") }
                     }
-                    OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, leadingIcon = { Icon(Icons.Default.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
-                    Spacer(Modifier.height(18.dp))
-                    Button(onClick = {
-                        busy = true; message = null
-                        scope.launch {
-                            val result = if (createAccount) repository.signUp(email, password, username) else repository.signIn(email, password)
-                            busy = false; message = result.message
-                            if (result.success && result.needsEmailVerification) createAccount = false
-                            else if (result.success) {
-                                val profile = repository.completeProfile(if (username.isBlank()) null else username)
-                                if (profile.success) { signedIn = true; message = null } else message = profile.message
-                            }
-                        }
-                    }, enabled = !busy && email.isNotBlank() && password.isNotBlank() && (!createAccount || username.isNotBlank()), modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                        if (busy) CircularProgressIndicator(strokeWidth = 2.dp) else Text(if (createAccount) "Create Account" else "Sign In")
-                    }
-                    message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp)) }
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (createAccount) "Already have an account?" else "New to KFCC Chat?")
-                TextButton(onClick = { createAccount = !createAccount; message = null }) { Text(if (createAccount) "Sign in" else "Create account") }
+            } else {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(18.dp)) {
+                        if (createAccount) {
+                            OutlinedTextField(
+                                username,
+                                { username = it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' || c == '.' } },
+                                Modifier.fillMaxWidth(),
+                                label = { Text("Username") },
+                                leadingIcon = { Icon(Icons.Default.Person, null) },
+                                singleLine = true,
+                                prefix = { Text("@") }
+                            )
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, leadingIcon = { Icon(Icons.Default.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
+                        Spacer(Modifier.height(18.dp))
+                        Button(
+                            onClick = {
+                                busy = true
+                                message = null
+                                scope.launch {
+                                    if (createAccount) {
+                                        val result = repository.signUp(email, password, username)
+                                        busy = false
+                                        message = result.message
+                                        if (result.success) verificationPending = true
+                                    } else {
+                                        val result = repository.signIn(email, password)
+                                        if (result.success) {
+                                            val profile = repository.completeProfile()
+                                            if (profile.success) {
+                                                username = username.ifBlank { "" }
+                                                signedIn = true
+                                                message = null
+                                            } else {
+                                                message = profile.message
+                                            }
+                                        } else {
+                                            message = result.message
+                                        }
+                                        busy = false
+                                    }
+                                }
+                            },
+                            enabled = !busy && email.isNotBlank() && password.isNotBlank() && (!createAccount || username.isNotBlank()),
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) {
+                            if (busy) CircularProgressIndicator(strokeWidth = 2.dp) else Text(if (createAccount) "Create Account" else "Sign In")
+                        }
+                        message?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (createAccount) "Already have an account?" else "New to KFCC Chat?")
+                    TextButton(onClick = { createAccount = !createAccount; message = null }) { Text(if (createAccount) "Sign in" else "Create account") }
+                }
             }
         }
     }
@@ -95,7 +161,9 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
     val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
-        chatRepository.joinCommunity().onSuccess { roomId = it }.onFailure { error = it.message ?: "Unable to open community chat." }
+        chatRepository.joinCommunity()
+            .onSuccess { roomId = it }
+            .onFailure { error = it.message ?: "Unable to open community chat." }
         loading = false
     }
     LaunchedEffect(roomId) {
@@ -110,22 +178,42 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Chat, null); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text("KFCC Community", fontWeight = FontWeight.Bold); Text(if (username.isBlank()) "Community chat" else "@$username", style = MaterialTheme.typography.labelSmall) }; TextButton(onClick = onSignOut) { Text("Sign out") }
+                Icon(Icons.Default.Chat, null)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("KFCC Community", fontWeight = FontWeight.Bold)
+                    Text(if (username.isBlank()) "Community chat" else "@$username", style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(onClick = onSignOut) { Text("Sign out") }
             }
             HorizontalDivider()
-            if (loading) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            else LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (messages.isEmpty()) item { Text("Welcome to the KFCC community. Start the conversation.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                items(messages, key = { it.id }) { ChatBubble(it, it.senderId == repository.currentUserId()) }
+            if (loading) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (messages.isEmpty()) item { Text("Welcome to the KFCC community. Start the conversation.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    items(messages, key = { it.id }) { ChatBubble(it, it.senderId == repository.currentUserId()) }
+                }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall) }
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Bottom) {
                 OutlinedTextField(input, { if (it.length <= 1000) input = it }, Modifier.weight(1f), placeholder = { Text("Write a message…") }, maxLines = 4)
                 Spacer(Modifier.width(8.dp))
-                IconButton(onClick = {
-                    val id = roomId ?: return@IconButton; sending = true
-                    scope.launch { chatRepository.sendMessage(id, input).onSuccess { input = "" }.onFailure { error = it.message }; sending = false }
-                }, enabled = !sending && input.trim().isNotEmpty() && roomId != null) { if (sending) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Send, "Send") }
+                IconButton(
+                    onClick = {
+                        val id = roomId ?: return@IconButton
+                        sending = true
+                        scope.launch {
+                            chatRepository.sendMessage(id, input)
+                                .onSuccess { input = "" }
+                                .onFailure { error = it.message }
+                            sending = false
+                        }
+                    },
+                    enabled = !sending && input.trim().isNotEmpty() && roomId != null
+                ) {
+                    if (sending) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Send, "Send")
+                }
             }
         }
     }
@@ -134,8 +222,15 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
 @Composable
 private fun ChatBubble(message: ChatMessage, own: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
-        Surface(color = if (own) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), modifier = Modifier.widthIn(max = 320.dp)) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 9.dp)) { Text(if (own) "You" else "Community member", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold); Text(message.message, Modifier.padding(top = 2.dp)) }
+        Surface(
+            color = if (own) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.widthIn(max = 320.dp)
+        ) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 9.dp)) {
+                Text(if (own) "You" else "Community member", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Text(message.message, Modifier.padding(top = 2.dp))
+            }
         }
     }
 }
