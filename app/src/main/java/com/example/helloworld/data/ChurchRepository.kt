@@ -2,6 +2,7 @@ package com.example.helloworld.data
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.filter
 import kotlinx.serialization.json.Json
 
 /**
@@ -29,7 +30,11 @@ class ChurchRepository {
         return try {
             SupabaseProvider.client
                 .from("media_items")
-                .select()
+                .select {
+                    filter {
+                        eq("published", true)
+                    }
+                }
                 .decodeList<MediaItem>()
         } catch (_: Exception) {
             emptyList()
