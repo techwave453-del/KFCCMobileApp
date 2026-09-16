@@ -2,14 +2,9 @@ package com.example.helloworld.events
 
 import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.filter
 import io.ktor.client.call.body
-import io.ktor.client.request.delete
-import io.ktor.client.request.header
-import io.ktor.client.request.put
-import io.ktor.client.request.post
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 
 /**
