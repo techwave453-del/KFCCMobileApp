@@ -21,11 +21,20 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
     private val _uploading = MutableStateFlow(false)
     val uploading: StateFlow<Boolean> = _uploading.asStateFlow()
 
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    private val _deleting = MutableStateFlow(false)
+    val deleting: StateFlow<Boolean> = _deleting.asStateFlow()
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _uploadMessage = MutableStateFlow<String?>(null)
     val uploadMessage: StateFlow<String?> = _uploadMessage.asStateFlow()
+
+    private val _actionMessage = MutableStateFlow<String?>(null)
+    val actionMessage: StateFlow<String?> = _actionMessage.asStateFlow()
 
     private val context = application.applicationContext
 
@@ -78,9 +87,64 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun save(
+        item: AdminMediaItem,
+        title: String,
+        description: String,
+        category: String,
+        published: Boolean,
+        onComplete: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _saving.value = true
+            _error.value = null
+            _actionMessage.value = null
+            repository.update(item.id, title, description, category, published = published)
+                .onSuccess {
+                    _actionMessage.value = "Media details saved."
+                    onComplete()
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Unable to save media." }
+            _saving.value = false
+        }
+    }
+
+    fun setFeatured(item: AdminMediaItem, featured: Boolean) {
+        viewModelScope.launch {
+            _saving.value = true
+            _error.value = null
+            _actionMessage.value = null
+            repository.setFeatured(item.id, featured)
+                .onSuccess {
+                    _actionMessage.value = if (featured) "Featured video updated." else "Video removed from Featured."
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Unable to update the Featured Video." }
+            _saving.value = false
+        }
+    }
+
+    fun delete(item: AdminMediaItem, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _deleting.value = true
+            _error.value = null
+            _actionMessage.value = null
+            repository.delete(item.id)
+                .onSuccess {
+                    _actionMessage.value = "Media deleted."
+                    onComplete()
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Unable to delete media." }
+            _deleting.value = false
+        }
+    }
+
     fun clearMessages() {
         _error.value = null
         _uploadMessage.value = null
+        _actionMessage.value = null
     }
 
     fun refresh() = load()
