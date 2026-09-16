@@ -39,6 +39,16 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     val events by viewModel.events.collectAsState()
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(currentDestination.label) },
+                actions = {
+                    IconButton(onClick = { currentDestination = AppDestinations.NOTIFICATIONS }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    }
+                },
+            )
+        },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(currentDestination == AppDestinations.HOME, { currentDestination = AppDestinations.HOME }, { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
@@ -49,7 +59,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
             }
         },
         floatingActionButton = {
-            if (currentDestination != AppDestinations.CHAT) {
+            if (currentDestination != AppDestinations.CHAT && currentDestination != AppDestinations.NOTIFICATIONS) {
                 ExtendedFloatingActionButton(
                     onClick = { currentDestination = AppDestinations.CHAT },
                     icon = { Icon(Icons.Default.Chat, "Open Chat") },
