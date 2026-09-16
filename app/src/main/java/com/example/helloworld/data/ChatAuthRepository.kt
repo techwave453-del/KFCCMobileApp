@@ -1,5 +1,6 @@
 package com.example.helloworld.data
 
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Email
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.rpc
@@ -111,7 +112,7 @@ class ChatAuthRepository {
                     )
                 )
 
-            SupabaseProvider.client.rpc("join_kfcc_community")
+            SupabaseProvider.client.postgrest.rpc("join_kfcc_community")
             ChatAuthResult(true)
         } catch (error: Exception) {
             ChatAuthResult(false, error.message ?: "Unable to finish your chat profile.")

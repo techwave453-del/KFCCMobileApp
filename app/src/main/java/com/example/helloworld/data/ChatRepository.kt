@@ -1,6 +1,6 @@
 package com.example.helloworld.data
 
-import io.github.jan.supabase.postgrest.decodeAs
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.serialization.SerialName
@@ -28,7 +28,7 @@ class ChatRepository {
     private val client get() = SupabaseProvider.client
 
     suspend fun joinCommunity(): Result<String> = runCatching {
-        client.rpc("join_kfcc_community").decodeAs<String>()
+        client.postgrest.rpc("join_kfcc_community").decodeSingle<String>()
     }
 
     suspend fun getCommunityRoom(): Result<ChatRoom> = runCatching {
@@ -43,7 +43,7 @@ class ChatRepository {
             .select {
                 filter {
                     eq("room_id", roomId)
-                    is("deleted_at", null)
+                    `is`("deleted_at", null)
                 }
             }
             .decodeList<ChatMessage>()
