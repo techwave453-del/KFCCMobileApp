@@ -233,6 +233,8 @@ private fun YoutubePlayer(url: String) {
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             YouTubePlayerView(context).also { playerView ->
+                // Manual initialize() requires automatic initialization to be disabled.
+                playerView.enableAutomaticInitialization = false
                 lifecycleOwner.lifecycle.addObserver(playerView)
                 playerView.initialize(object : AbstractYouTubePlayerListener() {
                     override fun onReady(youTubePlayer: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer) {
