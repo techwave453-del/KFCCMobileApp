@@ -15,15 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChatMessage
 import com.example.helloworld.ui.ChatViewModel
-import com.example.helloworld.admin.AdminViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -207,7 +206,7 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::initChat) { Icon(Icons.Default.Refresh, "Refresh") }
+                    IconButton(onClick = { viewModel.initChat(force = true) }) { Icon(Icons.Default.Refresh, "Refresh") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
@@ -229,8 +228,8 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                             }
                         }
                     }
-                    items(messages, key = { it.id }) { message ->
-                        ChatBubble(message, message.senderId == viewModel.currentUserId())
+                    items(messages, key = { it.id }) { chatMessage ->
+                        ChatBubble(chatMessage, chatMessage.senderId == viewModel.currentUserId())
                     }
                 }
             }
