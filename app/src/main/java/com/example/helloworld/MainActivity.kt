@@ -9,7 +9,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Event
@@ -23,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,13 +57,24 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     val adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 
     LaunchedEffect(isLoading) { if (!isLoading) startupComplete = true }
-    if (!startupComplete) { KfccLoadingScreen(churchName = churchInfo.churchName); return }
+    if (!startupComplete) {
+        KfccLoadingScreen(churchName = churchInfo.churchName)
+        return
+    }
 
     NavigationSuiteScaffold(
-        navigationSuiteColors = NavigationSuiteDefaults.colors(navigationBarContainerColor = MaterialTheme.colorScheme.surface),
+        navigationSuiteColors = NavigationSuiteDefaults.colors(
+            navigationBarContainerColor = MaterialTheme.colorScheme.surface,
+            navigationBarContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
         navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(icon = { Icon(it.icon, it.label) }, label = { Text(it.label) }, selected = it == currentDestination, onClick = { currentDestination = it })
+            AppDestinations.entries.forEach { destination ->
+                item(
+                    icon = { Icon(destination.icon, contentDescription = destination.label) },
+                    label = { Text(destination.label) },
+                    selected = destination == currentDestination,
+                    onClick = { currentDestination = destination }
+                )
             }
         }
     ) {
@@ -83,14 +92,49 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
 @Composable
 private fun KfccLoadingScreen(churchName: String) {
     val displayName = churchName.ifBlank { "Kingdom Fellowship Christian Church" }
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.background))).systemBarsPadding(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(horizontal = 32.dp)) {
-            Surface(modifier = Modifier.size(116.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp) {
-                Image(painterResource(R.mipmap.ic_launcher), "KFCC", Modifier.fillMaxSize().clip(CircleShape), ContentScale.Crop)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
+            .systemBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(116.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp
+            ) {
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher),
+                    contentDescription = "KFCC",
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
             }
-            Text(displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Text("Revealing Christ to Nations", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
+            Text(
+                displayName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                "Revealing Christ to Nations",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
     }
