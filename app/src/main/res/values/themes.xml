@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.HelloWorld" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.KFCC" parent="android:style/Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.KFCC.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/kfcc_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.KFCC</item>
+    </style>
 </resources>
