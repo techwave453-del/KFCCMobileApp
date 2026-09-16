@@ -205,4 +205,16 @@ class AdminRepository(context: Context) {
             clearSession()
         }
     }
+
+    suspend fun postAnnouncement(title: String, message: String, type: String): Result<Unit> = runCatching {
+        val response = authenticatedPost("api/admin/announcements", mapOf(
+            "title" to title,
+            "message" to message,
+            "type" to type
+        ))
+        if (response.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
+            val errorMsg = try { response.body<Map<String, String>>()["error"] } catch (_: Exception) { null }
+            error(errorMsg ?: "Unable to post announcement (${response.status.value}).")
+        }
+    }
 }

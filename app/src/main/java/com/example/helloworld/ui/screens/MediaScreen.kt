@@ -50,26 +50,6 @@ fun MediaScreen(
             .padding(innerPadding)
             .padding(16.dp)
     ) {
-        if (liveStream.enabled && liveStream.url.isNotBlank()) {
-            Button(
-                onClick = { showLivePlayer = true },
-                modifier = Modifier.fillMaxWidth().height(72.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-            ) {
-                Icon(Icons.Default.LiveTv, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(horizontalAlignment = Alignment.Start) {
-                    Text("LIVE", fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        liveStream.title.ifBlank { "Watch Live Worship Service" },
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
         Text("Media Center", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
 
