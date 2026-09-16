@@ -1,11 +1,13 @@
 package com.example.helloworld.config
 
+import com.example.helloworld.BuildConfig
+
 /**
  * Central application configuration.
  *
- * Public endpoints belong here; secrets must never be committed to the APK.
- * Supabase credentials should be supplied through a secure build configuration
- * once the mobile data layer is enabled.
+ * Public endpoints belong here. The Supabase publishable key is injected at
+ * build time from local.properties or the CI environment; never use a
+ * service-role/secret key in the Android app.
  */
 object AppConfig {
     const val APP_NAME = "Kingdom Fellowship Christian Church"
@@ -32,4 +34,8 @@ object AppConfig {
     const val ADMIN_ME_PATH = "api/admin/me"
     const val ADMIN_LOGIN_PATH = "api/admin/login"
     const val ADMIN_LOGOUT_PATH = "api/admin/logout"
+
+    /** Supabase client key. This must be a publishable/anon key, never a secret key. */
+    val SUPABASE_PUBLISHABLE_KEY: String
+        get() = BuildConfig.SUPABASE_PUBLISHABLE_KEY
 }
