@@ -24,12 +24,13 @@ class MediaRepository(context: Context) {
 
     suspend fun load(): Result<List<AdminMediaItem>> {
         return try {
-            val response = adminRepository.authenticatedGet("api/media")
-            if (response.status != HttpStatusCode.OK) {
-                error("Media service returned ${response.status.value}.")
+            val response = adminRepository.authenticatedGet("api/admin/media")
+            when (response.status) {
+                HttpStatusCode.OK -> Result.success(response.body())
+                HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
+                HttpStatusCode.Forbidden -> error("You do not have permission to view Media Center.")
+                else -> error("Media service returned ${response.status.value}.")
             }
-            val media: List<AdminMediaItem> = response.body()
-            Result.success(media)
         } catch (error: Exception) {
             Result.failure(error)
         }
