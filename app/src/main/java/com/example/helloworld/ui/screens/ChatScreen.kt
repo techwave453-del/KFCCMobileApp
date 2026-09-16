@@ -117,7 +117,6 @@ fun ChatScreen(
                                         if (result.success) {
                                             val profile = repository.completeProfile()
                                             if (profile.success) {
-                                                username = username.ifBlank { "" }
                                                 signedIn = true
                                                 message = null
                                             } else {
@@ -166,14 +165,27 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
             .onFailure { error = it.message ?: "Unable to open community chat." }
         loading = false
     }
+
+    // Realtime is enabled in Supabase for chat tables. This branch currently
+    // uses a lightweight polling fallback because the Gradle dependency set
+    // does not yet include supabase-kt Realtime. Once that dependency is added,
+    // this single collector can be replaced without changing the UI/data model.
     LaunchedEffect(roomId) {
         val id = roomId ?: return@LaunchedEffect
         while (true) {
-            chatRepository.getMessages(id).onSuccess { messages = it }.onFailure { error = it.message }
+            chatRepository.getMessages(id)
+                .onSuccess {
+                    messages = it
+                    error = null
+                }
+                .onFailure { error = it.message }
             delay(3000)
         }
     }
-    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -190,7 +202,12 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
             if (loading) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    state = listState,
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (messages.isEmpty()) item { Text("Welcome to the KFCC community. Start the conversation.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     items(messages, key = { it.id }) { ChatBubble(it, it.senderId == repository.currentUserId()) }
                 }
