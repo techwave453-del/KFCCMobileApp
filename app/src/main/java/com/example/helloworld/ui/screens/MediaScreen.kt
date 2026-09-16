@@ -210,6 +210,11 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
     val embedUrl = "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
+    // YouTube now requires an HTTP Referer (or equivalent app identity) for embedded
+    // playback. Android WebView requests are otherwise commonly sent without one,
+    // which produces YouTube error 153.
+    val appReferer = "https://com.kfcc.mobile/"
+    val youtubeHeaders = mapOf("Referer" to appReferer)
 
     AndroidView(
         modifier = Modifier.fillMaxWidth().height(220.dp),
@@ -230,12 +235,12 @@ private fun YoutubePlayer(url: String) {
                 CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 webViewClient = WebViewClient()
                 webChromeClient = WebChromeClient()
-                loadUrl(embedUrl)
+                loadUrl(embedUrl, youtubeHeaders)
             }
         },
         update = { webView ->
             if (webView.url != embedUrl) {
-                webView.loadUrl(embedUrl)
+                webView.loadUrl(embedUrl, youtubeHeaders)
             }
         }
     )
