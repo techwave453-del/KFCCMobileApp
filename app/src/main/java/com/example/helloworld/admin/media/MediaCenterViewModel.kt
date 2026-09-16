@@ -43,18 +43,32 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
 
     fun load() {
         viewModelScope.launch {
-            _loading.value = true
-            _error.value = null
+            _loading.value = true; _error.value = null
             repository.load().onSuccess { _items.value = it }.onFailure { _error.value = it.message ?: "Unable to load the media library." }
             _loading.value = false
         }
     }
 
+    fun addUrl(title: String, type: String, category: String, url: String, description: String, featured: Boolean, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _saving.value = true; _error.value = null; _actionMessage.value = null
+            repository.addUrl(title, type, category, url, description)
+                .onSuccess { saved ->
+                    if (featured && saved.isVideo) {
+                        repository.setFeatured(saved.id, true)
+                            .onFailure { _error.value = it.message ?: "Media was saved, but Featured Video could not be set." }
+                    }
+                    if (_error.value == null) _actionMessage.value = if (featured) "Media URL saved and set as Featured Video." else "Media URL saved to the library."
+                    onComplete(); load()
+                }
+                .onFailure { _error.value = it.message ?: "Unable to save the media URL." }
+            _saving.value = false
+        }
+    }
+
     fun upload(uri: Uri, title: String, description: String, category: String, type: String, onComplete: () -> Unit) {
         viewModelScope.launch {
-            _uploading.value = true
-            _error.value = null
-            _uploadMessage.value = null
+            _uploading.value = true; _error.value = null; _uploadMessage.value = null
             try {
                 val resolver = context.contentResolver
                 val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("The selected file can no longer be accessed. Please select it again.")
@@ -73,19 +87,10 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun mimeTypeFromFileName(fileName: String): String? = when (fileName.substringAfterLast('.', "").lowercase()) {
-        "jpg", "jpeg" -> "image/jpeg"
-        "png" -> "image/png"
-        "webp" -> "image/webp"
-        "gif" -> "image/gif"
-        "mp4", "m4v" -> "video/mp4"
-        "webm" -> "video/webm"
-        "mov" -> "video/quicktime"
-        "mp3" -> "audio/mpeg"
-        "m4a" -> "audio/mp4"
-        "wav" -> "audio/wav"
-        "ogg", "oga" -> "audio/ogg"
-        "pdf" -> "application/pdf"
-        else -> null
+        "jpg", "jpeg" -> "image/jpeg"; "png" -> "image/png"; "webp" -> "image/webp"; "gif" -> "image/gif"
+        "mp4", "m4v" -> "video/mp4"; "webm" -> "video/webm"; "mov" -> "video/quicktime"
+        "mp3" -> "audio/mpeg"; "m4a" -> "audio/mp4"; "wav" -> "audio/wav"; "ogg", "oga" -> "audio/ogg"
+        "pdf" -> "application/pdf"; else -> null
     }
 
     fun save(item: AdminMediaItem, title: String, description: String, category: String, published: Boolean, onComplete: () -> Unit) {
