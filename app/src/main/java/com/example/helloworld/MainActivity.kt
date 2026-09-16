@@ -63,10 +63,6 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     }
 
     NavigationSuiteScaffold(
-        navigationSuiteColors = NavigationSuiteDefaults.colors(
-            navigationBarContainerColor = MaterialTheme.colorScheme.surface,
-            navigationBarContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
         navigationSuiteItems = {
             AppDestinations.entries.forEach { destination ->
                 item(
