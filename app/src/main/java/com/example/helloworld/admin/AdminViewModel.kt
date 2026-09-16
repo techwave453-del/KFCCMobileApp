@@ -34,25 +34,44 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(username: String, password: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            val result = repository.login(username, password)
-            if (result.ok) {
-                // Never trust role/permissions from the login response alone.
-                // /api/admin/me is the authoritative post-login authorization state.
+    /**
+     * Synchronous-in-coroutine authentication used by the unified account screen.
+     * The login response is followed by /api/admin/me so the app only trusts
+     * the server's authoritative active user and permissions.
+     */
+    suspend fun authenticate(username: String, password: String): Boolean {
+        _isLoading.value = true
+        _error.value = null
+        return try {
+            val result = repository.login(username.trim(), password)
+            if (!result.ok) {
+                _user.value = null
+                _error.value = result.error ?: "Invalid username or password."
+                false
+            } else {
                 val authoritativeUser = repository.restoreSession()
                 if (authoritativeUser != null && authoritativeUser.is_active) {
                     _user.value = authoritativeUser
+                    true
                 } else {
                     _user.value = null
                     _error.value = "Your administrator session could not be verified. Please sign in again."
+                    false
                 }
-            } else {
-                _error.value = result.error ?: "Invalid username or password."
             }
+        } catch (e: Exception) {
+            _user.value = null
+            _error.value = e.message ?: "Unable to sign in. Please try again."
+            false
+        } finally {
             _isLoading.value = false
+        }
+    }
+
+    /** Backwards-compatible fire-and-forget entry point for existing admin screens. */
+    fun login(username: String, password: String) {
+        viewModelScope.launch {
+            authenticate(username, password)
         }
     }
 
