@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -32,239 +33,113 @@ import com.example.helloworld.data.LiveStream
 import com.example.helloworld.data.MediaItem
 
 @Composable
-fun MediaScreen(
-    mediaItems: List<MediaItem>,
-    liveStream: LiveStream,
-    innerPadding: PaddingValues
-) {
+fun MediaScreen(mediaItems: List<MediaItem>, liveStream: LiveStream, innerPadding: PaddingValues) {
     var selectedVideo by remember { mutableStateOf<MediaItem?>(null) }
     var showLivePlayer by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-            .padding(16.dp)
-    ) {
-        if (liveStream.enabled && liveStream.url.isNotBlank()) {
-            Button(
-                onClick = { showLivePlayer = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-            ) {
-                Icon(Icons.Default.LiveTv, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(horizontalAlignment = Alignment.Start) {
-                    Text("LIVE", fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        liveStream.title.ifBlank { "Watch Live Worship Service" },
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+    Column(Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 20.dp)) {
+            Text("Media", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(4.dp))
+            Text("Watch messages, worship and church moments.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Text(
-            text = "Media Center",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
+        if (liveStream.enabled && liveStream.url.isNotBlank()) {
+            Card(
+                onClick = { showLivePlayer = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF171717))
+            ) {
+                Box(Modifier.fillMaxWidth().height(150.dp)) {
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .8f)))))
+                    Row(Modifier.align(Alignment.TopStart).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFE53935)) {
+                            Text("LIVE NOW", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                        Text(liveStream.title.ifBlank { "Live Worship Service" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Tap to watch live", color = Color.White.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .95f)) {
+                        Icon(Icons.Default.PlayArrow, "Play live", Modifier.padding(13.dp).size(30.dp), tint = Color.Black)
+                    }
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+
+        Text("Latest Media", Modifier.padding(horizontal = 18.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.height(10.dp))
 
         if (mediaItems.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No media items available.", style = MaterialTheme.typography.bodyMedium)
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No media items available.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(mediaItems, key = { it.id }) { item ->
-                    MediaGridItem(item) { selectedVideo = item }
-                }
+                items(mediaItems, key = { it.id }) { item -> MediaGridItem(item) { selectedVideo = item } }
             }
         }
     }
 
-    selectedVideo?.let { item ->
-        MediaPlayerDialog(item = item, onDismiss = { selectedVideo = null })
-    }
-
-    if (showLivePlayer) {
-        LivePlayerDialog(liveStream = liveStream, onDismiss = { showLivePlayer = false })
-    }
+    selectedVideo?.let { MediaPlayerDialog(it) { selectedVideo = null } }
+    if (showLivePlayer) LivePlayerDialog(liveStream) { showLivePlayer = false }
 }
 
 @Composable
 fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
-    val isVideo = item.type.equals("video", ignoreCase = true)
+    val isVideo = item.type.equals("video", true)
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(190.dp)
-            .then(if (isVideo) Modifier.clickable(onClick = onVideoClick) else Modifier),
-        shape = RoundedCornerShape(10.dp)
+        modifier = Modifier.fillMaxWidth().height(205.dp).then(if (isVideo) Modifier.clickable(onClick = onVideoClick) else Modifier),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            Box(modifier = Modifier.height(128.dp).fillMaxWidth()) {
-                if (item.type.equals("image", ignoreCase = true)) {
-                    AsyncImage(
-                        model = item.url,
-                        contentDescription = item.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = null,
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
-                        tint = Color.White
-                    )
-                } else if (isVideo) {
-                    val thumbnail = youtubeThumbnailUrl(item.url)
-                    if (thumbnail != null) {
-                        AsyncImage(
-                            model = thumbnail,
-                            contentDescription = item.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(52.dp))
-                        }
+            Box(Modifier.fillMaxWidth().height(138.dp)) {
+                when {
+                    item.type.equals("image", true) -> AsyncImage(item.url, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    isVideo -> {
+                        val thumbnail = youtubeThumbnailUrl(item.url)
+                        if (thumbnail != null) AsyncImage(thumbnail, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        else Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, null, Modifier.size(48.dp)) }
+                        Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.Black.copy(alpha = .7f)) { Icon(Icons.Default.PlayArrow, "Play ${item.title}", Modifier.padding(10.dp).size(28.dp), tint = Color.White) }
                     }
-                    Surface(
-                        modifier = Modifier.align(Alignment.Center),
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.68f)
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Play ${item.title}",
-                            modifier = Modifier.padding(10.dp).size(30.dp),
-                            tint = Color.White
-                        )
-                    }
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(48.dp))
-                    }
+                    else -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, null) }
                 }
+                if (item.type.equals("image", true)) Icon(Icons.Default.Image, null, Modifier.align(Alignment.BottomEnd).padding(9.dp), tint = Color.White)
             }
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(item.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, fontWeight = FontWeight.Bold)
-                Text(item.category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary, maxLines = 1)
+            Column(Modifier.padding(11.dp)) {
+                Text(item.title, style = MaterialTheme.typography.labelLarge, maxLines = 2, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(item.category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
             }
         }
     }
 }
 
-@Composable
-private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text(item.title) },
-        text = {
-            if (youtubeVideoId(item.url) != null) {
-                YoutubePlayer(url = item.url)
-            } else {
-                ExoPlayerView(url = item.url)
-            }
-        }
-    )
-}
+@Composable private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) = AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text(item.title) }, text = { if (youtubeVideoId(item.url) != null) YoutubePlayer(item.url) else ExoPlayerView(item.url) })
 
-@Composable
-private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text(liveStream.title.ifBlank { "Live Worship Service" }) },
-        text = {
-            if (youtubeVideoId(liveStream.url) != null) {
-                YoutubePlayer(url = liveStream.url)
-            } else {
-                ExoPlayerView(url = liveStream.url)
-            }
-        }
-    )
-}
+@Composable private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) = AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text(liveStream.title.ifBlank { "Live Worship Service" }) }, text = { if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(liveStream.url) else ExoPlayerView(liveStream.url) })
 
 @SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun YoutubePlayer(url: String) {
+@Composable private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
-    AndroidView(
-        modifier = Modifier.fillMaxWidth().height(210.dp),
-        factory = { context ->
-            WebView(context).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                webChromeClient = WebChromeClient()
-                loadDataWithBaseURL(
-                    "https://www.youtube.com",
-                    youtubeEmbedHtml(videoId),
-                    "text/html",
-                    "UTF-8",
-                    null
-                )
-            }
-        },
-        update = { it.loadDataWithBaseURL("https://www.youtube.com", youtubeEmbedHtml(videoId), "text/html", "UTF-8", null) }
-    )
+    AndroidView(Modifier.fillMaxWidth().height(210.dp), factory = { context -> WebView(context).apply { settings.javaScriptEnabled = true; settings.domStorageEnabled = true; settings.mediaPlaybackRequiresUserGesture = false; settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE; webChromeClient = WebChromeClient(); loadDataWithBaseURL("https://www.youtube.com", youtubeEmbedHtml(videoId), "text/html", "UTF-8", null) } }, update = { it.loadDataWithBaseURL("https://www.youtube.com", youtubeEmbedHtml(videoId), "text/html", "UTF-8", null) })
 }
 
-@Composable
-private fun ExoPlayerView(url: String) {
+@Composable private fun ExoPlayerView(url: String) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(PlayerMediaItem.fromUri(url))
-            prepare()
-            playWhenReady = true
-        }
-    }
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-    AndroidView(
-        modifier = Modifier.fillMaxWidth().height(210.dp),
-        factory = { PlayerView(it).apply { this.player = player } },
-        update = { it.player = player }
-    )
+    val player = remember(url) { ExoPlayer.Builder(context).build().apply { setMediaItem(PlayerMediaItem.fromUri(url)); prepare(); playWhenReady = true } }
+    DisposableEffect(player) { onDispose { player.release() } }
+    AndroidView(Modifier.fillMaxWidth().height(210.dp), factory = { PlayerView(it).apply { this.player = player } }, update = { it.player = player })
 }
 
-private fun youtubeVideoId(url: String): String? {
-    val patterns = listOf(
-        Regex("(?:youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/embed/|youtube\\.com/live/)([A-Za-z0-9_-]{11})"),
-        Regex("youtube\\.com/watch\\?.*v=([A-Za-z0-9_-]{11})")
-    )
-    return patterns.firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
-}
-
-private fun youtubeThumbnailUrl(url: String): String? =
-    youtubeVideoId(url)?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
-
-private fun youtubeEmbedHtml(videoId: String): String = """
-    <!doctype html><html><body style='margin:0;background:#000'>
-    <iframe width='100%' height='100%' src='https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1'
-      title='KFCC video' frameborder='0'
-      allow='autoplay; encrypted-media; picture-in-picture; fullscreen' allowfullscreen></iframe>
-    </body></html>
-""".trimIndent()
+private fun youtubeVideoId(url: String): String? = listOf(Regex("(?:youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/embed/|youtube\\.com/live/)([A-Za-z0-9_-]{11})"), Regex("youtube\\.com/watch\\?.*v=([A-Za-z0-9_-]{11})")).firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
+private fun youtubeThumbnailUrl(url: String): String? = youtubeVideoId(url)?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+private fun youtubeEmbedHtml(videoId: String): String = """<!doctype html><html><body style='margin:0;background:#000'><iframe width='100%' height='100%' src='https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1' title='KFCC video' frameborder='0' allow='autoplay; encrypted-media; picture-in-picture; fullscreen' allowfullscreen></iframe></body></html>"""
