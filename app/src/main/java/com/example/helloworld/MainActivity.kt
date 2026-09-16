@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -70,7 +71,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     ) { innerPadding ->
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (currentDestination) {
-                AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding, { currentDestination = AppDestinations.CHAT }, { currentDestination = AppDestinations.MEDIA }, { currentDestination = AppDestinations.EVENTS })
+                AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding)
                 AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                 AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
                 AppDestinations.CHAT -> ChatScreen(innerPadding)
