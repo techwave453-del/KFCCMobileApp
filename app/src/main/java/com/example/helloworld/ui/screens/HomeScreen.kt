@@ -14,23 +14,27 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.events.Event
 import com.example.helloworld.ui.components.ChurchHero
 import com.example.helloworld.ui.components.ChurchServiceCard
 import com.example.helloworld.ui.theme.KFCCTheme
-import androidx.compose.ui.tooling.preview.Preview
 import kotlin.math.absoluteValue
 
 private data class QuickAccessItem(
     val title: String,
     val description: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val imageUrl: String
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -41,11 +45,13 @@ fun HomeScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp),
     onQuickAccess: (String) -> Unit = {}
 ) {
+    val fallbackImages = info.services.map { it.imageUrl }
+    fun image(index: Int) = fallbackImages.getOrNull(index % fallbackImages.size).orEmpty()
     val quickAccess = listOf(
-        QuickAccessItem("Services", "Worship, prayer and fellowship", Icons.Default.MenuBook),
-        QuickAccessItem("Sermons", "Watch and listen to messages", Icons.Default.PlayCircle),
-        QuickAccessItem("Giving", "Support the ministry", Icons.Default.VolunteerActivism),
-        QuickAccessItem("Events", "See what's coming up", Icons.Default.CalendarMonth)
+        QuickAccessItem("Services", "Worship, prayer and fellowship", Icons.Default.MenuBook, image(0)),
+        QuickAccessItem("Sermons", "Watch and listen to messages", Icons.Default.PlayCircle, image(1)),
+        QuickAccessItem("Giving", "Support the ministry", Icons.Default.VolunteerActivism, image(2)),
+        QuickAccessItem("Events", "See what's coming up", Icons.Default.CalendarMonth, image(3))
     )
     val pagerState = rememberPagerState(pageCount = { quickAccess.size })
 
@@ -62,22 +68,44 @@ fun HomeScreen(
                     state = pagerState,
                     contentPadding = PaddingValues(horizontal = 28.dp),
                     pageSpacing = 12.dp,
-                    modifier = Modifier.fillMaxWidth().height(175.dp)
+                    modifier = Modifier.fillMaxWidth().height(190.dp)
                 ) { page ->
+                    val item = quickAccess[page]
                     val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
                     val scale = 0.88f + (1f - pageOffset.coerceIn(0f, 1f)) * 0.12f
                     Card(
-                        onClick = { onQuickAccess(quickAccess[page].title) },
+                        onClick = { onQuickAccess(item.title) },
                         modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale },
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.Center) {
-                            Icon(quickAccess[page].icon, null, modifier = Modifier.size(38.dp))
-                            Spacer(Modifier.height(12.dp))
-                            Text(quickAccess[page].title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(4.dp))
-                            Text(quickAccess[page].description, style = MaterialTheme.typography.bodyMedium)
+                        Box(Modifier.fillMaxSize()) {
+                            if (item.imageUrl.isNotBlank()) {
+                                AsyncImage(model = item.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            }
+                            Surface(
+                                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                            ) {
+                                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(item.icon, contentDescription = null, modifier = Modifier.size(34.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Text(item.description, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
                         }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    repeat(quickAccess.size) { index ->
+                        Surface(
+                            modifier = Modifier.padding(horizontal = 3.dp).size(if (index == pagerState.currentPage) 18.dp else 6.dp, 6.dp),
+                            shape = RoundedCornerShape(50),
+                            color = if (index == pagerState.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        ) {}
                     }
                 }
             }
