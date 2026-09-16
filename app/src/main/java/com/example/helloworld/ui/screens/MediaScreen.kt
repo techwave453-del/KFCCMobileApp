@@ -133,14 +133,61 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
 @SuppressLint("SetJavaScriptEnabled")
 @Composable private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
-    AndroidView(Modifier.fillMaxWidth().height(210.dp), factory = { context -> WebView(context).apply { settings.javaScriptEnabled = true; settings.domStorageEnabled = true; settings.mediaPlaybackRequiresUserGesture = false; settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE; webChromeClient = WebChromeClient(); loadDataWithBaseURL("https://www.youtube.com", youtubeEmbedHtml(videoId), "text/html", "UTF-8", null) } }, update = { it.loadDataWithBaseURL("https://www.youtube.com", youtubeEmbedHtml(videoId), "text/html", "UTF-8", null) })
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                webChromeClient = WebChromeClient()
+                loadDataWithBaseURL(
+                    "https://www.youtube.com",
+                    youtubeEmbedHtml(videoId),
+                    "text/html",
+                    "UTF-8",
+                    null
+                )
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(210.dp),
+        update = { webView ->
+            webView.loadDataWithBaseURL(
+                "https://www.youtube.com",
+                youtubeEmbedHtml(videoId),
+                "text/html",
+                "UTF-8",
+                null
+            )
+        }
+    )
 }
 
 @Composable private fun ExoPlayerView(url: String) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val player = remember(url) { ExoPlayer.Builder(context).build().apply { setMediaItem(PlayerMediaItem.fromUri(url)); prepare(); playWhenReady = true } }
+    val player = remember(url) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(PlayerMediaItem.fromUri(url))
+            prepare()
+            playWhenReady = true
+        }
+    }
     DisposableEffect(player) { onDispose { player.release() } }
-    AndroidView(Modifier.fillMaxWidth().height(210.dp), factory = { PlayerView(it).apply { this.player = player } }, update = { it.player = player })
+    AndroidView(
+        factory = { context ->
+            PlayerView(context).apply {
+                player = player
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(210.dp),
+        update = { playerView ->
+            playerView.player = player
+        }
+    )
 }
 
 private fun youtubeVideoId(url: String): String? = listOf(Regex("(?:youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/embed/|youtube\\.com/live/)([A-Za-z0-9_-]{11})"), Regex("youtube\\.com/watch\\?.*v=([A-Za-z0-9_-]{11})")).firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
