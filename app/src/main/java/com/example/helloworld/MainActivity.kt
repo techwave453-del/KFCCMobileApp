@@ -9,7 +9,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,70 +40,37 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.fillMaxWidth(),
-                windowInsets = NavigationBarDefaults.windowInsets
-            ) {
-                NavigationBarItem(
-                    selected = currentDestination == AppDestinations.HOME,
-                    onClick = { currentDestination = AppDestinations.HOME },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("Home") }
-                )
-                NavigationBarItem(
-                    selected = currentDestination == AppDestinations.EVENTS,
-                    onClick = { currentDestination = AppDestinations.EVENTS },
-                    icon = { Icon(Icons.Default.Event, contentDescription = "Events") },
-                    label = { Text("Events") }
-                )
-                NavigationBarItem(
-                    selected = currentDestination == AppDestinations.MEDIA,
-                    onClick = { currentDestination = AppDestinations.MEDIA },
-                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Media") },
-                    label = { Text("Media") }
-                )
-                NavigationBarItem(
-                    selected = currentDestination == AppDestinations.CHAT,
-                    onClick = { currentDestination = AppDestinations.CHAT },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
-                    label = { Text("Chat") }
-                )
+            NavigationBar {
+                NavigationBarItem(currentDestination == AppDestinations.HOME, { currentDestination = AppDestinations.HOME }, { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
+                NavigationBarItem(currentDestination == AppDestinations.EVENTS, { currentDestination = AppDestinations.EVENTS }, { Icon(Icons.Default.Event, "Events") }, label = { Text("Events") })
+                NavigationBarItem(currentDestination == AppDestinations.MEDIA, { currentDestination = AppDestinations.MEDIA }, { Icon(Icons.Default.PlayArrow, "Media") }, label = { Text("Media") })
+                NavigationBarItem(currentDestination == AppDestinations.CHAT, { currentDestination = AppDestinations.CHAT }, { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
+                NavigationBarItem(currentDestination == AppDestinations.PROFILE, { currentDestination = AppDestinations.PROFILE }, { Icon(Icons.Default.Person, "Profile") }, label = { Text("Profile") })
             }
         },
         floatingActionButton = {
             if (currentDestination != AppDestinations.CHAT) {
                 ExtendedFloatingActionButton(
                     onClick = { currentDestination = AppDestinations.CHAT },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Open Chat") },
+                    icon = { Icon(Icons.Default.Chat, "Open Chat") },
                     text = { Text("Chat") }
                 )
             }
         }
     ) { innerPadding ->
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (currentDestination) {
-                AppDestinations.HOME -> HomeScreen(
-                    info = churchInfo,
-                    events = events,
-                    innerPadding = innerPadding,
-                    onOpenChat = { currentDestination = AppDestinations.CHAT },
-                    onOpenMedia = { currentDestination = AppDestinations.MEDIA },
-                    onOpenEvents = { currentDestination = AppDestinations.EVENTS }
-                )
+                AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding, { currentDestination = AppDestinations.CHAT }, { currentDestination = AppDestinations.MEDIA }, { currentDestination = AppDestinations.EVENTS })
                 AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                 AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
                 AppDestinations.CHAT -> ChatScreen(innerPadding)
+                AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
+                AppDestinations.PROFILE -> ProfileScreen(innerPadding)
             }
         }
     }
 }
 
 enum class AppDestinations(val label: String) {
-    HOME("Home"),
-    EVENTS("Events"),
-    MEDIA("Media"),
-    CHAT("Chat")
+    HOME("Home"), EVENTS("Events"), MEDIA("Media"), CHAT("Chat"), NOTIFICATIONS("Notifications"), PROFILE("Profile")
 }
