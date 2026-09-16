@@ -53,7 +53,9 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
                         ModuleFrame("Media Center", { openModule = null }) {
                             MediaCenterScreen(
                                 Modifier.fillMaxSize(),
-                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD)
+                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD),
+                                canEdit = currentUser.hasPermission(AdminPermissions.MEDIA_EDIT),
+                                canDelete = currentUser.hasPermission(AdminPermissions.MEDIA_DELETE)
                             )
                         }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
