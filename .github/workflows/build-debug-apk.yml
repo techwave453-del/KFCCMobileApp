@@ -33,17 +33,39 @@ jobs:
           echo "SDKMANAGER=$SDKMANAGER"
           echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
 
+      - name: Verify Android 37 SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLATFORMS="$ANDROID_SDK_ROOT/platforms"
+          echo "Installed Android platforms:"
+          find "$PLATFORMS" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort || true
+
+          # Current GitHub Ubuntu images ship API 37 as android-37.0.
+          # Gradle compileSdk 37 expects the conventional android-37 directory.
+          if [ -d "$PLATFORMS/android-37" ]; then
+            echo "Using existing $PLATFORMS/android-37"
+          elif [ -d "$PLATFORMS/android-37.0" ]; then
+            echo "Mapping preinstalled android-37.0 to android-37"
+            ln -s "android-37.0" "$PLATFORMS/android-37"
+          else
+            echo "Android 37 platform is not installed on this runner."
+            exit 1
+          fi
+
+          if [ ! -d "$ANDROID_SDK_ROOT/build-tools/37.0.0" ]; then
+            echo "Android build-tools 37.0.0 are not installed on this runner."
+            exit 1
+          fi
+
+          echo "Android 37 SDK is ready."
+          ls -la "$PLATFORMS/android-37" | head
+
       - name: Accept Android SDK licenses
         shell: bash
         run: |
           set -euo pipefail
           sdkmanager --licenses < /dev/null || true
-
-      - name: Install required Android SDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdkmanager "platform-tools" "platforms;android-37"
 
       - name: Grant execute permission
         run: chmod +x gradlew
