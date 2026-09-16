@@ -27,16 +27,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun NotificationsScreen(innerPadding: PaddingValues) {
     val repository = remember { NotificationRepository() }
+    val scope = rememberCoroutineScope()
     var notifications by remember { mutableStateOf<List<AppNotification>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -64,33 +67,35 @@ fun NotificationsScreen(innerPadding: PaddingValues) {
             Text("Notifications", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.weight(1f))
             if (notifications.any { it.readAt == null }) {
-                IconButton(
-                    onClick = {
-                        androidx.compose.runtime.LaunchedEffect(Unit) { }
-                    },
-                ) {
+                IconButton(onClick = {
+                    scope.launch {
+                        repository.markAllAsRead(notifications).onSuccess {
+                            notifications = notifications.map { it.copy(readAt = "read") }
+                        }
+                    }
+                }) {
                     Icon(Icons.Default.DoneAll, contentDescription = "Mark all as read")
                 }
             }
         }
 
-        if (loading) {
-            Column(
+        when {
+            loading -> Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) { CircularProgressIndicator() }
-        } else if (error != null) {
-            Column(
+
+            error != null -> Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(error!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { androidx.compose.runtime.LaunchedEffect(Unit) { } }) { Text("Retry") }
+                TextButton(onClick = { scope.launch { load() } }) { Text("Retry") }
             }
-        } else if (notifications.isEmpty()) {
-            Column(
+
+            notifications.isEmpty() -> Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -100,8 +105,8 @@ fun NotificationsScreen(innerPadding: PaddingValues) {
                 Text("You're all caught up", style = MaterialTheme.typography.titleMedium)
                 Text("Church announcements and reminders will appear here.")
             }
-        } else {
-            LazyColumn(
+
+            else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),
@@ -111,9 +116,11 @@ fun NotificationsScreen(innerPadding: PaddingValues) {
                         notification = notification,
                         onRead = {
                             if (notification.readAt == null) {
-                                repository.markAsRead(notification.id).onSuccess {
-                                    notifications = notifications.map {
-                                        if (it.id == notification.id) it.copy(readAt = "read") else it
+                                scope.launch {
+                                    repository.markAsRead(notification.id).onSuccess {
+                                        notifications = notifications.map {
+                                            if (it.id == notification.id) it.copy(readAt = "read") else it
+                                        }
                                     }
                                 }
                             }
