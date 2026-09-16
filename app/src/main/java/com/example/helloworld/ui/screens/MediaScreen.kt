@@ -205,13 +205,35 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
 
-    // YouTube's current Android WebView guidance requires an explicit HTTPS
-    // Referer whose host is the application's store/OS app identifier. Use the
-    // package ID rather than pretending the request originated from YouTube.
-    val appId = "com.kfcc.mobile"
-    val appReferer = "https://$appId/"
-    val embedUrl = "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2F$appId"
-    val youtubeHeaders = mapOf("Referer" to appReferer)
+    // Error 152-4 can occur when the embedded player is loaded as if the
+    // embedding page itself were youtube.com. Give the WebView a real
+    // third-party HTTPS origin while keeping YouTube as the iframe source.
+    // This also provides a legitimate HTTP Referer for the embed request.
+    val embedBaseUrl = "https://kingdomfellowshipchristianchurch.onrender.com/"
+    val origin = "https://kingdomfellowshipchristianchurch.onrender.com"
+    val iframeUrl =
+        "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fkingdomfellowshipchristianchurch.onrender.com"
+
+    val html = """
+        <!doctype html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                html, body { margin:0; padding:0; background:#000; width:100%; height:100%; overflow:hidden; }
+                iframe { border:0; width:100%; height:100%; display:block; }
+            </style>
+        </head>
+        <body>
+            <iframe
+                src="$iframeUrl"
+                title="YouTube video player"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen>
+            </iframe>
+        </body>
+        </html>
+    """.trimIndent()
 
     AndroidView(
         modifier = Modifier.fillMaxWidth().height(220.dp),
@@ -227,17 +249,17 @@ private fun YoutubePlayer(url: String) {
                 settings.allowContentAccess = true
                 settings.allowFileAccess = false
                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                settings.userAgentString =
-                    "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36"
                 CookieManager.getInstance().setAcceptCookie(true)
                 CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 webViewClient = WebViewClient()
                 webChromeClient = WebChromeClient()
-                loadUrl(embedUrl, youtubeHeaders)
+                loadDataWithBaseURL(embedBaseUrl, html, "text/html", "UTF-8", embedBaseUrl)
             }
         },
         update = { webView ->
-            if (webView.url != embedUrl) webView.loadUrl(embedUrl, youtubeHeaders)
+            if (webView.url != embedBaseUrl) {
+                webView.loadDataWithBaseURL(embedBaseUrl, html, "text/html", "UTF-8", embedBaseUrl)
+            }
         }
     )
 }
