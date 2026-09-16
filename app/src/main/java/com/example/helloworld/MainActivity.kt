@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
@@ -65,6 +66,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
                     AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
+                    AppDestinations.CHAT -> ChatScreen(innerPadding)
                     AppDestinations.ADMIN -> AdminShell(adminViewModel, Modifier.padding(innerPadding))
                 }
             }
@@ -76,5 +78,6 @@ enum class AppDestinations(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
     EVENTS("Events", Icons.Default.Event),
     MEDIA("Media", Icons.Default.PlayArrow),
+    CHAT("Chat", Icons.Default.Chat),
     ADMIN("Admin", Icons.Default.AdminPanelSettings)
 }
