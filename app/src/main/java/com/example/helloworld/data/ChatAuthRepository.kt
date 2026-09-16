@@ -1,8 +1,9 @@
 package com.example.helloworld.data
 
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.Email
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -49,7 +50,7 @@ class ChatAuthRepository {
 
         return try {
             auth.signUpWith(Email) {
-                email = normalizedEmail
+                this.email = normalizedEmail
                 this.password = password
                 data = buildJsonObject {
                     put("chat_username", normalizedUsername)

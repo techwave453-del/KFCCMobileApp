@@ -2,7 +2,7 @@ package com.example.helloworld.data
 
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -43,10 +43,10 @@ class ChatRepository {
             .select {
                 filter {
                     eq("room_id", roomId)
-                    `is`("deleted_at", null)
                 }
             }
             .decodeList<ChatMessage>()
+            .filter { it.deletedAt == null }
             .sortedBy { it.createdAt }
             .takeLast(100)
     }
