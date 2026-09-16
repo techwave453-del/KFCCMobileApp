@@ -93,9 +93,7 @@ fun KFCCApp(
                             if (chatSignedIn) chatViewModel.signOut()
                             if (adminUser != null) adminViewModel.logout()
                             scope.launch { drawerState.close() }
-                        } else {
-                            navigate(AppDestinations.ACCOUNT)
-                        }
+                        } else navigate(AppDestinations.ACCOUNT)
                     },
                     icon = { Icon(if (signedIn) Icons.AutoMirrored.Filled.Logout else Icons.Default.Login, null) }
                 )
@@ -114,18 +112,13 @@ fun KFCCApp(
                     NavigationBarItem(currentDestination == AppDestinations.HOME, { navigate(AppDestinations.HOME) }, { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
                     NavigationBarItem(currentDestination == AppDestinations.SEARCH, { navigate(AppDestinations.SEARCH) }, { Icon(Icons.Default.Search, "Search") }, label = { Text("Search") })
                     NavigationBarItem(currentDestination == AppDestinations.CHAT, { navigate(AppDestinations.CHAT) }, { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
-                    NavigationBarItem(
-                        selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT,
-                        onClick = { navigate(if (chatSignedIn) AppDestinations.PROFILE else AppDestinations.ACCOUNT) },
-                        icon = { Icon(Icons.Default.AccountCircle, "Profile") },
-                        label = { Text("Profile") }
-                    )
+                    NavigationBarItem(selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT, onClick = { navigate(if (chatSignedIn) AppDestinations.PROFILE else AppDestinations.ACCOUNT) }, icon = { Icon(Icons.Default.AccountCircle, "Profile") }, label = { Text("Profile") })
                 }
             }
         ) { innerPadding ->
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 when (currentDestination) {
-                    AppDestinations.HOME -> HomeScreen(info = churchInfo, mediaItems = mediaItems, events = events, innerPadding = innerPadding, onOpenChat = { navigate(AppDestinations.CHAT) }, onOpenMedia = { navigate(AppDestinations.MEDIA) }, onOpenEvents = { navigate(AppDestinations.EVENTS) }, onOpenGiving = { navigate(AppDestinations.GIVING) }, onOpenSermons = { navigate(AppDestinations.MEDIA) }, onOpenLive = {})
+                    AppDestinations.HOME -> HomeScreen(info = churchInfo, mediaItems = mediaItems, events = events, innerPadding = innerPadding, onOpenChat = { navigate(AppDestinations.CHAT) }, onOpenMedia = { navigate(AppDestinations.MEDIA) }, onOpenEvents = { navigate(AppDestinations.EVENTS) }, onOpenGiving = { navigate(AppDestinations.GIVING) }, onOpenSermons = { navigate(AppDestinations.MEDIA) }, onOpenLive = { navigate(AppDestinations.MEDIA) })
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
                     AppDestinations.CHAT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
