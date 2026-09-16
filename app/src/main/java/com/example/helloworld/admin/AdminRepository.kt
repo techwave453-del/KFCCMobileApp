@@ -5,6 +5,7 @@ import com.example.helloworld.config.AppConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.HttpRequestBuilder
@@ -29,6 +30,17 @@ class AdminRepository(context: Context) {
     private val sessionStore = SessionStore(context.applicationContext)
     private val client = HttpClient(CIO) {
         expectSuccess = false
+
+        // Render can cold-start the API and media uploads can legitimately take
+        // longer than a normal JSON request. Keep a generous timeout at the
+        // shared HTTP boundary so the mobile app does not abort an otherwise
+        // valid upload while the server is processing it.
+        install(HttpTimeout) {
+            requestTimeoutMillis = 5 * 60 * 1000L
+            connectTimeoutMillis = 30 * 1000L
+            socketTimeoutMillis = 5 * 60 * 1000L
+        }
+
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
         }
