@@ -15,6 +15,8 @@ import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -101,6 +103,31 @@ class AdminRepository(context: Context) {
 
     suspend fun authenticatedDelete(path: String): HttpResponse =
         client.delete(url(path)) { withAuthenticatedHeaders() }.also(::clearOnUnauthorized)
+
+    suspend fun authenticatedMultipartUpload(
+        path: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+        fields: Map<String, String>
+    ): HttpResponse = client.post(url(path)) {
+        withAuthenticatedHeaders()
+        setBody(
+            MultiPartFormDataContent(
+                formData {
+                    fields.forEach { (name, value) -> append(name, value) }
+                    append(
+                        "file",
+                        bytes,
+                        Headers.build {
+                            append(HttpHeaders.ContentType, mimeType)
+                            append(HttpHeaders.ContentDisposition, "form-data; name=\"file\"; filename=\"$fileName\"")
+                        }
+                    )
+                }
+            )
+        )
+    }.also(::clearOnUnauthorized)
 
     private fun clearOnUnauthorized(response: HttpResponse) {
         if (response.status == HttpStatusCode.Unauthorized) clearSession()
