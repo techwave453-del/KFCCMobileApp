@@ -70,7 +70,11 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
                 val fileName = resolver.query(uri, arrayOf("_display_name"), null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) cursor.getString(0) else null
                 } ?: (uri.lastPathSegment ?: "media-file")
-                val mimeType = resolver.getType(uri) ?: "application/octet-stream"
+                val detectedMime = resolver.getType(uri)
+                val mimeType = detectedMime
+                    ?.takeIf { it != "application/octet-stream" && it != "binary/octet-stream" }
+                    ?: mimeTypeFromFileName(fileName)
+                    ?: error("The selected file type could not be determined. Please choose an image, video, audio file, or PDF.")
 
                 repository.upload(bytes, fileName, mimeType, title, description, category, type)
                     .onSuccess {
@@ -85,6 +89,24 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
                 _uploading.value = false
             }
         }
+    }
+
+    private fun mimeTypeFromFileName(fileName: String): String? = when (
+        fileName.substringAfterLast('.', "").lowercase()
+    ) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        "gif" -> "image/gif"
+        "mp4", "m4v" -> "video/mp4"
+        "webm" -> "video/webm"
+        "mov" -> "video/quicktime"
+        "mp3" -> "audio/mpeg"
+        "m4a" -> "audio/mp4"
+        "wav" -> "audio/wav"
+        "ogg", "oga" -> "audio/ogg"
+        "pdf" -> "application/pdf"
+        else -> null
     }
 
     fun save(
