@@ -57,7 +57,6 @@ class NotificationRepository {
             mapOf(
                 "notification_id" to id,
                 "user_id" to userId,
-                "read_at" to java.time.Instant.now().toString(),
             )
         )
     }
@@ -79,14 +78,12 @@ class NotificationRepository {
             .map { it.notificationId }
             .toSet()
 
-        val now = java.time.Instant.now().toString()
         val unread = notifications
             .filterNot { it.id in existingReads }
             .map {
                 mapOf(
                     "notification_id" to it.id,
                     "user_id" to userId,
-                    "read_at" to now,
                 )
             }
 
