@@ -19,15 +19,21 @@ class ChurchRepository {
                 .select(Columns.list("key", "value"))
                 .decodeList<SiteContentRow>()
 
-            decodeChurchInfo(rows) ?: ChurchContent.default
+            val content = decodeChurchInfo(rows)
+            if (content != null) {
+                LocalCache.writeChurchInfo(content)
+                content
+            } else {
+                LocalCache.readChurchInfo() ?: ChurchContent.default
+            }
         } catch (_: Exception) {
-            ChurchContent.default
+            LocalCache.readChurchInfo() ?: ChurchContent.default
         }
     }
 
     suspend fun getMedia(): List<MediaItem> {
         return try {
-            SupabaseProvider.client
+            val media = SupabaseProvider.client
                 .from("media_items")
                 .select {
                     filter {
@@ -35,8 +41,11 @@ class ChurchRepository {
                     }
                 }
                 .decodeList<MediaItem>()
+
+            LocalCache.writeMedia(media)
+            media
         } catch (_: Exception) {
-            emptyList()
+            LocalCache.readMedia() ?: emptyList()
         }
     }
 

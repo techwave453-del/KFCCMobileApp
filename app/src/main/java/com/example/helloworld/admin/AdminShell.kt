@@ -12,15 +12,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.example.helloworld.admin.content.WebsiteContentScreen
 import com.example.helloworld.admin.events.AdminEventsScreen
 import com.example.helloworld.admin.events.AdminEventsViewModel
 import com.example.helloworld.admin.identity.ChurchIdentityScreen
 import com.example.helloworld.admin.live.LiveStreamingScreen
-import com.example.helloworld.admin.media.MediaCenterScreen
+import com.example.helloworld.admin.media.WebsiteMediaCenterScreen
 import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
 
@@ -41,35 +43,14 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
             else -> user!!.let { currentUser ->
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
-                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) && currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) ->
-                        ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
-                    openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
-                        ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
-                    openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
-                        ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
-                    openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
-                        ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
-                    openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
-                        ModuleFrame("Media Center", { openModule = null }) {
-                            MediaCenterScreen(
-                                Modifier.fillMaxSize(),
-                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD),
-                                canEdit = currentUser.hasPermission(AdminPermissions.MEDIA_EDIT),
-                                canDelete = currentUser.hasPermission(AdminPermissions.MEDIA_DELETE)
-                            )
-                        }
-                    openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
-                        ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
-                    else -> AdminDashboardScreen(
-                        currentUser,
-                        viewModel::logout,
-                        { openModule = "identity" },
-                        { openModule = "content" },
-                        { openModule = "events" },
-                        { openModule = "live" },
-                        { openModule = "media" },
-                        { openModule = "users" }
-                    )
+                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) && currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) -> ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
+                    openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) -> ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
+                    openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) -> ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
+                    openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) -> ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
+                    openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) -> ModuleFrame("Media Center", { openModule = null }) { WebsiteMediaCenterScreen(Modifier.fillMaxSize(), canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD), canEdit = currentUser.hasPermission(AdminPermissions.MEDIA_EDIT), canDelete = currentUser.hasPermission(AdminPermissions.MEDIA_DELETE)) }
+                    openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) -> ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
+                    openModule == "announcements" && currentUser.role == "super_admin" -> ModuleFrame("Send Announcement", { openModule = null }) { AnnouncementComposer(viewModel) }
+                    else -> AdminDashboardScreen(currentUser, viewModel::logout, { openModule = "identity" }, { openModule = "content" }, { openModule = "events" }, { openModule = "live" }, { openModule = "media" }, { openModule = "users" }, { openModule = "announcements" })
                 }
             }
         }
@@ -77,124 +58,44 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ModuleFrame(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-            Text("Admin Dashboard / $title", style = MaterialTheme.typography.titleMedium)
-        }
-        content()
-    }
-}
+private fun AnnouncementComposer(viewModel: AdminViewModel) {
+    var title by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("admin") }
+    var busy by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
-@Composable
-private fun LoadingAdminScreen() {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        CircularProgressIndicator()
-        Spacer(Modifier.height(16.dp))
-        Text("Checking administrator session…")
-    }
-}
-
-@Composable
-private fun NoPermissionsScreen(onLogout: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.Security, null)
-        Spacer(Modifier.height(16.dp))
-        Text("Administration access pending", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        Text(NO_ADMIN_PERMISSIONS)
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = onLogout) { Text("Sign out") }
-    }
-}
-
-@Composable
-private fun AdminLoginScreen(loading: Boolean, error: String?, onLogin: (String, String) -> Unit, onClearError: () -> Unit) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.AdminPanelSettings, null)
-        Spacer(Modifier.height(12.dp))
-        Text("KFCC Administration", style = MaterialTheme.typography.headlineMedium)
-        Text("Secure access to church administration")
+    Column(Modifier.fillMaxSize().padding(24.dp)) {
+        Text("Compose Announcement", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("This will be sent to all users' notification areas.", style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(username, { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(title, { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(password, { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        if (error != null) {
-            Spacer(Modifier.height(12.dp))
-            Text(error, color = MaterialTheme.colorScheme.error)
+        OutlinedTextField(message, { message = it }, label = { Text("Message") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = {
+                busy = true
+                scope.launch {
+                    val res = AdminRepositoryProvider.get(viewModel.getApplication()).postAnnouncement(title, message, type)
+                    result = if (res.isSuccess) "Announcement sent successfully!" else res.exceptionOrNull()?.message ?: "Failed to send."
+                    if (res.isSuccess) { title = ""; message = "" }
+                    busy = false
+                }
+            },
+            enabled = !busy && title.isNotBlank() && message.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (busy) CircularProgressIndicator(Modifier.size(24.dp)) else Text("Send Announcement")
         }
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = { onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !loading, modifier = Modifier.fillMaxWidth()) {
-            if (loading) CircularProgressIndicator(Modifier.height(20.dp)) else Text("Sign in")
-        }
+        result?.let { Text(it, modifier = Modifier.padding(top = 16.dp), color = if (it.contains("success")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
     }
 }
 
+@Composable private fun ModuleFrame(title: String, onBack: () -> Unit, content: @Composable () -> Unit) { Column(Modifier.fillMaxSize()) { Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Admin Dashboard / $title", style = MaterialTheme.typography.titleMedium) }; content() } }
+@Composable private fun LoadingAdminScreen() { Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("Checking administrator session…") } }
+@Composable private fun NoPermissionsScreen(onLogout: () -> Unit) { Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.Security, null); Spacer(Modifier.height(16.dp)); Text("Administration access pending", style = MaterialTheme.typography.headlineSmall); Spacer(Modifier.height(8.dp)); Text(NO_ADMIN_PERMISSIONS); Spacer(Modifier.height(20.dp)); Button(onClick = onLogout) { Text("Sign out") } } }
+@Composable private fun AdminLoginScreen(loading: Boolean, error: String?, onLogin: (String, String) -> Unit, onClearError: () -> Unit) { var username by remember { mutableStateOf("") }; var password by remember { mutableStateOf("") }; Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) { Icon(Icons.Default.AdminPanelSettings, null); Spacer(Modifier.height(12.dp)); Text("KFCC Administration", style = MaterialTheme.typography.headlineMedium); Text("Secure access to church administration"); Spacer(Modifier.height(24.dp)); OutlinedTextField(username, { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth()); Spacer(Modifier.height(12.dp)); OutlinedTextField(password, { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth()); if (error != null) { Spacer(Modifier.height(12.dp)); Text(error, color = MaterialTheme.colorScheme.error) }; Spacer(Modifier.height(20.dp)); Button(onClick = { onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !loading, modifier = Modifier.fillMaxWidth()) { if (loading) CircularProgressIndicator(Modifier.height(20.dp)) else Text("Sign in") } } }
 private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector)
-
-@Composable
-private fun AdminDashboardScreen(
-    user: AdminUser,
-    onLogout: () -> Unit,
-    onIdentity: () -> Unit,
-    onContent: () -> Unit,
-    onEvents: () -> Unit,
-    onLive: () -> Unit,
-    onMedia: () -> Unit,
-    onUsers: () -> Unit
-) {
-    val modules = listOf(
-        AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
-        AdminModule("Website Content", "Homepage, pages, services, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
-        AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.SITE_EDIT, Icons.Default.Event),
-        AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
-        AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
-        AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People),
-        AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings)
-    )
-
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Admin Dashboard", style = MaterialTheme.typography.headlineSmall)
-                Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}")
-            }
-            IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out") }
-        }
-        Spacer(Modifier.height(16.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(16.dp))
-        Text("Administration modules", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(modules) { module ->
-                val allowed = user.hasPermission(module.permission) &&
-                    (module.title != "Church Identity" || user.hasPermission(AdminPermissions.IDENTITY_EDIT))
-                val action = when (module.title) {
-                    "Church Identity" -> if (allowed) onIdentity else null
-                    "Website Content" -> if (allowed) onContent else null
-                    "Events Management" -> if (allowed) onEvents else null
-                    "Live Streaming" -> if (allowed) onLive else null
-                    "Media Center" -> if (allowed) onMedia else null
-                    "Users & Permissions" -> if (allowed) onUsers else null
-                    else -> null
-                }
-                Card(Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(module.icon, null)
-                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                            Text(module.title, style = MaterialTheme.typography.titleMedium)
-                            Text(module.description, style = MaterialTheme.typography.bodySmall)
-                            Spacer(Modifier.height(4.dp))
-                            Text(if (allowed) "Access available" else "Permission not assigned", color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+@Composable private fun AdminDashboardScreen(user: AdminUser, onLogout: () -> Unit, onIdentity: () -> Unit, onContent: () -> Unit, onEvents: () -> Unit, onLive: () -> Unit, onMedia: () -> Unit, onUsers: () -> Unit, onAnnouncements: () -> Unit) { val modules = listOf(AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security), AdminModule("Website Content", "Homepage, pages, services, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article), AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.SITE_EDIT, Icons.Default.Event), AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv), AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image), AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People), AdminModule("Send Announcement", "Send notifications to all app users", "super_admin", Icons.Default.Campaign), AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings)); Column(Modifier.fillMaxSize().padding(20.dp)) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Admin Dashboard", style = MaterialTheme.typography.headlineSmall); Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}") }; IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out") } }; Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp)); Text("Administration modules", style = MaterialTheme.typography.titleMedium); Spacer(Modifier.height(8.dp)); LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) { items(modules) { module -> val allowed = if (module.permission == "super_admin") user.role == "super_admin" else user.hasPermission(module.permission) && (module.title != "Church Identity" || user.hasPermission(AdminPermissions.IDENTITY_EDIT)); val action = when (module.title) { "Church Identity" -> if (allowed) onIdentity else null; "Website Content" -> if (allowed) onContent else null; "Events Management" -> if (allowed) onEvents else null; "Live Streaming" -> if (allowed) onLive else null; "Media Center" -> if (allowed) onMedia else null; "Users & Permissions" -> if (allowed) onUsers else null; "Send Announcement" -> if (allowed) onAnnouncements else null; else -> null }; Card(Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier)) { Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(module.icon, null); Column(Modifier.weight(1f).padding(start = 14.dp)) { Text(module.title, style = MaterialTheme.typography.titleMedium); Text(module.description, style = MaterialTheme.typography.bodySmall); Spacer(Modifier.height(4.dp)); Text(if (allowed) "Access available" else "Permission not assigned", color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium) } } } } } } }

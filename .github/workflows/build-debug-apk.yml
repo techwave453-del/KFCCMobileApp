@@ -14,13 +14,58 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Locate Android SDK tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager was not found under $ANDROID_SDK_ROOT"
+            find "$ANDROID_SDK_ROOT" -maxdepth 4 -type f 2>/dev/null | head -n 200 || true
+            exit 1
+          fi
+          echo "SDKMANAGER=$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+
+      - name: Verify Android 37 SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLATFORMS="$ANDROID_SDK_ROOT/platforms"
+          echo "Installed Android platforms:"
+          find "$PLATFORMS" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort || true
+
+          # Current GitHub Ubuntu images ship API 37 as android-37.0.
+          # Gradle compileSdk 37 expects the conventional android-37 directory.
+          if [ -d "$PLATFORMS/android-37" ]; then
+            echo "Using existing $PLATFORMS/android-37"
+          elif [ -d "$PLATFORMS/android-37.0" ]; then
+            echo "Mapping preinstalled android-37.0 to android-37"
+            ln -s "android-37.0" "$PLATFORMS/android-37"
+          else
+            echo "Android 37 platform is not installed on this runner."
+            exit 1
+          fi
+
+          if [ ! -d "$ANDROID_SDK_ROOT/build-tools/37.0.0" ]; then
+            echo "Android build-tools 37.0.0 are not installed on this runner."
+            exit 1
+          fi
+
+          echo "Android 37 SDK is ready."
+          ls -la "$PLATFORMS/android-37" | head
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --licenses < /dev/null || true
 
       - name: Grant execute permission
         run: chmod +x gradlew
