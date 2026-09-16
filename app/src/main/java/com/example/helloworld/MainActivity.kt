@@ -19,7 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,7 +82,7 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(churchInfo, events, innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
-                    AppDestinations.MEDIA -> MediaScreen(mediaItems, innerPadding)
+                    AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
                     AppDestinations.ADMIN -> AdminShell(adminViewModel, Modifier.padding(innerPadding))
                 }
             }
@@ -119,27 +119,20 @@ private fun KfccLoadingScreen(churchName: String) {
                     contentScale = ContentScale.Crop
                 )
             }
-
+            Text(displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                text = displayName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Preparing your church experience…",
+                "Preparing your church experience…",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            CircularProgressIndicator(
-                modifier = Modifier.size(28.dp),
-                strokeWidth = 3.dp
-            )
+            CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
         }
     }
 }
 
 enum class AppDestinations(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Default.Home), EVENTS("Events", Icons.Default.Event), MEDIA("Media", Icons.Default.PlayArrow), ADMIN("Admin", Icons.Default.AdminPanelSettings)
+    HOME("Home", Icons.Default.Home),
+    EVENTS("Events", Icons.Default.Event),
+    MEDIA("Media", Icons.Default.PlayArrow),
+    ADMIN("Admin", Icons.Default.AdminPanelSettings)
 }
