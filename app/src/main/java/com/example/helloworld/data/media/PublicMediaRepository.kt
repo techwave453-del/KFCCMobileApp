@@ -2,20 +2,19 @@ package com.example.helloworld.data.media
 
 import com.example.helloworld.data.KfccDataResult
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.postgrest.query.filter
 
-/**
- * Public, read-only media data source.
- *
- * This repository intentionally only reads published media. Administrative
- * mutations remain on the authenticated server API so the APK never receives
- * privileged database credentials.
- */
+/** Public, read-only media data source backed directly by Supabase. */
 class PublicMediaRepository {
     suspend fun loadPublished(): KfccDataResult<List<PublicMediaItem>> {
         return try {
             val items = SupabaseProvider.client
                 .from("media_items")
-                .select()
+                .select {
+                    filter {
+                        eq("published", true)
+                    }
+                }
                 .decodeList<PublicMediaItem>()
 
             KfccDataResult.Success(items)

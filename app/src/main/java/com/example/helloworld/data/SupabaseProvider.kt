@@ -1,6 +1,7 @@
 package com.example.helloworld.data
 
 import com.example.helloworld.config.AppConfig
+import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 
@@ -17,6 +18,7 @@ object SupabaseProvider {
             supabaseUrl = SUPABASE_URL,
             supabaseKey = AppConfig.SUPABASE_PUBLISHABLE_KEY
         ) {
+            install(Auth)
             install(Postgrest)
         }
     }
