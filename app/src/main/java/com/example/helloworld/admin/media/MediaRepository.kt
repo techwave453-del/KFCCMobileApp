@@ -67,7 +67,7 @@ class MediaRepository(context: Context) {
                 FeaturedMediaRequest(featured)
             )
             when (response.status) {
-                in HttpStatusCode.OK..HttpStatusCode.IMUsed -> Result.success(Unit)
+                HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.NoContent -> Result.success(Unit)
                 HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
                 HttpStatusCode.Forbidden -> error("You do not have permission to feature media.")
                 else -> error("Unable to update the Featured Video (${response.status.value}).")
