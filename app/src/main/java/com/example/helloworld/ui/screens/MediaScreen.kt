@@ -39,10 +39,24 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTube
 fun MediaScreen(
     mediaItems: List<MediaItem>,
     liveStream: LiveStream,
-    innerPadding: PaddingValues
+    innerPadding: PaddingValues,
+    title: String = "Media Center",
+    sermonsOnly: Boolean = false,
 ) {
     var selectedVideo by remember { mutableStateOf<MediaItem?>(null) }
     var showLivePlayer by remember { mutableStateOf(false) }
+
+    val visibleItems = remember(mediaItems, sermonsOnly) {
+        if (!sermonsOnly) mediaItems
+        else mediaItems.filter { item ->
+            item.type.equals("video", true) ||
+                item.type.equals("audio", true) ||
+                item.category.contains("sermon", true) ||
+                item.category.contains("message", true) ||
+                item.title.contains("sermon", true) ||
+                item.title.contains("message", true)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -50,7 +64,7 @@ fun MediaScreen(
             .padding(innerPadding)
             .padding(16.dp)
     ) {
-        if (liveStream.enabled && liveStream.url.isNotBlank()) {
+        if (!sermonsOnly && liveStream.enabled && liveStream.url.isNotBlank()) {
             Button(
                 onClick = { showLivePlayer = true },
                 modifier = Modifier.fillMaxWidth().height(72.dp),
@@ -70,12 +84,20 @@ fun MediaScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        Text("Media Center", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(
+            if (sermonsOnly) "Messages, sermons and teachings from the church."
+            else "Videos, images and other published church media.",
+            style = MaterialTheme.typography.bodyMedium
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (mediaItems.isEmpty()) {
+        if (visibleItems.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No media items available.", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (sermonsOnly) "No published sermons yet." else "No media items available.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         } else {
             LazyVerticalGrid(
@@ -84,7 +106,7 @@ fun MediaScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(mediaItems, key = { it.id }) { item ->
+                items(visibleItems, key = { it.id }) { item ->
                     MediaGridItem(item) { selectedVideo = item }
                 }
             }
@@ -119,43 +141,21 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = null,
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
-                        tint = Color.White
-                    )
+                    Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp), tint = Color.White)
                 } else if (isVideo) {
                     val thumbnail = youtubeThumbnailUrl(item.url)
                     if (thumbnail != null) {
-                        AsyncImage(
-                            model = thumbnail,
-                            contentDescription = item.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                        AsyncImage(model = thumbnail, contentDescription = item.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     } else {
-                        Box(
-                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(52.dp))
                         }
                     }
-                    Surface(
-                        modifier = Modifier.align(Alignment.Center),
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.68f)
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Play ${item.title}",
-                            modifier = Modifier.padding(10.dp).size(30.dp),
-                            tint = Color.White
-                        )
+                    Surface(modifier = Modifier.align(Alignment.Center), shape = RoundedCornerShape(50), color = Color.Black.copy(alpha = 0.68f)) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Play ${item.title}", modifier = Modifier.padding(10.dp).size(30.dp), tint = Color.White)
                     }
                 } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(48.dp))
                     }
                 }
@@ -171,53 +171,27 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
 @Composable
 private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
     VideoDialog(title = item.title, onDismiss = onDismiss) {
-        if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
-        else ExoPlayerView(url = item.url)
+        if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url) else ExoPlayerView(url = item.url)
     }
 }
 
 @Composable
 private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
     VideoDialog(title = liveStream.title.ifBlank { "Live Worship Service" }, onDismiss = onDismiss) {
-        if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url)
-        else ExoPlayerView(url = liveStream.url)
+        if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url) else ExoPlayerView(url = liveStream.url)
     }
 }
 
 @Composable
-private fun VideoDialog(
-    title: String,
-    onDismiss: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-            shape = RoundedCornerShape(16.dp),
-            tonalElevation = 6.dp
-        ) {
+private fun VideoDialog(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), shape = RoundedCornerShape(16.dp), tonalElevation = 6.dp) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        title,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2
-                    )
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
                     TextButton(onClick = onDismiss) { Text("Close") }
                 }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                ) { content() }
+                Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { content() }
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -228,12 +202,10 @@ private fun VideoDialog(
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
     val lifecycleOwner = LocalLifecycleOwner.current
-
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             YouTubePlayerView(context).also { playerView ->
-                // Manual initialize() requires automatic initialization to be disabled.
                 playerView.enableAutomaticInitialization = false
                 lifecycleOwner.lifecycle.addObserver(playerView)
                 playerView.initialize(object : AbstractYouTubePlayerListener() {
@@ -243,9 +215,7 @@ private fun YoutubePlayer(url: String) {
                 }, true)
             }
         },
-        update = { playerView ->
-            if (!playerView.isAttachedToWindow) return@AndroidView
-        }
+        update = { playerView -> if (!playerView.isAttachedToWindow) return@AndroidView }
     )
 }
 
@@ -260,9 +230,7 @@ private fun ExoPlayerView(url: String) {
             .build()
             .apply {
                 addListener(object : androidx.media3.common.Player.Listener {
-                    override fun onPlayerError(error: PlaybackException) {
-                        playbackError = error.errorCodeName
-                    }
+                    override fun onPlayerError(error: PlaybackException) { playbackError = error.errorCodeName }
                 })
                 setMediaItem(PlayerMediaItem.fromUri(url))
                 prepare()
@@ -284,12 +252,7 @@ private fun ExoPlayerView(url: String) {
             update = { it.player = player }
         )
         playbackError?.let {
-            Text(
-                text = "Unable to play this video ($it).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 6.dp)
-            )
+            Text("Unable to play this video ($it).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -302,5 +265,4 @@ private fun youtubeVideoId(url: String): String? {
     return patterns.firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
 }
 
-private fun youtubeThumbnailUrl(url: String): String? =
-    youtubeVideoId(url)?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+private fun youtubeThumbnailUrl(url: String): String? = youtubeVideoId(url)?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
