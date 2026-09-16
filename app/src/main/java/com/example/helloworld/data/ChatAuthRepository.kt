@@ -47,17 +47,6 @@ class ChatAuthRepository {
         }
 
         return try {
-            val existing = SupabaseProvider.client
-                .from("chat_profiles")
-                .select {
-                    filter { eq("username", normalizedUsername) }
-                }
-                .decodeList<ChatProfile>()
-
-            if (existing.isNotEmpty()) {
-                return ChatAuthResult(false, "That username is already in use.")
-            }
-
             auth.signUpWith(Email) {
                 email = normalizedEmail
                 this.password = password
@@ -88,12 +77,17 @@ class ChatAuthRepository {
         }
     }
 
-    suspend fun completeProfile(username: String): ChatAuthResult {
+    suspend fun completeProfile(username: String? = null): ChatAuthResult {
         val userId = currentUserId() ?: return ChatAuthResult(false, "Please sign in first.")
-        val normalizedUsername = username.trim().removePrefix("@").lowercase()
+        val metadataUsername = auth.currentUserOrNull()?.userMetadata?.get("chat_username")?.toString()
+            ?.trim('"')
+        val normalizedUsername = (username ?: metadataUsername.orEmpty())
+            .trim()
+            .removePrefix("@")
+            .lowercase()
 
         if (!USERNAME_REGEX.matches(normalizedUsername)) {
-            return ChatAuthResult(false, "Username must be 3–20 characters using letters, numbers, _ or .")
+            return ChatAuthResult(false, "Choose a username to continue.")
         }
 
         return try {
