@@ -23,6 +23,7 @@ import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.LocalCache
 import com.example.helloworld.ui.ChatViewModel
 import com.example.helloworld.ui.ChurchViewModel
+import com.example.helloworld.ui.NotificationsViewModel
 import com.example.helloworld.ui.PreferencesViewModel
 import com.example.helloworld.ui.screens.*
 import com.example.helloworld.ui.theme.KFCCTheme
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
 fun KFCCApp(
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(),
+    notificationsViewModel: NotificationsViewModel = viewModel(),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -56,6 +58,8 @@ fun KFCCApp(
     val events by viewModel.events.collectAsState()
     val chatSignedIn by chatViewModel.signedIn.collectAsState()
     val adminUser by adminViewModel.user.collectAsState()
+    val notifications by notificationsViewModel.notifications.collectAsState()
+    val unreadNotificationCount = notifications.count { it.readAt == null }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
 
@@ -104,7 +108,20 @@ fun KFCCApp(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } }
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } },
+                    actions = {
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotificationCount > 0) {
+                                    Badge { Text(if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString()) }
+                                }
+                            }
+                        ) {
+                            IconButton(onClick = { navigate(AppDestinations.NOTIFICATIONS) }) {
+                                Icon(Icons.Default.Notifications, "Notifications")
+                            }
+                        }
+                    }
                 )
             },
             bottomBar = {
@@ -125,7 +142,7 @@ fun KFCCApp(
                     AppDestinations.ACCOUNT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
                     AppDestinations.PROFILE -> ProfileScreen(innerPadding)
-                    AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
+                    AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding, viewModel = notificationsViewModel)
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
                     AppDestinations.VERSION -> VersionScreen(innerPadding)
