@@ -1,12 +1,5 @@
 package com.example.helloworld.ui.screens
 
-import android.annotation.SuppressLint
-import android.graphics.Color as AndroidColor
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
@@ -38,6 +32,8 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.example.helloworld.data.LiveStream
 import com.example.helloworld.data.MediaItem
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 
 @Composable
 fun MediaScreen(
@@ -74,11 +70,7 @@ fun MediaScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        Text(
-            text = "Media Center",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
+        Text("Media Center", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
 
         if (mediaItems.isEmpty()) {
@@ -178,10 +170,7 @@ fun MediaGridItem(item: MediaItem, onVideoClick: () -> Unit) {
 
 @Composable
 private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
-    VideoDialog(
-        title = item.title,
-        onDismiss = onDismiss
-    ) {
+    VideoDialog(title = item.title, onDismiss = onDismiss) {
         if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
         else ExoPlayerView(url = item.url)
     }
@@ -189,10 +178,7 @@ private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
 
 @Composable
 private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
-    VideoDialog(
-        title = liveStream.title.ifBlank { "Live Worship Service" },
-        onDismiss = onDismiss
-    ) {
+    VideoDialog(title = liveStream.title.ifBlank { "Live Worship Service" }, onDismiss = onDismiss) {
         if (youtubeVideoId(liveStream.url) != null) YoutubePlayer(url = liveStream.url)
         else ExoPlayerView(url = liveStream.url)
     }
@@ -209,21 +195,17 @@ private fun VideoDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             shape = RoundedCornerShape(16.dp),
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = title,
+                        title,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -231,97 +213,36 @@ private fun VideoDialog(
                     )
                     TextButton(onClick = onDismiss) { Text("Close") }
                 }
-
-                // Keep the player at a true widescreen 16:9 ratio instead of
-                // letting the dialog squeeze it into a small rectangular box.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                ) {
-                    content()
-                }
-
+                ) { content() }
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YoutubePlayer(url: String) {
     val videoId = youtubeVideoId(url) ?: return
-
-    // Give the WebView a real third-party HTTPS origin while keeping YouTube
-    // as the iframe source. This preserves the Referer/context needed by
-    // YouTube's embedded player without pretending the app is youtube.com.
-    val embedBaseUrl = "https://kingdomfellowshipchristianchurch.onrender.com/"
-    val iframeUrl =
-        "https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fkingdomfellowshipchristianchurch.onrender.com"
-
-    val html = """
-        <!doctype html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <style>
-                html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    height: 100%;
-                    overflow: hidden;
-                    background: #000;
-                }
-                iframe {
-                    position: absolute;
-                    inset: 0;
-                    border: 0;
-                    width: 100%;
-                    height: 100%;
-                    display: block;
-                    background: #000;
-                }
-            </style>
-        </head>
-        <body>
-            <iframe
-                src="$iframeUrl"
-                title="YouTube video player"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowfullscreen>
-            </iframe>
-        </body>
-        </html>
-    """.trimIndent()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
-            WebView(context).apply {
-                setBackgroundColor(AndroidColor.BLACK)
-                // YouTube's HTML5 video surface needs hardware acceleration.
-                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.databaseEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.loadsImagesAutomatically = true
-                settings.allowContentAccess = true
-                settings.allowFileAccess = false
-                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                CookieManager.getInstance().setAcceptCookie(true)
-                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                webViewClient = WebViewClient()
-                webChromeClient = WebChromeClient()
-                loadDataWithBaseURL(embedBaseUrl, html, "text/html", "UTF-8", embedBaseUrl)
+            YouTubePlayerView(context).also { playerView ->
+                lifecycleOwner.lifecycle.addObserver(playerView)
+                playerView.initialize(object : AbstractYouTubePlayerListener() {
+                    override fun onReady(youTubePlayer: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer) {
+                        youTubePlayer.loadVideo(videoId, 0f)
+                    }
+                }, true)
             }
         },
-        update = { webView ->
-            if (webView.url != embedBaseUrl) {
-                webView.loadDataWithBaseURL(embedBaseUrl, html, "text/html", "UTF-8", embedBaseUrl)
-            }
+        update = { playerView ->
+            if (!playerView.isAttachedToWindow) return@AndroidView
         }
     )
 }
