@@ -50,7 +50,12 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
                         ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
                     openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
-                        ModuleFrame("Media Center", { openModule = null }) { MediaCenterScreen(Modifier.fillMaxSize()) }
+                        ModuleFrame("Media Center", { openModule = null }) {
+                            MediaCenterScreen(
+                                Modifier.fillMaxSize(),
+                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD)
+                            )
+                        }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
                         ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
                     else -> AdminDashboardScreen(
