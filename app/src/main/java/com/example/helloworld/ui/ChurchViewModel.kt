@@ -20,7 +20,9 @@ class ChurchViewModel : ViewModel() {
     val mediaItems: StateFlow<List<MediaItem>> = _mediaItems.asStateFlow()
     private val _events = MutableStateFlow<List<Event>>(emptyList())
     val events: StateFlow<List<Event>> = _events.asStateFlow()
-    private val _isLoading = MutableStateFlow(true)
+    // This state is reserved for interactive/admin operations. Public startup
+    // must not block on Supabase/network availability.
+    private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     private val _currentUser = MutableStateFlow<UserInfo?>(null)
     val currentUser: StateFlow<UserInfo?> = _currentUser.asStateFlow()
@@ -29,15 +31,18 @@ class ChurchViewModel : ViewModel() {
 
     init { refreshData() }
 
+    /**
+     * Refresh public data in the background. The UI already has safe local
+     * defaults, so a slow/offline Supabase connection never blocks app startup.
+     */
     fun refreshData() {
         viewModelScope.launch {
-            _isLoading.value = true
             try {
                 _churchInfo.value = repository.getSiteContent()
                 _mediaItems.value = repository.getMedia()
                 eventsRepository.getPublicEvents().onSuccess { _events.value = it }
-            } finally {
-                _isLoading.value = false
+            } catch (_: Exception) {
+                // Keep the current/default public state when the network is unavailable.
             }
         }
     }
