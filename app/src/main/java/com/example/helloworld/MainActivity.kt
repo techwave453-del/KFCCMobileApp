@@ -1,6 +1,5 @@
 package com.example.helloworld
 
-import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,8 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.helloworld.ui.ChurchViewModel
@@ -42,7 +39,8 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
     Scaffold(
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                windowInsets = NavigationBarDefaults.windowInsets
             ) {
                 NavigationBarItem(
                     selected = currentDestination == AppDestinations.HOME,
@@ -65,17 +63,25 @@ fun KFCCApp(viewModel: ChurchViewModel = viewModel()) {
                 NavigationBarItem(
                     selected = currentDestination == AppDestinations.CHAT,
                     onClick = { currentDestination = AppDestinations.CHAT },
-                    icon = {
-                        BadgedBox(badge = { if (currentDestination != AppDestinations.CHAT) Badge() }) {
-                            Icon(Icons.Default.Chat, contentDescription = "Chat")
-                        }
-                    },
+                    icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
                     label = { Text("Chat") }
+                )
+            }
+        },
+        floatingActionButton = {
+            if (currentDestination != AppDestinations.CHAT) {
+                ExtendedFloatingActionButton(
+                    onClick = { currentDestination = AppDestinations.CHAT },
+                    icon = { Icon(Icons.Default.Chat, contentDescription = "Open Chat") },
+                    text = { Text("Chat") }
                 )
             }
         }
     ) { innerPadding ->
-        Surface(color = MaterialTheme.colorScheme.background) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
             when (currentDestination) {
                 AppDestinations.HOME -> HomeScreen(
                     info = churchInfo,
