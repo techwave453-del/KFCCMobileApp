@@ -9,6 +9,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 private data class FeaturedMediaRequest(val featured: Boolean)
 
+@Serializable
+private data class MediaUpdateRequest(
+    val title: String,
+    val description: String,
+    val category: String,
+    val published: Boolean? = null,
+    val featured: Boolean? = null
+)
+
 /** Server-authoritative Media Center API client. */
 class MediaRepository(context: Context) {
     private val adminRepository = AdminRepository(context.applicationContext)
@@ -26,16 +35,58 @@ class MediaRepository(context: Context) {
         }
     }
 
+    suspend fun update(
+        id: Long,
+        title: String,
+        description: String,
+        category: String,
+        published: Boolean? = null,
+        featured: Boolean? = null
+    ): Result<AdminMediaItem> {
+        return try {
+            val response = adminRepository.authenticatedPatch(
+                "api/media/$id",
+                MediaUpdateRequest(title, description, category, published, featured)
+            )
+            when (response.status) {
+                HttpStatusCode.OK -> Result.success(response.body())
+                HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
+                HttpStatusCode.Forbidden -> error("You do not have permission to edit media.")
+                HttpStatusCode.NotFound -> error("Media item not found.")
+                else -> error("Unable to update media (${response.status.value}).")
+            }
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> {
         return try {
             val response = adminRepository.authenticatedPatch(
                 "api/media/$id/featured",
                 FeaturedMediaRequest(featured)
             )
-            if (response.status.value !in 200..299) {
-                error("Unable to update featured media (${response.status.value}).")
+            when (response.status) {
+                in HttpStatusCode.OK..HttpStatusCode.IMUsed -> Result.success(Unit)
+                HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
+                HttpStatusCode.Forbidden -> error("You do not have permission to feature media.")
+                else -> error("Unable to update the Featured Video (${response.status.value}).")
             }
-            Result.success(Unit)
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
+    suspend fun delete(id: Long): Result<Unit> {
+        return try {
+            val response = adminRepository.authenticatedDelete("api/media/$id")
+            when (response.status) {
+                HttpStatusCode.OK, HttpStatusCode.NoContent -> Result.success(Unit)
+                HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
+                HttpStatusCode.Forbidden -> error("You do not have permission to delete media.")
+                HttpStatusCode.NotFound -> error("Media item not found.")
+                else -> error("Unable to delete media (${response.status.value}).")
+            }
         } catch (error: Exception) {
             Result.failure(error)
         }
