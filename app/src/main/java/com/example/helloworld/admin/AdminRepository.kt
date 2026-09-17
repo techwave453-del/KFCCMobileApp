@@ -6,29 +6,24 @@ import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
 import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
-import io.github.jan.supabase.auth.UserSession
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-
-@Serializable
-private data class AdminLoginRequest(
-    val username: String,
-    val password: String
-)
 
 @Serializable
 private data class AdminSessionResponse(
@@ -50,9 +45,93 @@ private data class AdminSessionUser(
 
 class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
+
     private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }
+
+    private val adminApiClient = HttpClient(CIO) {
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    }
+
+    private suspend fun accessToken(): String {
+        return client.auth.currentAccessTokenOrNull()
+            ?: error("Your administrator session has expired. Please login again.")
+    }
+
+    private fun apiUrl(path: String): String =
+        "$ADMIN_API_BASE_URL/${path.trimStart('/')}"
+
+    suspend fun authenticatedGet(path: String): HttpResponse =
+        adminApiClient.get(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
+
+    suspend fun authenticatedPost(path: String): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
+
+    suspend fun <T> authenticatedPost(path: String, body: T): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+            setBody(body)
+        }
+
+    suspend fun <T> authenticatedPut(path: String, body: T): HttpResponse =
+        adminApiClient.put(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+            setBody(body)
+        }
+
+    suspend fun <T> authenticatedPatch(path: String, body: T): HttpResponse =
+        adminApiClient.patch(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+            setBody(body)
+        }
+
+    suspend fun authenticatedDelete(path: String): HttpResponse =
+        adminApiClient.delete(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
+
+    suspend fun authenticatedMultipartUpload(
+        path: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+        fields: Map<String, String>
+    ): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        fields.forEach { (key, value) -> append(key, value) }
+                        append(
+                            key = "file",
+                            value = bytes,
+                            headers = Headers.build {
+                                append(
+                                    HttpHeaders.ContentDisposition,
+                                    "form-data; name=\"file\"; filename=\"$fileName\""
+                                )
+                                append(HttpHeaders.ContentType, mimeType)
+                            }
+                        )
+                    }
+                )
+            )
+        }
 
     suspend fun restoreSession(): AdminUser? {
         val user = client.auth.currentUserOrNull() ?: return null
@@ -80,7 +159,7 @@ class AdminRepository(context: Context) {
         }
 
         return try {
-            val response = adminLoginClient.post("${SUPABASE_FUNCTIONS_URL}/admin-login") {
+            val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
                 contentType(ContentType.Application.Json)
                 setBody(AdminLoginRequest(normalized, password))
             }
@@ -178,6 +257,7 @@ class AdminRepository(context: Context) {
 
     companion object {
         private const val SUPABASE_FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
+        private const val ADMIN_API_BASE_URL = "https://kingdomfellowshipchristianchurch.onrender.com"
     }
 }
 
