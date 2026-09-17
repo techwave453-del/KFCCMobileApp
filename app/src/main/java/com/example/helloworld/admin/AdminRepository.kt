@@ -1,121 +1,118 @@
 package com.example.helloworld.admin
 
 import android.content.Context
-import com.example.helloworld.config.AppConfig
+import com.example.helloworld.data.ChurchContent
+import com.example.helloworld.data.ChurchInfo
+import com.example.helloworld.data.LiveStream
+import com.example.helloworld.data.SiteContentRow
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.user.UserSession
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.cookies.HttpCookies
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.delete
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.patch
-import io.ktor.client.request.post
-import io.ktor.client.request.put
-import io.ktor.client.request.setBody
+import io.ktor.client.request.*
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.statement.HttpResponse
-import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+@Serializable
+private data class AdminSessionResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int,
+    @SerialName("token_type") val tokenType: String = "bearer",
+    val user: AdminSessionUser
+)
+
+@Serializable
+private data class AdminSessionUser(
+    val id: String,
+    val username: String,
+    val role: String,
+    val is_active: Boolean,
+    val permissions: List<String> = emptyList()
+)
+
 class AdminRepository(context: Context) {
-    private val sessionStore = SessionStore(context.applicationContext)
-    private val client = HttpClient(CIO) {
-        expectSuccess = false
+    private val client = SupabaseProvider.client
 
-        // Render can cold-start the API and media uploads can legitimately take
-        // longer than a normal JSON request. Keep a generous timeout at the
-        // shared HTTP boundary so the mobile app does not abort an otherwise
-        // valid upload while the server is processing it.
-        install(HttpTimeout) {
-            requestTimeoutMillis = 5 * 60 * 1000L
-            connectTimeoutMillis = 30 * 1000L
-            socketTimeoutMillis = 5 * 60 * 1000L
-        }
+    // The admin-login edge function returns the authoritative administrator
+    // record separately from the Supabase Auth user. The imported session may
+    // legitimately contain user = null, so keep the authoritative admin record
+    // here until restoreSession() can reconstruct it from the authenticated app.
+    @Volatile
+    private var authenticatedAdmin: AdminUser? = null
 
+    private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
+            json(Json { ignoreUnknownKeys = true })
         }
-        install(HttpCookies)
     }
 
-    private fun sessionCookie(): String? = sessionStore.get()
-
-    private fun saveSession(response: HttpResponse) {
-        val cookies = response.headers.getAll(HttpHeaders.SetCookie)
-            .orEmpty()
-            .asSequence()
-            .map { it.substringBefore(';').trim() }
-            .filter { it.contains('=') }
-            .toList()
-
-        val cookie = AppConfig.ADMIN_SESSION_COOKIE_NAMES
-            .asSequence()
-            .mapNotNull { name -> cookies.firstOrNull { it.startsWith("$name=") } }
-            .firstOrNull()
-
-        if (!cookie.isNullOrBlank()) sessionStore.save(cookie)
+    private val adminApiClient = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
     }
 
-    private fun clearSession() = sessionStore.clear()
+    private suspend fun accessToken(): String =
+        client.auth.currentAccessTokenOrNull()
+            ?: error("Your administrator session has expired. Please login again.")
 
-    private fun HttpRequestBuilder.withApiHeaders() {
-        header(HttpHeaders.Accept, ContentType.Application.Json.toString())
-        header(HttpHeaders.Origin, AppConfig.ADMIN_API_ORIGIN)
-    }
-
-    private fun HttpRequestBuilder.withSessionCookie() {
-        sessionCookie()?.let { header(HttpHeaders.Cookie, it) }
-    }
-
-    private fun HttpRequestBuilder.withJsonContentType() {
-        header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-    }
-
-    private fun HttpRequestBuilder.withAuthenticatedHeaders() {
-        withApiHeaders()
-        withSessionCookie()
-    }
-
-    private fun url(path: String): String =
-        AppConfig.ADMIN_API_BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
+    private fun apiUrl(path: String): String =
+        "$ADMIN_API_BASE_URL/${path.trimStart('/')}"
 
     suspend fun authenticatedGet(path: String): HttpResponse =
-        client.get(url(path)) { withAuthenticatedHeaders() }.also(::clearOnUnauthorized)
+        adminApiClient.get(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
 
-    suspend fun authenticatedPost(path: String, body: Any? = null): HttpResponse =
-        client.post(url(path)) {
-            withAuthenticatedHeaders()
-            if (body != null) {
-                withJsonContentType()
-                setBody(body)
-            }
-        }.also(::clearOnUnauthorized)
+    suspend fun authenticatedPost(path: String): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
+
+    suspend fun authenticatedPost(path: String, body: Any): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+            setBody(body)
+        }
 
     suspend fun authenticatedPut(path: String, body: Any): HttpResponse =
-        client.put(url(path)) {
-            withAuthenticatedHeaders()
-            withJsonContentType()
+        adminApiClient.put(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
             setBody(body)
-        }.also(::clearOnUnauthorized)
+        }
 
     suspend fun authenticatedPatch(path: String, body: Any): HttpResponse =
-        client.patch(url(path)) {
-            withAuthenticatedHeaders()
-            withJsonContentType()
+        adminApiClient.patch(apiUrl(path)) {
+            bearerAuth(accessToken())
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
             setBody(body)
-        }.also(::clearOnUnauthorized)
+        }
 
     suspend fun authenticatedDelete(path: String): HttpResponse =
-        client.delete(url(path)) { withAuthenticatedHeaders() }.also(::clearOnUnauthorized)
+        adminApiClient.delete(apiUrl(path)) {
+            bearerAuth(accessToken())
+            accept(ContentType.Application.Json)
+        }
 
     suspend fun authenticatedMultipartUpload(
         path: String,
@@ -123,86 +120,223 @@ class AdminRepository(context: Context) {
         fileName: String,
         mimeType: String,
         fields: Map<String, String>
-    ): HttpResponse {
-        // Do not manually include `name="file"` in Content-Disposition.
-        // Ktor's multipart builder writes the field name itself. Supplying the
-        // name a second time can produce a malformed part that Multer/Express
-        // treats as if no file was supplied, which surfaces as "Please select a
-        // file to upload" on the server.
-        val safeFileName = fileName
-            .replace("\\", "_")
-            .replace("\"", "_")
-            .replace("\r", "_")
-            .replace("\n", "_")
-            .ifBlank { "media-file" }
-
-        val safeMimeType = runCatching { ContentType.parse(mimeType) }
-            .getOrElse { ContentType.Application.OctetStream }
-
-        return client.post(url(path)) {
-            withAuthenticatedHeaders()
+    ): HttpResponse =
+        adminApiClient.post(apiUrl(path)) {
+            bearerAuth(accessToken())
             setBody(
                 MultiPartFormDataContent(
                     formData {
-                        fields.forEach { (name, value) -> append(name, value) }
+                        fields.forEach { (key, value) -> append(key, value) }
                         append(
                             key = "file",
                             value = bytes,
                             headers = Headers.build {
-                                append(HttpHeaders.ContentType, safeMimeType.toString())
-                                append(HttpHeaders.ContentDisposition, "filename=\"$safeFileName\"")
+                                append(
+                                    HttpHeaders.ContentDisposition,
+                                    "form-data; name=\"file\"; filename=\"$fileName\""
+                                )
+                                append(HttpHeaders.ContentType, mimeType)
                             }
                         )
                     }
                 )
             )
-        }.also(::clearOnUnauthorized)
-    }
-
-    private fun clearOnUnauthorized(response: HttpResponse) {
-        if (response.status == HttpStatusCode.Unauthorized) clearSession()
-    }
-
-    fun clearStoredSession() = clearSession()
+        }
 
     suspend fun restoreSession(): AdminUser? {
-        return try {
-            val response = authenticatedGet(AppConfig.ADMIN_ME_PATH)
-            if (response.status == HttpStatusCode.OK) response.body<AdminMeResponse>().user else null
-        } catch (_: Exception) {
-            null
+        // Unified login imports the Auth session with user = null because the
+        // admin-login function returns its own authoritative admin user record.
+        // Reuse that record when the application-scoped repository is restoring
+        // the session immediately after navigation into the admin shell.
+        authenticatedAdmin?.let { cached ->
+            if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) {
+                return cached
+            }
         }
+
+        val user = client.auth.currentUserOrNull() ?: return null
+        val metadata = user.appMetadata
+
+        if (metadata?.get("kfcc_admin")?.toString()?.trim('"') != "true") {
+            return null
+        }
+
+        val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
+        val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
+        val permissions = metadata["admin_permissions"]?.toString()
+            ?.let { raw ->
+                runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull()
+            }
+            .orEmpty()
+
+        if (username.isBlank() || role.isBlank()) return null
+
+        return AdminUser(
+            id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
+            username = username,
+            role = role,
+            is_active = true,
+            permissions = permissions
+        ).also { authenticatedAdmin = it }
     }
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
+        val normalized = username.trim()
+
+        if (normalized.isBlank() || password.isBlank()) {
+            return AdminLoginResponse(
+                ok = false,
+                error = "Enter your administrator username and password."
+            )
+        }
+
         return try {
-            val response = client.post(url(AppConfig.ADMIN_LOGIN_PATH)) {
-                withApiHeaders()
-                withJsonContentType()
-                setBody(AdminLoginRequest(username.trim(), password))
+            val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
+                contentType(ContentType.Application.Json)
+                setBody(AdminLoginRequest(normalized, password))
             }
 
-            if (response.status == HttpStatusCode.OK) {
-                saveSession(response)
-                response.body<AdminLoginResponse>()
+            if (response.status.value !in 200..299) {
+                val error = runCatching {
+                    response.body<AdminErrorResponse>().error
+                }.getOrNull()
+
+                AdminLoginResponse(
+                    ok = false,
+                    error = error ?: "Invalid administrator username or password."
+                )
             } else {
-                try {
-                    response.body<AdminLoginResponse>()
-                } catch (_: Exception) {
-                    AdminLoginResponse(error = "Login failed (${response.status.value}).")
-                }
+                val session = response.body<AdminSessionResponse>()
+                val adminUser = AdminUser(
+                    id = session.user.id,
+                    username = session.user.username,
+                    role = session.user.role,
+                    is_active = session.user.is_active,
+                    permissions = session.user.permissions
+                )
+
+                client.auth.importSession(
+                    UserSession(
+                        accessToken = session.accessToken,
+                        refreshToken = session.refreshToken,
+                        expiresIn = session.expiresIn.toLong(),
+                        tokenType = session.tokenType,
+                        user = null
+                    )
+                )
+
+                // Store the exact authoritative user returned by admin-login.
+                // AdminViewModel.restoreSession() will read this same repository
+                // instance when the AdminShell is entered after unified sign-in.
+                authenticatedAdmin = adminUser
+
+                AdminLoginResponse(
+                    ok = true,
+                    user = adminUser
+                )
             }
         } catch (e: Exception) {
-            AdminLoginResponse(error = e.message ?: "Unable to connect to the administrator service.")
+            AdminLoginResponse(
+                ok = false,
+                error = e.message ?: "Unable to sign in as administrator."
+            )
         }
     }
 
     suspend fun logout() {
+        authenticatedAdmin = null
         try {
-            authenticatedPost(AppConfig.ADMIN_LOGOUT_PATH)
+            client.auth.signOut()
         } catch (_: Exception) {
-        } finally {
-            clearSession()
+            // Signing out locally is best-effort.
         }
     }
+
+    suspend fun loadSiteContent(): Result<ChurchInfo> = runCatching {
+        val rows = client.from("site_content")
+            .select(Columns.list("key", "value"))
+            .decodeList<SiteContentRow>()
+
+        decodeChurchInfo(rows) ?: ChurchContent.default
+    }
+
+    suspend fun saveSiteContent(content: ChurchInfo): Result<ChurchInfo> = runCatching {
+        val rows = listOf(
+            mapOf("key" to "churchName", "value" to content.churchName),
+            mapOf("key" to "tagline", "value" to content.tagline),
+            mapOf("key" to "title", "value" to content.title),
+            mapOf("key" to "subtitle", "value" to content.subtitle),
+            mapOf("key" to "aboutTitle", "value" to content.aboutTitle),
+            mapOf("key" to "aboutText", "value" to content.aboutText),
+            mapOf("key" to "phone", "value" to content.phone),
+            mapOf("key" to "email", "value" to content.email),
+            mapOf("key" to "services", "value" to Json.encodeToString(content.services)),
+            mapOf("key" to "links", "value" to Json.encodeToString(content.links)),
+            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses)),
+            mapOf("key" to "liveStream", "value" to Json.encodeToString(content.liveStream))
+        )
+
+        client.from("site_content").upsert(rows)
+        content
+    }
+
+    private fun decodeChurchInfo(rows: List<SiteContentRow>): ChurchInfo? {
+        val values = rows.associate { it.key to it.value }
+        if (values.isEmpty()) return null
+
+        return ChurchInfo(
+            churchName = values["churchName"].orEmpty(),
+            tagline = values["tagline"].orEmpty(),
+            title = values["title"].orEmpty(),
+            subtitle = values["subtitle"].orEmpty(),
+            aboutTitle = values["aboutTitle"].orEmpty(),
+            aboutText = values["aboutText"].orEmpty(),
+            phone = values["phone"].orEmpty(),
+            email = values["email"].orEmpty(),
+            services = decode(values["services"], emptyList()),
+            links = decode(values["links"], emptyList()),
+            membershipClasses = decode(values["membershipClasses"], emptyList()),
+            liveStream = decode(values["liveStream"], LiveStream())
+        )
+    }
+
+    private inline fun <reified T> decode(raw: String?, fallback: T): T =
+        try {
+            if (raw.isNullOrBlank()) fallback else Json.decodeFromString(raw)
+        } catch (_: Exception) {
+            fallback
+        }
+
+    suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
+        client.from("site_content").upsert(
+            mapOf("key" to key, "value" to value)
+        )
+    }
+
+    suspend fun postAnnouncement(
+        title: String,
+        message: String,
+        type: String
+    ): Result<Unit> = runCatching {
+        client.from("app_notifications").insert(
+            mapOf(
+                "title" to title,
+                "message" to message,
+                "type" to type
+            )
+        )
+    }
+
+    companion object {
+        private const val SUPABASE_FUNCTIONS_URL =
+            "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
+
+        private const val ADMIN_API_BASE_URL =
+            "https://kingdomfellowshipchristianchurch.onrender.com"
+    }
 }
+
+@Serializable
+private data class AdminErrorResponse(
+    val error: String? = null
+)

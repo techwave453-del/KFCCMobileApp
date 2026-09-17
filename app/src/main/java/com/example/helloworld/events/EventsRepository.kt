@@ -3,7 +3,6 @@ package com.example.helloworld.events
 import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.filter
 import io.ktor.client.call.body
 import io.ktor.http.HttpStatusCode
 

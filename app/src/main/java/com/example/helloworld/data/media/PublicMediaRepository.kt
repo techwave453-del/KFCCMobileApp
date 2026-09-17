@@ -2,7 +2,7 @@ package com.example.helloworld.data.media
 
 import com.example.helloworld.data.KfccDataResult
 import com.example.helloworld.data.SupabaseProvider
-import io.github.jan.supabase.postgrest.query.filter
+import io.github.jan.supabase.postgrest.from
 
 /** Public, read-only media data source backed directly by Supabase. */
 class PublicMediaRepository {

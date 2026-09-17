@@ -85,12 +85,6 @@ class ChurchRepository {
 }
 
 @kotlinx.serialization.Serializable
-data class SiteContentRow(
-    val key: String,
-    val value: String
-)
-
-@kotlinx.serialization.Serializable
 data class LoginRequest(val username: String, val password: String)
 
 @kotlinx.serialization.Serializable

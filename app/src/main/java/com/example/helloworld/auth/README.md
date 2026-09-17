@@ -1,0 +1,1 @@
+This package contains the unified authentication integration work. The UI integration should be completed only after confirming the exact AdminRepository.login return type and admin session lifecycle.
