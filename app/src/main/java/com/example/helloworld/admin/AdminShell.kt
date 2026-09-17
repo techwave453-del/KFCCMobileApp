@@ -12,8 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.admin.content.WebsiteContentScreen
 import com.example.helloworld.admin.events.AdminEventsScreen
@@ -36,8 +34,11 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
 
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
+            // Administration is never an independent sign-in/sign-up surface.
+            // The only entry point is the unified account screen, which already
+            // authenticated and authorized the administrator before navigating here.
             loading && user == null -> LoadingAdminScreen()
-            user == null -> AdminLoginScreen(loading, error, viewModel::login, viewModel::clearError)
+            user == null -> AdminAccessRequiredScreen()
             else -> user!!.let { currentUser ->
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
@@ -97,6 +98,17 @@ private fun LoadingAdminScreen() {
 }
 
 @Composable
+private fun AdminAccessRequiredScreen() {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(Icons.Default.AdminPanelSettings, null)
+        Spacer(Modifier.height(16.dp))
+        Text("Administration access required", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        Text("Sign in through the unified account screen with an administrator account to access the dashboard.")
+    }
+}
+
+@Composable
 private fun NoPermissionsScreen(onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(Icons.Default.Security, null)
@@ -106,30 +118,6 @@ private fun NoPermissionsScreen(onLogout: () -> Unit) {
         Text(NO_ADMIN_PERMISSIONS)
         Spacer(Modifier.height(20.dp))
         Button(onClick = onLogout) { Text("Sign out") }
-    }
-}
-
-@Composable
-private fun AdminLoginScreen(loading: Boolean, error: String?, onLogin: (String, String) -> Unit, onClearError: () -> Unit) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.AdminPanelSettings, null)
-        Spacer(Modifier.height(12.dp))
-        Text("KFCC Administration", style = MaterialTheme.typography.headlineMedium)
-        Text("Secure access to church administration")
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(username, { username = it; if (error != null) onClearError() }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(password, { password = it; if (error != null) onClearError() }, label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        if (error != null) {
-            Spacer(Modifier.height(12.dp))
-            Text(error, color = MaterialTheme.colorScheme.error)
-        }
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = { onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !loading, modifier = Modifier.fillMaxWidth()) {
-            if (loading) CircularProgressIndicator(Modifier.height(20.dp)) else Text("Sign in")
-        }
     }
 }
 
