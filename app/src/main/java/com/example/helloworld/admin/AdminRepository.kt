@@ -77,7 +77,7 @@ class AdminRepository(context: Context) {
             accept(ContentType.Application.Json)
         }
 
-    suspend fun <T> authenticatedPost(path: String, body: T): HttpResponse =
+    suspend fun authenticatedPost(path: String, body: Any): HttpResponse =
         adminApiClient.post(apiUrl(path)) {
             bearerAuth(accessToken())
             contentType(ContentType.Application.Json)
@@ -85,7 +85,7 @@ class AdminRepository(context: Context) {
             setBody(body)
         }
 
-    suspend fun <T> authenticatedPut(path: String, body: T): HttpResponse =
+    suspend fun authenticatedPut(path: String, body: Any): HttpResponse =
         adminApiClient.put(apiUrl(path)) {
             bearerAuth(accessToken())
             contentType(ContentType.Application.Json)
@@ -93,7 +93,7 @@ class AdminRepository(context: Context) {
             setBody(body)
         }
 
-    suspend fun <T> authenticatedPatch(path: String, body: T): HttpResponse =
+    suspend fun authenticatedPatch(path: String, body: Any): HttpResponse =
         adminApiClient.patch(apiUrl(path)) {
             bearerAuth(accessToken())
             contentType(ContentType.Application.Json)
