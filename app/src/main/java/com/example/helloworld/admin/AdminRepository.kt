@@ -46,6 +46,13 @@ private data class AdminSessionUser(
 class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
 
+    // The admin-login edge function returns the authoritative administrator
+    // record separately from the Supabase Auth user. The imported session may
+    // legitimately contain user = null, so keep the authoritative admin record
+    // here until restoreSession() can reconstruct it from the authenticated app.
+    @Volatile
+    private var authenticatedAdmin: AdminUser? = null
+
     private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -119,9 +126,7 @@ class AdminRepository(context: Context) {
             setBody(
                 MultiPartFormDataContent(
                     formData {
-                        fields.forEach { (key, value) ->
-                            append(key, value)
-                        }
+                        fields.forEach { (key, value) -> append(key, value) }
                         append(
                             key = "file",
                             value = bytes,
@@ -139,6 +144,16 @@ class AdminRepository(context: Context) {
         }
 
     suspend fun restoreSession(): AdminUser? {
+        // Unified login imports the Auth session with user = null because the
+        // admin-login function returns its own authoritative admin user record.
+        // Reuse that record when the application-scoped repository is restoring
+        // the session immediately after navigation into the admin shell.
+        authenticatedAdmin?.let { cached ->
+            if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) {
+                return cached
+            }
+        }
+
         val user = client.auth.currentUserOrNull() ?: return null
         val metadata = user.appMetadata
 
@@ -150,9 +165,7 @@ class AdminRepository(context: Context) {
         val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
         val permissions = metadata["admin_permissions"]?.toString()
             ?.let { raw ->
-                runCatching {
-                    Json.decodeFromString<List<String>>(raw)
-                }.getOrNull()
+                runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull()
             }
             .orEmpty()
 
@@ -164,7 +177,7 @@ class AdminRepository(context: Context) {
             role = role,
             is_active = true,
             permissions = permissions
-        )
+        ).also { authenticatedAdmin = it }
     }
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
@@ -194,6 +207,13 @@ class AdminRepository(context: Context) {
                 )
             } else {
                 val session = response.body<AdminSessionResponse>()
+                val adminUser = AdminUser(
+                    id = session.user.id,
+                    username = session.user.username,
+                    role = session.user.role,
+                    is_active = session.user.is_active,
+                    permissions = session.user.permissions
+                )
 
                 client.auth.importSession(
                     UserSession(
@@ -205,15 +225,14 @@ class AdminRepository(context: Context) {
                     )
                 )
 
+                // Store the exact authoritative user returned by admin-login.
+                // AdminViewModel.restoreSession() will read this same repository
+                // instance when the AdminShell is entered after unified sign-in.
+                authenticatedAdmin = adminUser
+
                 AdminLoginResponse(
                     ok = true,
-                    user = AdminUser(
-                        id = session.user.id,
-                        username = session.user.username,
-                        role = session.user.role,
-                        is_active = session.user.is_active,
-                        permissions = session.user.permissions
-                    )
+                    user = adminUser
                 )
             }
         } catch (e: Exception) {
@@ -225,6 +244,7 @@ class AdminRepository(context: Context) {
     }
 
     suspend fun logout() {
+        authenticatedAdmin = null
         try {
             client.auth.signOut()
         } catch (_: Exception) {
