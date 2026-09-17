@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.admin.content.WebsiteContentScreen
 import com.example.helloworld.admin.events.AdminEventsScreen
@@ -28,15 +29,11 @@ private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been cr
 fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
     val user by viewModel.user.collectAsState()
     val loading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
     var openModule by remember { mutableStateOf<String?>(null) }
     val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
 
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
-            // Administration is never an independent sign-in/sign-up surface.
-            // The only entry point is the unified account screen, which already
-            // authenticated and authorized the administrator before navigating here.
             loading && user == null -> LoadingAdminScreen()
             user == null -> AdminAccessRequiredScreen()
             else -> user!!.let { currentUser ->
