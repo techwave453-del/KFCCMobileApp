@@ -6,8 +6,8 @@ import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
 import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.auth.UserSession
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.HttpClient
@@ -25,7 +25,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-private data class AdminLoginRequest(val username: String, val password: String)
+private data class AdminLoginRequest(
+    val username: String,
+    val password: String
+)
 
 @Serializable
 private data class AdminSessionResponse(
@@ -45,9 +48,6 @@ private data class AdminSessionUser(
     val permissions: List<String> = emptyList()
 )
 
-@Serializable
-private data class AdminErrorResponse(val error: String? = null)
-
 class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
     private val adminLoginClient = HttpClient(CIO) {
@@ -57,7 +57,7 @@ class AdminRepository(context: Context) {
     suspend fun restoreSession(): AdminUser? {
         val user = client.auth.currentUserOrNull() ?: return null
         val metadata = user.appMetadata
-        if (metadata["kfcc_admin"]?.toString()?.trim('"') != "true") return null
+        if (metadata?.get("kfcc_admin")?.toString()?.trim('"') != "true") return null
         val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
         val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
         val permissions = metadata["admin_permissions"]?.toString()
@@ -74,27 +74,31 @@ class AdminRepository(context: Context) {
     }
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
-        val normalized = username.trim().removePrefix("@").lowercase()
+        val normalized = username.trim()
         if (normalized.isBlank() || password.isBlank()) {
-            return AdminLoginResponse(false, error = "Enter your administrator username and password.")
+            return AdminLoginResponse(ok = false, error = "Enter your administrator username and password.")
         }
+
         return try {
             val response = adminLoginClient.post("${SUPABASE_FUNCTIONS_URL}/admin-login") {
                 contentType(ContentType.Application.Json)
                 setBody(AdminLoginRequest(normalized, password))
             }
+
             if (response.status.value !in 200..299) {
                 val error = runCatching { response.body<AdminErrorResponse>().error }.getOrNull()
-                AdminLoginResponse(false, error = error ?: "Invalid administrator username or password.")
+                AdminLoginResponse(ok = false, error = error ?: "Invalid administrator username or password.")
             } else {
                 val session = response.body<AdminSessionResponse>()
-                client.auth.importSession(UserSession(
-                    accessToken = session.accessToken,
-                    refreshToken = session.refreshToken,
-                    expiresIn = session.expiresIn.toLong(),
-                    tokenType = session.tokenType,
-                    user = null
-                ))
+                client.auth.importSession(
+                    UserSession(
+                        accessToken = session.accessToken,
+                        refreshToken = session.refreshToken,
+                        expiresIn = session.expiresIn.toLong(),
+                        tokenType = session.tokenType,
+                        user = null
+                    )
+                )
                 AdminLoginResponse(
                     ok = true,
                     user = AdminUser(
@@ -107,14 +111,18 @@ class AdminRepository(context: Context) {
                 )
             }
         } catch (e: Exception) {
-            AdminLoginResponse(false, error = e.message ?: "Unable to sign in as administrator.")
+            AdminLoginResponse(ok = false, error = e.message ?: "Unable to sign in as administrator.")
         }
     }
 
-    suspend fun logout() { try { client.auth.signOut() } catch (_: Exception) {} }
+    suspend fun logout() {
+        try { client.auth.signOut() } catch (_: Exception) {}
+    }
 
     suspend fun loadSiteContent(): Result<ChurchInfo> = runCatching {
-        val rows = client.from("site_content").select(Columns.list("key", "value")).decodeList<SiteContentRow>()
+        val rows = client.from("site_content")
+            .select(Columns.list("key", "value"))
+            .decodeList<SiteContentRow>()
         decodeChurchInfo(rows) ?: ChurchContent.default
     }
 
@@ -172,3 +180,6 @@ class AdminRepository(context: Context) {
         private const val SUPABASE_FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
     }
 }
+
+@Serializable
+private data class AdminErrorResponse(val error: String? = null)
