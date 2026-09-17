@@ -20,10 +20,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.auth.UnifiedAuthRepository
+import com.example.helloworld.auth.UnifiedAuthResult
+import com.example.helloworld.admin.AdminRepositoryProvider
+import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChatMessage
 import com.example.helloworld.ui.ChatViewModel
-import com.example.helloworld.admin.AdminViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,9 +39,13 @@ fun ChatScreen(
     onAdminLoginSuccess: () -> Unit = {}
 ) {
     val signedIn by viewModel.signedIn.collectAsState()
-    val adminUser by adminViewModel.user.collectAsState()
-    val adminLoading by adminViewModel.isLoading.collectAsState()
-    val authRepository = remember { ChatAuthRepository() }
+    val context = LocalContext.current
+    val authRepository = remember(context) {
+        UnifiedAuthRepository(
+            AdminRepositoryProvider.get(context.applicationContext),
+            ChatAuthRepository()
+        )
+    }
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var usernameInput by remember { mutableStateOf("") }
@@ -46,7 +53,6 @@ fun ChatScreen(
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var verificationPending by remember { mutableStateOf(false) }
-    var loginAttempted by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     if (signedIn) {
@@ -66,7 +72,7 @@ fun ChatScreen(
                 text = when {
                     verificationPending -> "We've sent a verification email. Please verify your email, then tap the button below to sign in."
                     createAccount -> "Create an account to join the conversation and share with the church community."
-                    else -> "Welcome back. Sign in with your email or admin username to continue."
+                    else -> "Sign in with your email or administrator username to continue."
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -82,7 +88,11 @@ fun ChatScreen(
                         Text("Verify your email by clicking the link we sent, then return here.")
                         Spacer(Modifier.height(24.dp))
                         Button(
-                            onClick = { verificationPending = false; createAccount = false; message = "Enter your verified account details to continue." },
+                            onClick = {
+                                verificationPending = false
+                                createAccount = false
+                                message = "Enter your verified account details to continue."
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("I've verified my email") }
                     }
@@ -103,21 +113,35 @@ fun ChatScreen(
                             Spacer(Modifier.height(12.dp))
                         }
                         OutlinedTextField(
-                            value = identifier, 
-                            onValueChange = { identifier = it }, 
-                            modifier = Modifier.fillMaxWidth(), 
-                            label = { Text(if (createAccount) "Email Address" else "Email or Username") }, 
-                            leadingIcon = { Icon(if (createAccount) Icons.Default.MailOutline else Icons.Default.Person, null) }, 
-                            keyboardOptions = KeyboardOptions(keyboardType = if (createAccount) KeyboardType.Email else KeyboardType.Text), 
+                            value = identifier,
+                            onValueChange = { identifier = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(if (createAccount) "Email Address" else "Email or Administrator Username") },
+                            leadingIcon = { Icon(if (createAccount) Icons.Default.MailOutline else Icons.Default.Person, null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = if (createAccount) KeyboardType.Email else KeyboardType.Text),
                             singleLine = true
                         )
                         Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
-                        
-                        if (message != null) {
-                            Text(message!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
+                        OutlinedTextField(
+                            password,
+                            { password = it },
+                            Modifier.fillMaxWidth(),
+                            label = { Text("Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true
+                        )
+
+                        message?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 12.dp)
+                            )
                         }
-                        
+
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = {
@@ -125,28 +149,24 @@ fun ChatScreen(
                                 message = null
                                 scope.launch {
                                     if (createAccount) {
-                                        val result = authRepository.signUp(identifier, password, usernameInput)
+                                        val result = ChatAuthRepository().signUp(identifier, password, usernameInput)
                                         if (result.success) {
                                             verificationPending = true
                                         } else {
-                                            message = result.message
+                                            message = result.message ?: "Unable to create your account."
                                         }
                                     } else {
-                                        // Attempt Admin login
-                                        loginAttempted = true
-                                        adminViewModel.login(identifier, password)
-                                        
-                                        // Attempt regular Chat login
-                                        val result = authRepository.signIn(identifier, password)
-                                        if (result.success) {
-                                            val profile = authRepository.completeProfile()
-                                            if (profile.success) {
-                                                viewModel.onSignedIn()
-                                            } else {
-                                                message = profile.message
+                                        try {
+                                            when (val result = authRepository.signIn(identifier, password)) {
+                                                is UnifiedAuthResult.Administrator -> {
+                                                    onAdminLoginSuccess()
+                                                }
+                                                is UnifiedAuthResult.Member -> {
+                                                    viewModel.onSignedIn()
+                                                }
                                             }
-                                        } else {
-                                            // Regular login failed
+                                        } catch (_: Exception) {
+                                            message = "Incorrect username or password."
                                         }
                                     }
                                     busy = false
@@ -156,24 +176,24 @@ fun ChatScreen(
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            if (busy) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                            else Text(if (createAccount) "Create Account" else "Sign In")
+                            if (busy) {
+                                CircularProgressIndicator(
+                                    Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text(if (createAccount) "Create Account" else "Sign In")
+                            }
                         }
-                    }
-                }
-                
-                LaunchedEffect(adminUser) {
-                    if (adminUser != null && loginAttempted) {
-                        loginAttempted = false
-                        onAdminLoginSuccess()
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (createAccount) "Already have an account?" else "New to KFCC Community?")
-                    TextButton(onClick = { createAccount = !createAccount; message = null }) { 
-                        Text(if (createAccount) "Sign in" else "Create account") 
+                    TextButton(onClick = { createAccount = !createAccount; message = null }) {
+                        Text(if (createAccount) "Sign in" else "Create account")
                     }
                 }
             }
@@ -192,13 +212,12 @@ private fun CommunityChat(viewModel: ChatViewModel) {
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size) { 
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) 
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // Header
             TopAppBar(
                 title = {
                     Column {
@@ -213,7 +232,6 @@ private fun CommunityChat(viewModel: ChatViewModel) {
             )
             HorizontalDivider()
 
-            // Message List
             if (loading && messages.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
@@ -236,16 +254,12 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                 }
             }
 
-            error?.let { 
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall) 
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = viewModel::clearError, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Dismiss") }
             }
 
-            // Input field
-            Surface(
-                tonalElevation = 2.dp,
-                shadowElevation = 8.dp
-            ) {
+            Surface(tonalElevation = 2.dp, shadowElevation = 8.dp) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -271,7 +285,7 @@ private fun CommunityChat(viewModel: ChatViewModel) {
                         enabled = !sending && input.trim().isNotEmpty() && roomId != null,
                         modifier = Modifier.padding(bottom = 4.dp)
                     ) {
-                        if (sending) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) 
+                        if (sending) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                         else Icon(Icons.Default.Send, "Send", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -287,31 +301,31 @@ private fun ChatBubble(message: ChatMessage, own: Boolean) {
         try {
             val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
             format.parse(message.createdAt.substringBefore("."))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Date()
         }
     }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (own) Arrangement.End else Arrangement.Start
     ) {
         if (!own) {
             Icon(
-                Icons.Default.AccountCircle, 
-                contentDescription = null, 
+                Icons.Default.AccountCircle,
+                contentDescription = null,
                 modifier = Modifier.size(32.dp).align(Alignment.Bottom),
                 tint = MaterialTheme.colorScheme.outline
             )
             Spacer(Modifier.width(8.dp))
         }
-        
+
         Surface(
             color = if (own) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
             shape = RoundedCornerShape(
-                topStart = 16.dp, 
-                topEnd = 16.dp, 
-                bottomStart = if (own) 16.dp else 4.dp, 
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (own) 16.dp else 4.dp,
                 bottomEnd = if (own) 4.dp else 16.dp
             ),
             modifier = Modifier.widthIn(max = 280.dp)
@@ -325,10 +339,7 @@ private fun ChatBubble(message: ChatMessage, own: Boolean) {
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Text(
-                    text = message.message,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(text = message.message, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = if (date != null) timeFormat.format(date) else "",
                     style = MaterialTheme.typography.labelSmall,
