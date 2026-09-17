@@ -57,7 +57,14 @@ data class MediaItem(
     val category: String,
     val description: String = "",
     val url: String,
+    val featured: Boolean = false,
     @SerialName("created_at") val createdAt: String
+)
+
+@Serializable
+data class SiteContentRow(
+    val key: String,
+    val value: String
 )
 
 object ChurchContent {

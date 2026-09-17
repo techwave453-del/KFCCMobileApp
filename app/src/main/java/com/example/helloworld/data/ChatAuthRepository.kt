@@ -117,7 +117,7 @@ class ChatAuthRepository {
                     UserSession(
                         accessToken = session.accessToken,
                         refreshToken = session.refreshToken,
-                        expiresIn = session.expiresIn,
+                        expiresIn = session.expiresIn.toLong(),
                         tokenType = session.tokenType,
                         user = null
                     )

@@ -3,6 +3,12 @@ package com.example.helloworld.data
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -15,6 +21,7 @@ data class ChatMessage(
     @SerialName("created_at") val createdAt: String,
     @SerialName("edited_at") val editedAt: String? = null,
     @SerialName("deleted_at") val deletedAt: String? = null,
+    @SerialName("chat_profiles") val senderProfile: ChatProfile? = null
 )
 
 @Serializable
@@ -28,7 +35,7 @@ class ChatRepository {
     private val client get() = SupabaseProvider.client
 
     suspend fun joinCommunity(): Result<String> = runCatching {
-        client.postgrest.rpc("join_kfcc_community").decodeSingle<String>()
+        client.postgrest.rpc("join_kfcc_community").decodeAs<String>()
     }
 
     suspend fun getCommunityRoom(): Result<ChatRoom> = runCatching {
@@ -40,7 +47,7 @@ class ChatRepository {
 
     suspend fun getMessages(roomId: String): Result<List<ChatMessage>> = runCatching {
         client.from("chat_messages")
-            .select {
+            .select(columns = Columns.raw("*, chat_profiles!sender_id(*)")) {
                 filter {
                     eq("room_id", roomId)
                 }
@@ -49,6 +56,14 @@ class ChatRepository {
             .filter { it.deletedAt == null }
             .sortedBy { it.createdAt }
             .takeLast(100)
+    }
+
+    fun observeMessages(roomId: String): Flow<PostgresAction> {
+        val channel = client.realtime.channel("chat_$roomId")
+        return channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "chat_messages"
+            filter = "room_id=eq.$roomId"
+        }
     }
 
     suspend fun sendMessage(roomId: String, message: String): Result<Unit> = runCatching {

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class AdminUser(
-    val id: Long = 0,
+    val id: String = "",
     val username: String = "",
     val role: String = "",
     val is_active: Boolean = true,

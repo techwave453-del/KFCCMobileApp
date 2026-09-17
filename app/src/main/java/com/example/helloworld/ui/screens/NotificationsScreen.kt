@@ -1,131 +1,77 @@
 package com.example.helloworld.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.data.AppNotification
-import com.example.helloworld.data.NotificationRepository
-import kotlinx.coroutines.launch
+import com.example.helloworld.ui.NotificationViewModel
 
 @Composable
-fun NotificationsScreen(innerPadding: PaddingValues) {
-    val repository = remember { NotificationRepository() }
-    val scope = rememberCoroutineScope()
-    var notifications by remember { mutableStateOf<List<AppNotification>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+fun NotificationsScreen(
+    innerPadding: PaddingValues,
+    viewModel: NotificationViewModel = viewModel()
+) {
+    val notifications by viewModel.notifications.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    suspend fun load() {
-        loading = true
-        error = null
-        repository.getNotifications()
-            .onSuccess { notifications = it }
-            .onFailure { error = it.message ?: "Unable to load notifications." }
-        loading = false
-    }
-
-    LaunchedEffect(Unit) { load() }
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Notifications, contentDescription = null)
-            Spacer(Modifier.width(10.dp))
-            Text("Notifications", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.weight(1f))
-            if (notifications.any { it.readAt == null }) {
-                IconButton(onClick = {
-                    scope.launch {
-                        repository.markAllAsRead(notifications).onSuccess {
-                            notifications = notifications.map { it.copy(readAt = "read") }
-                        }
-                    }
-                }) {
-                    Icon(Icons.Default.DoneAll, contentDescription = "Mark all as read")
-                }
+        if (isLoading && notifications.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-        }
-
-        when {
-            loading -> Column(
-                modifier = Modifier.fillMaxSize(),
+        } else if (error != null && notifications.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) { CircularProgressIndicator() }
-
-            error != null -> Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(error!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { scope.launch { load() } }) { Text("Retry") }
+                TextButton(onClick = viewModel::refresh) { Text("Retry") }
             }
-
-            notifications.isEmpty() -> Column(
-                modifier = Modifier.fillMaxSize(),
+        } else if (notifications.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.Notifications, contentDescription = null)
-                Spacer(Modifier.height(12.dp))
-                Text("You're all caught up", style = MaterialTheme.typography.titleMedium)
-                Text("Church announcements and reminders will appear here.")
+                Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.height(16.dp))
+                Text("Notifications", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text("You have no new notifications from KFCC.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 24.dp),
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(notifications, key = { it.id }) { notification ->
-                    NotificationCard(
-                        notification = notification,
-                        onRead = {
-                            if (notification.readAt == null) {
-                                scope.launch {
-                                    repository.markAsRead(notification.id).onSuccess {
-                                        notifications = notifications.map {
-                                            if (it.id == notification.id) it.copy(readAt = "read") else it
-                                        }
-                                    }
-                                }
-                            }
-                        },
+                item {
+                    Text(
+                        "Latest Updates",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
+                }
+                items(notifications) { notification ->
+                    NotificationCard(notification)
                 }
             }
         }
@@ -133,29 +79,40 @@ fun NotificationsScreen(innerPadding: PaddingValues) {
 }
 
 @Composable
-private fun NotificationCard(
-    notification: AppNotification,
-    onRead: () -> Unit,
-) {
+private fun NotificationCard(notification: AppNotification) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onRead,
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.readAt != null) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+        )
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                imageVector = when(notification.type) {
+                    "welcome" -> Icons.Default.Celebration
+                    "admin" -> Icons.Default.Campaign
+                    "chat" -> Icons.AutoMirrored.Filled.Chat
+                    else -> Icons.Default.Notifications
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(notification.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(notification.message, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    notification.title,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
+                    notification.createdAt.replace("T", " "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (notification.readAt == null) {
-                    Text("NEW", style = MaterialTheme.typography.labelSmall)
-                }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(notification.message, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(notification.createdAt, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
