@@ -6,77 +6,121 @@ import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
 import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.auth.UserSession
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
-import io.ktor.client.statement.HttpResponse
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+@Serializable
+private data class AdminLoginRequest(
+    val username: String,
+    val password: String
+)
+
+@Serializable
+private data class AdminSessionResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int,
+    @SerialName("token_type") val tokenType: String = "bearer",
+    val user: AdminSessionUser
+)
+
+@Serializable
+private data class AdminSessionUser(
+    val id: String,
+    val username: String,
+    val role: String,
+    val is_active: Boolean,
+    val permissions: List<String> = emptyList()
+)
+
 class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
+    private val adminLoginClient = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
+    }
 
     suspend fun restoreSession(): AdminUser? {
         val user = client.auth.currentUserOrNull() ?: return null
-        val profile = fetchAdminProfile(user.id)
-        if (user.email?.lowercase() == "denniesofts@gmail.com") {
-            return AdminUser(
-                id = user.id,
-                username = profile?.username?.takeIf { it.isNotBlank() } ?: "denniesofts",
-                role = "super_admin",
-                is_active = true,
-                permissions = emptyList()
-            )
-        }
-        return profile
+        val metadata = user.appMetadata
+        val isAdmin = metadata["kfcc_admin"]?.toString()?.trim('"') == "true"
+        if (!isAdmin) return null
+
+        val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
+        val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
+        val permissions = metadata["admin_permissions"]?.toString()
+            ?.let { raw -> runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull() }
+            .orEmpty()
+
+        if (username.isBlank() || role.isBlank()) return null
+        return AdminUser(
+            id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
+            username = username,
+            role = role,
+            is_active = true,
+            permissions = permissions
+        )
     }
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
+        val normalized = username.trim()
+        if (normalized.isBlank() || password.isBlank()) {
+            return AdminLoginResponse(ok = false, error = "Enter your administrator username and password.")
+        }
+
         return try {
-            // Attempt Supabase sign in. 
-            // In a truly independent setup, administrators sign in via Supabase Auth.
-            client.auth.signInWith(Email) {
-                this.email = if (username.contains("@")) username else "$username@kfcc.internal"
-                this.password = password
+            val response = adminLoginClient.post("${SUPABASE_FUNCTIONS_URL}/admin-login") {
+                contentType(ContentType.Application.Json)
+                setBody(AdminLoginRequest(normalized, password))
             }
-            
-            val user = client.auth.currentUserOrNull()
-            if (user != null) {
-                val profile = fetchAdminProfile(user.id)
-                if (user.email?.lowercase() == "denniesofts@gmail.com") {
-                    val adminUser = AdminUser(
-                        id = user.id,
-                        username = profile?.username?.takeIf { it.isNotBlank() } ?: "denniesofts",
-                        role = "super_admin",
-                        is_active = true,
-                        permissions = emptyList()
-                    )
-                    return AdminLoginResponse(ok = true, user = adminUser)
-                }
-                if (profile != null) {
-                    AdminLoginResponse(ok = true, user = profile)
-                } else {
-                    AdminLoginResponse(ok = false, error = "You do not have administrator permissions.")
-                }
+
+            if (response.status.value !in 200..299) {
+                val error = runCatching { response.body<AdminErrorResponse>().error }.getOrNull()
+                AdminLoginResponse(ok = false, error = error ?: "Invalid administrator username or password.")
             } else {
-                AdminLoginResponse(ok = false, error = "Login failed.")
+                val session = response.body<AdminSessionResponse>()
+                client.auth.importSession(
+                    UserSession(
+                        accessToken = session.accessToken,
+                        refreshToken = session.refreshToken,
+                        expiresIn = session.expiresIn.toLong(),
+                        tokenType = session.tokenType,
+                        user = null
+                    )
+                )
+                AdminLoginResponse(
+                    ok = true,
+                    user = AdminUser(
+                        id = session.user.id,
+                        username = session.user.username,
+                        role = session.user.role,
+                        is_active = session.user.is_active,
+                        permissions = session.user.permissions
+                    )
+                )
             }
         } catch (e: Exception) {
-            AdminLoginResponse(ok = false, error = e.message ?: "Login failed.")
+            AdminLoginResponse(ok = false, error = e.message ?: "Unable to sign in as administrator.")
         }
     }
 
-    private suspend fun fetchAdminProfile(userId: String): AdminUser? {
-        return try {
-            client.from("admin_profiles")
-                .select { filter { eq("id", userId) } }
-                .decodeSingle<AdminUser>()
-        } catch (e: Exception) {
-            null
-        }
-    }
+    private suspend fun fetchAdminProfile(userId: String): AdminUser? = restoreSession()
 
     suspend fun logout() {
         try { client.auth.signOut() } catch (_: Exception) {}
@@ -86,7 +130,6 @@ class AdminRepository(context: Context) {
         val rows = client.from("site_content")
             .select(Columns.list("key", "value"))
             .decodeList<SiteContentRow>()
-
         decodeChurchInfo(rows) ?: ChurchContent.default
     }
 
@@ -132,49 +175,18 @@ class AdminRepository(context: Context) {
         if (raw.isNullOrBlank()) fallback else Json.decodeFromString(raw)
     } catch (_: Exception) { fallback }
 
-    // Helper for independent mutations via Supabase
     suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
         client.from("site_content").upsert(mapOf("key" to key, "value" to value))
     }
-    
+
     suspend fun postAnnouncement(title: String, message: String, type: String): Result<Unit> = runCatching {
-        client.from("app_notifications").insert(mapOf(
-            "title" to title,
-            "message" to message,
-            "type" to type
-        ))
-    }
-    
-    // Compatibility helpers for existing code
-    suspend fun authenticatedGet(path: String): HttpResponse {
-        // This is now a stub or should be removed. 
-        // Real logic should move to fetchAdminProfile or similar Supabase calls.
-        error("Independent mode enabled. Use Supabase directly.")
-    }
-    
-    suspend fun authenticatedPost(path: String, body: Any? = null): HttpResponse {
-        error("Independent mode enabled. Use Supabase directly.")
+        client.from("app_notifications").insert(mapOf("title" to title, "message" to message, "type" to type))
     }
 
-    suspend fun authenticatedPut(path: String, body: Any? = null): HttpResponse {
-        error("Independent mode enabled. Use Supabase directly.")
-    }
-
-    suspend fun authenticatedPatch(path: String, body: Any? = null): HttpResponse {
-        error("Independent mode enabled. Use Supabase directly.")
-    }
-
-    suspend fun authenticatedDelete(path: String): HttpResponse {
-        error("Independent mode enabled. Use Supabase directly.")
-    }
-
-    suspend fun authenticatedMultipartUpload(
-        path: String,
-        bytes: ByteArray,
-        fileName: String,
-        mimeType: String,
-        fields: Map<String, String>
-    ): HttpResponse {
-        error("Independent mode enabled. Use Supabase directly.")
+    companion object {
+        private const val SUPABASE_FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
     }
 }
+
+@Serializable
+private data class AdminErrorResponse(val error: String? = null)
