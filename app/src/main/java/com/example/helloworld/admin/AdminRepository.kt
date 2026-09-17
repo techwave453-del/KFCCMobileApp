@@ -47,17 +47,20 @@ class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
 
     private val adminLoginClient = HttpClient(CIO) {
-        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
     }
 
     private val adminApiClient = HttpClient(CIO) {
-        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
     }
 
-    private suspend fun accessToken(): String {
-        return client.auth.currentAccessTokenOrNull()
+    private suspend fun accessToken(): String =
+        client.auth.currentAccessTokenOrNull()
             ?: error("Your administrator session has expired. Please login again.")
-    }
 
     private fun apiUrl(path: String): String =
         "$ADMIN_API_BASE_URL/${path.trimStart('/')}"
@@ -116,7 +119,9 @@ class AdminRepository(context: Context) {
             setBody(
                 MultiPartFormDataContent(
                     formData {
-                        fields.forEach { (key, value) -> append(key, value) }
+                        fields.forEach { (key, value) ->
+                            append(key, value)
+                        }
                         append(
                             key = "file",
                             value = bytes,
@@ -136,13 +141,23 @@ class AdminRepository(context: Context) {
     suspend fun restoreSession(): AdminUser? {
         val user = client.auth.currentUserOrNull() ?: return null
         val metadata = user.appMetadata
-        if (metadata?.get("kfcc_admin")?.toString()?.trim('"') != "true") return null
+
+        if (metadata?.get("kfcc_admin")?.toString()?.trim('"') != "true") {
+            return null
+        }
+
         val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
         val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
         val permissions = metadata["admin_permissions"]?.toString()
-            ?.let { runCatching { Json.decodeFromString<List<String>>(it) }.getOrNull() }
+            ?.let { raw ->
+                runCatching {
+                    Json.decodeFromString<List<String>>(raw)
+                }.getOrNull()
+            }
             .orEmpty()
+
         if (username.isBlank() || role.isBlank()) return null
+
         return AdminUser(
             id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
             username = username,
@@ -154,8 +169,12 @@ class AdminRepository(context: Context) {
 
     suspend fun login(username: String, password: String): AdminLoginResponse {
         val normalized = username.trim()
+
         if (normalized.isBlank() || password.isBlank()) {
-            return AdminLoginResponse(ok = false, error = "Enter your administrator username and password.")
+            return AdminLoginResponse(
+                ok = false,
+                error = "Enter your administrator username and password."
+            )
         }
 
         return try {
@@ -165,10 +184,17 @@ class AdminRepository(context: Context) {
             }
 
             if (response.status.value !in 200..299) {
-                val error = runCatching { response.body<AdminErrorResponse>().error }.getOrNull()
-                AdminLoginResponse(ok = false, error = error ?: "Invalid administrator username or password.")
+                val error = runCatching {
+                    response.body<AdminErrorResponse>().error
+                }.getOrNull()
+
+                AdminLoginResponse(
+                    ok = false,
+                    error = error ?: "Invalid administrator username or password."
+                )
             } else {
                 val session = response.body<AdminSessionResponse>()
+
                 client.auth.importSession(
                     UserSession(
                         accessToken = session.accessToken,
@@ -178,6 +204,7 @@ class AdminRepository(context: Context) {
                         user = null
                     )
                 )
+
                 AdminLoginResponse(
                     ok = true,
                     user = AdminUser(
@@ -190,18 +217,26 @@ class AdminRepository(context: Context) {
                 )
             }
         } catch (e: Exception) {
-            AdminLoginResponse(ok = false, error = e.message ?: "Unable to sign in as administrator.")
+            AdminLoginResponse(
+                ok = false,
+                error = e.message ?: "Unable to sign in as administrator."
+            )
         }
     }
 
     suspend fun logout() {
-        try { client.auth.signOut() } catch (_: Exception) {}
+        try {
+            client.auth.signOut()
+        } catch (_: Exception) {
+            // Signing out locally is best-effort.
+        }
     }
 
     suspend fun loadSiteContent(): Result<ChurchInfo> = runCatching {
         val rows = client.from("site_content")
             .select(Columns.list("key", "value"))
             .decodeList<SiteContentRow>()
+
         decodeChurchInfo(rows) ?: ChurchContent.default
     }
 
@@ -220,6 +255,7 @@ class AdminRepository(context: Context) {
             mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses)),
             mapOf("key" to "liveStream", "value" to Json.encodeToString(content.liveStream))
         )
+
         client.from("site_content").upsert(rows)
         content
     }
@@ -227,6 +263,7 @@ class AdminRepository(context: Context) {
     private fun decodeChurchInfo(rows: List<SiteContentRow>): ChurchInfo? {
         val values = rows.associate { it.key to it.value }
         if (values.isEmpty()) return null
+
         return ChurchInfo(
             churchName = values["churchName"].orEmpty(),
             tagline = values["tagline"].orEmpty(),
@@ -243,23 +280,43 @@ class AdminRepository(context: Context) {
         )
     }
 
-    private inline fun <reified T> decode(raw: String?, fallback: T): T = try {
-        if (raw.isNullOrBlank()) fallback else Json.decodeFromString(raw)
-    } catch (_: Exception) { fallback }
+    private inline fun <reified T> decode(raw: String?, fallback: T): T =
+        try {
+            if (raw.isNullOrBlank()) fallback else Json.decodeFromString(raw)
+        } catch (_: Exception) {
+            fallback
+        }
 
     suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
-        client.from("site_content").upsert(mapOf("key" to key, "value" to value))
+        client.from("site_content").upsert(
+            mapOf("key" to key, "value" to value)
+        )
     }
 
-    suspend fun postAnnouncement(title: String, message: String, type: String): Result<Unit> = runCatching {
-        client.from("app_notifications").insert(mapOf("title" to title, "message" to message, "type" to type))
+    suspend fun postAnnouncement(
+        title: String,
+        message: String,
+        type: String
+    ): Result<Unit> = runCatching {
+        client.from("app_notifications").insert(
+            mapOf(
+                "title" to title,
+                "message" to message,
+                "type" to type
+            )
+        )
     }
 
     companion object {
-        private const val SUPABASE_FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
-        private const val ADMIN_API_BASE_URL = "https://kingdomfellowshipchristianchurch.onrender.com"
+        private const val SUPABASE_FUNCTIONS_URL =
+            "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
+
+        private const val ADMIN_API_BASE_URL =
+            "https://kingdomfellowshipchristianchurch.onrender.com"
     }
 }
 
 @Serializable
-private data class AdminErrorResponse(val error: String? = null)
+private data class AdminErrorResponse(
+    val error: String? = null
+)
