@@ -4,12 +4,14 @@ import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.ChatAuthRepository
 
 /**
- * Coordinates the two supported authentication backends without exposing
- * backend exceptions or credentials to the UI.
+ * Coordinates administrator and member authentication.
  *
- * Administrator authentication is attempted first because the admin API
- * accepts the same username/password pair. Member authentication remains
- * email/password until a server-side username-to-account resolver is added.
+ * The identifier determines which member authentication path is used:
+ * - email: Supabase email/password authentication
+ * - username: the server-side chat-login resolver
+ *
+ * Administrator username authentication is still attempted first so an
+ * administrator can use the same sign-in form.
  */
 class UnifiedAuthRepository(
     private val adminRepository: AdminRepository,
@@ -17,24 +19,39 @@ class UnifiedAuthRepository(
 ) {
     suspend fun signIn(identifier: String, password: String): UnifiedAuthResult {
         val normalized = identifier.trim()
-        require(normalized.isNotEmpty() && password.isNotEmpty()) { "Enter your username and password." }
+        require(normalized.isNotEmpty() && password.isNotEmpty()) {
+            "Enter your username and password."
+        }
 
+        // Preserve administrator sign-in through the existing admin auth path.
         val admin = adminRepository.login(normalized, password)
         if (admin.ok && admin.user != null) {
             return UnifiedAuthResult.Administrator(admin.user.username)
         }
 
-        if (normalized.contains("@")) {
-            val member = chatRepository.signIn(normalized, password)
-            if (member.success) {
-                val profile = chatRepository.completeProfile()
-                if (profile.success) {
-                    val username = chatRepository.getProfile().getOrNull()?.username ?: normalized
-                    return UnifiedAuthResult.Member(username)
-                }
-            }
+        // Members may sign in with either email or username.
+        val member = if (normalized.contains("@")) {
+            chatRepository.signIn(normalized, password)
+        } else {
+            chatRepository.signInWithUsername(normalized, password)
         }
 
-        throw IllegalArgumentException("Incorrect username or password.")
+        if (!member.success) {
+            throw IllegalArgumentException(member.message ?: "Incorrect username or password.")
+        }
+
+        // Complete the member profile only after authentication has produced
+        // a valid Supabase session.
+        val profile = chatRepository.completeProfile()
+        if (!profile.success) {
+            throw IllegalArgumentException(
+                profile.message ?: "Unable to complete your profile."
+            )
+        }
+
+        val username = chatRepository.getProfile().getOrNull()?.username
+            ?: normalized.removePrefix("@").lowercase()
+
+        return UnifiedAuthResult.Member(username)
     }
 }
