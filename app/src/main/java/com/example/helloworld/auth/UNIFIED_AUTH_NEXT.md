@@ -1,0 +1,1 @@
+Next step: inspect and align the existing AdminRepository API before connecting LoginScreen. No authentication UI changes are merged into the feature branch yet.
