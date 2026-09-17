@@ -1,5 +1,6 @@
 package com.example.helloworld.ui.screens
 
+import android.app.Application
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.admin.AdminShell
+import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChatMessage
 import com.example.helloworld.data.ChatRepository
@@ -40,7 +44,43 @@ fun ChatScreen(
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var verificationPending by remember { mutableStateOf(false) }
+    var loginAttempt by remember { mutableStateOf(false) }
+    var memberLoginStarted by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
+    val adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(application))
+    val adminUser by adminViewModel.user.collectAsState()
+    val adminLoading by adminViewModel.isLoading.collectAsState()
+    val adminError by adminViewModel.error.collectAsState()
+
+    // A valid administrator session takes the user directly into the same
+    // mobile administration shell. There is no second admin login screen.
+    if (adminUser != null) {
+        AdminShell(adminViewModel, Modifier.fillMaxSize().padding(innerPadding))
+        return
+    }
+
+    LaunchedEffect(loginAttempt, adminLoading, adminError) {
+        if (loginAttempt && !adminLoading && adminError != null && !memberLoginStarted) {
+            memberLoginStarted = true
+            busy = true
+            val result = repository.signInWithUsername(username, password)
+            if (result.success) {
+                val profile = repository.completeProfile(username)
+                if (profile.success) {
+                    signedIn = true
+                    message = null
+                } else {
+                    message = profile.message
+                }
+            } else {
+                message = result.message
+            }
+            busy = false
+            loginAttempt = false
+            memberLoginStarted = false
+        }
+    }
 
     if (signedIn) {
         CommunityChat(username, repository, chatRepository) {
@@ -48,6 +88,7 @@ fun ChatScreen(
                 repository.signOut()
                 signedIn = false
                 username = ""
+                password = ""
                 message = null
             }
         }
@@ -64,7 +105,7 @@ fun ChatScreen(
             Text(
                 if (verificationPending) "We've sent a verification email. Verify your email, then tap the button below."
                 else if (createAccount) "Create one simple account to join the conversation."
-                else "Welcome back. Sign in to continue chatting.",
+                else "Welcome back. Sign in to continue chatting or access administration.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -75,10 +116,10 @@ fun ChatScreen(
                     Column(Modifier.padding(20.dp)) {
                         Text("Check your email", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        Text("After verifying your email, return here and sign in with the same email and password.")
+                        Text("After verifying your email, return here and sign in with your username and password.")
                         Spacer(Modifier.height(18.dp))
                         Button(
-                            onClick = { verificationPending = false; createAccount = false; message = "Enter your verified account details to continue." },
+                            onClick = { verificationPending = false; createAccount = false; message = "Enter your username and password to continue." },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("I've verified my email") }
                     }
@@ -86,56 +127,70 @@ fun ChatScreen(
             } else {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp)) {
+                        OutlinedTextField(
+                            username,
+                            { username = it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' || c == '.' }; message = null },
+                            Modifier.fillMaxWidth(),
+                            label = { Text("Username") },
+                            leadingIcon = { Icon(Icons.Default.Person, null) },
+                            singleLine = true,
+                            prefix = { Text("@") }
+                        )
+
                         if (createAccount) {
-                            OutlinedTextField(
-                                username,
-                                { username = it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' || c == '.' } },
-                                Modifier.fillMaxWidth(),
-                                label = { Text("Username") },
-                                leadingIcon = { Icon(Icons.Default.Person, null) },
-                                singleLine = true,
-                                prefix = { Text("@") }
-                            )
                             Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(
+                                email,
+                                { email = it },
+                                Modifier.fillMaxWidth(),
+                                label = { Text("Email") },
+                                leadingIcon = { Icon(Icons.Default.MailOutline, null) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                singleLine = true
+                            )
                         }
-                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, leadingIcon = { Icon(Icons.Default.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
+
                         Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
+                        OutlinedTextField(
+                            password,
+                            { password = it; message = null },
+                            Modifier.fillMaxWidth(),
+                            label = { Text("Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true
+                        )
                         Spacer(Modifier.height(18.dp))
                         Button(
                             onClick = {
                                 busy = true
                                 message = null
-                                scope.launch {
-                                    if (createAccount) {
+                                if (createAccount) {
+                                    scope.launch {
                                         val result = repository.signUp(email, password, username)
                                         busy = false
                                         message = result.message
                                         if (result.success) verificationPending = true
-                                    } else {
-                                        val result = repository.signIn(email, password)
-                                        if (result.success) {
-                                            val profile = repository.completeProfile()
-                                            if (profile.success) {
-                                                signedIn = true
-                                                message = null
-                                            } else {
-                                                message = profile.message
-                                            }
-                                        } else {
-                                            message = result.message
-                                        }
-                                        busy = false
                                     }
+                                } else {
+                                    // First check the existing secure website admin
+                                    // endpoint. If the credentials are not an admin
+                                    // account, the username-based chat auth function
+                                    // performs normal Supabase password verification.
+                                    memberLoginStarted = false
+                                    loginAttempt = true
+                                    adminViewModel.clearError()
+                                    adminViewModel.login(username, password)
                                 }
                             },
-                            enabled = !busy && email.isNotBlank() && password.isNotBlank() && (!createAccount || username.isNotBlank()),
+                            enabled = !busy && !adminLoading && username.isNotBlank() && password.isNotBlank() && (!createAccount || email.isNotBlank()),
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                         ) {
-                            if (busy) CircularProgressIndicator(strokeWidth = 2.dp) else Text(if (createAccount) "Create Account" else "Sign In")
+                            if (busy || (loginAttempt && adminLoading)) CircularProgressIndicator(strokeWidth = 2.dp) else Text(if (createAccount) "Create Account" else "Sign In")
                         }
                         message?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp))
                         }
                     }
                 }
@@ -166,10 +221,6 @@ private fun CommunityChat(username: String, repository: ChatAuthRepository, chat
         loading = false
     }
 
-    // Realtime is enabled in Supabase for chat tables. This branch currently
-    // uses a lightweight polling fallback because the Gradle dependency set
-    // does not yet include supabase-kt Realtime. Once that dependency is added,
-    // this single collector can be replaced without changing the UI/data model.
     LaunchedEffect(roomId) {
         val id = roomId ?: return@LaunchedEffect
         while (true) {
