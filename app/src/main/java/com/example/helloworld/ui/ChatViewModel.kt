@@ -44,6 +44,9 @@ class ChatViewModel : ViewModel() {
     private val _joinRequests = MutableStateFlow<Map<String, ChatGroupJoinRequest>>(emptyMap())
     val joinRequests: StateFlow<Map<String, ChatGroupJoinRequest>> = _joinRequests.asStateFlow()
 
+    private val _pendingGroupRequests = MutableStateFlow<List<ChatGroupJoinRequest>>(emptyList())
+    val pendingGroupRequests: StateFlow<List<ChatGroupJoinRequest>> = _pendingGroupRequests.asStateFlow()
+
     private val _replyingTo = MutableStateFlow<ChatMessage?>(null)
     val replyingTo: StateFlow<ChatMessage?> = _replyingTo.asStateFlow()
 
@@ -116,6 +119,24 @@ class ChatViewModel : ViewModel() {
             _loading.value = true
             chatRepository.joinGroup(roomId)
                 .onSuccess { loadRooms(); selectRoom(roomId); loadDiscoverableGroups() }
+                .onFailure { _error.value = it.message }
+            _loading.value = false
+        }
+    }
+
+    fun loadPendingGroupRequests(roomId: String) {
+        viewModelScope.launch {
+            chatRepository.getGroupJoinRequests(roomId)
+                .onSuccess { _pendingGroupRequests.value = it }
+                .onFailure { _error.value = it.message }
+        }
+    }
+
+    fun reviewGroupJoin(requestId: String, approve: Boolean, roomId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            chatRepository.reviewGroupJoin(requestId, approve)
+                .onSuccess { loadPendingGroupRequests(roomId) }
                 .onFailure { _error.value = it.message }
             _loading.value = false
         }
