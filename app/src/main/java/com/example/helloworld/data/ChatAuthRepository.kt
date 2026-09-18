@@ -139,6 +139,11 @@ class ChatAuthRepository {
         if (password.isBlank()) return ChatAuthResult(false, "Enter your password.")
 
         return try {
+            // Clear any previously imported/session user before username login.
+            // This prevents a stale Auth session from being reused as sender_id
+            // when the new session is imported with user = null.
+            auth.signOut()
+
             val response = usernameLoginClient.post(
                 "${SUPABASE_FUNCTIONS_URL}/chat-login"
             ) {
@@ -159,6 +164,15 @@ class ChatAuthRepository {
                         user = null
                     )
                 )
+
+                // Force the SDK to hydrate the imported session's user. This also
+                // makes subsequent Auth state reads agree with the JWT subject.
+                try {
+                    auth.retrieveUserForCurrentSession()
+                } catch (_: Exception) {
+                    // The JWT subject is still authoritative for ChatRepository.
+                }
+
                 ChatAuthResult(true)
             }
         } catch (error: Exception) {
