@@ -155,13 +155,17 @@ class ChatRepository {
             }
             ?: error("Chat connection lost. Please sign in again.")
 
+        // PostgREST INSERT defaults to an empty response. Request the inserted
+        // row explicitly before decoding it, otherwise decodeSingle() receives EOF.
         val newRoom = client.from("chat_rooms").insert(
             mapOf(
                 "title" to title.trim(),
                 "type" to "group",
                 "created_by" to userId
             )
-        ).decodeSingle<ChatRoom>()
+        ) {
+            select()
+        }.decodeSingle<ChatRoom>()
 
         // The room is intentionally private: the creator must be a member before
         // the normal room/message RLS policies allow access.
