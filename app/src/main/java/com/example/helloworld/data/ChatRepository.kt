@@ -191,15 +191,9 @@ class ChatRepository {
     }
 
     suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
-        // Only return rooms the current member can actually enter. Group discovery
-        // is handled separately by getDiscoverableGroups().
-        val memberships = client.from("chat_room_members")
-            .select { columns = Columns.raw("room_id") }
-            .decodeList<RoomMembership>()
-        val ids = memberships.map { it.roomId }
-        if (ids.isEmpty()) emptyList()
-        else client.from("chat_rooms")
-            .select { filter { isIn("id", ids) } }
+        // RLS already limits chat_rooms to rooms the signed-in user may access.
+        client.from("chat_rooms")
+            .select()
             .decodeList<ChatRoom>()
             .sortedBy { it.title.lowercase() }
     }
