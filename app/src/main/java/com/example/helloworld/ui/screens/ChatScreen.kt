@@ -35,6 +35,7 @@ import coil.compose.AsyncImage
 import com.example.helloworld.admin.AdminUser
 import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatMessage
+import com.example.helloworld.data.ChatRoom
 import com.example.helloworld.ui.ChatViewModel
 import com.example.helloworld.ui.ChurchViewModel
 import java.text.SimpleDateFormat
