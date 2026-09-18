@@ -38,6 +38,12 @@ class ChatViewModel : ViewModel() {
     private val _rooms = MutableStateFlow<List<ChatRoom>>(emptyList())
     val rooms: StateFlow<List<ChatRoom>> = _rooms.asStateFlow()
 
+    private val _discoverableGroups = MutableStateFlow<List<ChatRoom>>(emptyList())
+    val discoverableGroups: StateFlow<List<ChatRoom>> = _discoverableGroups.asStateFlow()
+
+    private val _joinRequests = MutableStateFlow<Map<String, ChatGroupJoinRequest>>(emptyMap())
+    val joinRequests: StateFlow<Map<String, ChatGroupJoinRequest>> = _joinRequests.asStateFlow()
+
     private val _replyingTo = MutableStateFlow<ChatMessage?>(null)
     val replyingTo: StateFlow<ChatMessage?> = _replyingTo.asStateFlow()
 
@@ -71,6 +77,7 @@ class ChatViewModel : ViewModel() {
                 }
                 .onFailure { _error.value = it.message }
             loadRooms()
+            loadDiscoverableGroups()
             _loading.value = false
         }
     }
@@ -80,6 +87,47 @@ class ChatViewModel : ViewModel() {
             chatRepository.getRooms()
                 .onSuccess { _rooms.value = it }
                 .onFailure { _error.value = it.message }
+        }
+    }
+
+    fun loadDiscoverableGroups() {
+        viewModelScope.launch {
+            chatRepository.getDiscoverableGroups()
+                .onSuccess { groups ->
+                    _discoverableGroups.value = groups
+                    groups.filter { group -> _rooms.value.none { it.id == group.id } }
+                        .forEach { loadJoinRequest(it.id) }
+                }
+                .onFailure { _error.value = it.message }
+        }
+    }
+
+    private fun loadJoinRequest(roomId: String) {
+        viewModelScope.launch {
+            chatRepository.getMyJoinRequest(roomId)
+                .onSuccess { request ->
+                    if (request != null) _joinRequests.value = _joinRequests.value + (roomId to request)
+                }
+        }
+    }
+
+    fun joinGroup(roomId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            chatRepository.joinGroup(roomId)
+                .onSuccess { loadRooms(); selectRoom(roomId); loadDiscoverableGroups() }
+                .onFailure { _error.value = it.message }
+            _loading.value = false
+        }
+    }
+
+    fun requestGroupJoin(roomId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            chatRepository.requestGroupJoin(roomId)
+                .onSuccess { loadJoinRequest(roomId) }
+                .onFailure { _error.value = it.message }
+            _loading.value = false
         }
     }
 
