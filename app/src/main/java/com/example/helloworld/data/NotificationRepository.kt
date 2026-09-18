@@ -71,10 +71,20 @@ class NotificationRepository {
             ?: error("Please sign in to mark notifications as read.")
         if (notificationId == "welcome") return@runCatching
 
-        client.from("notification_reads").upsert(
-            mapOf("notification_id" to notificationId, "user_id" to userId),
-            onConflict = "notification_id,user_id"
-        )
+        val existing = client.from("notification_reads")
+            .select {
+                filter {
+                    eq("notification_id", notificationId)
+                    eq("user_id", userId)
+                }
+            }
+            .decodeList<NotificationRead>()
+
+        if (existing.isEmpty()) {
+            client.from("notification_reads").insert(
+                mapOf("notification_id" to notificationId, "user_id" to userId)
+            )
+        }
     }
 
     fun observeNotifications(): Flow<PostgresAction> {
