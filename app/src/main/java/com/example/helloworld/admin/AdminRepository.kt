@@ -38,6 +38,7 @@ private data class AdminSessionResponse(
 private data class AdminSessionUser(
     val id: String,
     val username: String,
+    val email: String = "",
     val role: String,
     val is_active: Boolean,
     val permissions: List<String> = emptyList()
@@ -174,6 +175,7 @@ class AdminRepository(context: Context) {
         return AdminUser(
             id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
             username = username,
+            email = user.email ?: "",
             role = role,
             is_active = true,
             permissions = permissions
@@ -210,6 +212,7 @@ class AdminRepository(context: Context) {
                 val adminUser = AdminUser(
                     id = session.user.id,
                     username = session.user.username,
+                    email = session.user.email,
                     role = session.user.role,
                     is_active = session.user.is_active,
                     permissions = session.user.permissions
