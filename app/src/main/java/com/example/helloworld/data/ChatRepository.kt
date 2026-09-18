@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,7 +64,7 @@ class ChatRepository {
     private val client get() = SupabaseProvider.client
 
     suspend fun joinCommunity(): Result<String> = runCatching {
-        client.postgrest.rpc("join_kfcc_community").decodeAs<String>()
+        client.postgrest.rpc("join_kfcc_community").decodeSingle<String>()
     }
 
     suspend fun getCommunityRoom(): Result<ChatRoom> = runCatching {
@@ -211,11 +213,11 @@ class ChatRepository {
     }
 
     suspend fun joinGroup(roomId: String): Result<String> = runCatching {
-        client.postgrest.rpc("join_chat_group", mapOf("p_room_id" to roomId)).decodeAs<String>()
+        client.postgrest.rpc("join_chat_group", buildJsonObject { put("p_room_id", roomId) }).decodeSingle<String>()
     }
 
     suspend fun requestGroupJoin(roomId: String): Result<String> = runCatching {
-        client.postgrest.rpc("request_chat_group_join", mapOf("p_room_id" to roomId)).decodeAs<String>()
+        client.postgrest.rpc("request_chat_group_join", buildJsonObject { put("p_room_id", roomId) }).decodeSingle<String>()
     }
 
     suspend fun getGroupJoinRequests(roomId: String): Result<List<ChatGroupJoinRequestWithProfile>> = runCatching {
@@ -236,15 +238,15 @@ class ChatRepository {
     suspend fun reviewGroupJoin(requestId: String, approve: Boolean): Result<String> = runCatching {
         client.postgrest.rpc(
             "review_chat_group_join",
-            mapOf("p_request_id" to requestId, "p_approve" to approve)
-        ).decodeAs<String>()
+            buildJsonObject { put("p_request_id", requestId); put("p_approve", approve) }
+        ).decodeSingle<String>()
     }
 
     suspend fun deleteGroup(roomId: String): Result<String> = runCatching {
         client.postgrest.rpc(
             "delete_chat_group",
-            mapOf("p_room_id" to roomId)
-        ).decodeAs<String>()
+            buildJsonObject { put("p_room_id", roomId) }
+        ).decodeSingle<String>()
     }
 
     suspend fun getMyJoinRequest(roomId: String): Result<ChatGroupJoinRequest?> = runCatching {
