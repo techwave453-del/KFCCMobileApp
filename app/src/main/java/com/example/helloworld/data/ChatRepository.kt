@@ -53,6 +53,11 @@ data class ChatGroupJoinRequest(
     @SerialName("requested_at") val requestedAt: String,
 )
 
+data class ChatGroupJoinRequestWithProfile(
+    val request: ChatGroupJoinRequest,
+    val profile: ChatProfile?
+)
+
 class ChatRepository {
     private val client get() = SupabaseProvider.client
 
@@ -213,11 +218,19 @@ class ChatRepository {
         client.postgrest.rpc("request_chat_group_join", mapOf("p_room_id" to roomId)).decodeAs<String>()
     }
 
-    suspend fun getGroupJoinRequests(roomId: String): Result<List<ChatGroupJoinRequest>> = runCatching {
-        client.from("chat_group_join_requests")
+    suspend fun getGroupJoinRequests(roomId: String): Result<List<ChatGroupJoinRequestWithProfile>> = runCatching {
+        val requests = client.from("chat_group_join_requests")
             .select { filter { eq("room_id", roomId); eq("status", "pending") } }
             .decodeList<ChatGroupJoinRequest>()
             .sortedByDescending { it.requestedAt }
+
+        requests.map { request ->
+            val profile = client.from("chat_profiles")
+                .select { filter { eq("user_id", request.userId) } }
+                .decodeList<ChatProfile>()
+                .firstOrNull()
+            ChatGroupJoinRequestWithProfile(request, profile)
+        }
     }
 
     suspend fun reviewGroupJoin(requestId: String, approve: Boolean): Result<String> = runCatching {
