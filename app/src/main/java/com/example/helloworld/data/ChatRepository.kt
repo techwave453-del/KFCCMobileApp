@@ -47,6 +47,7 @@ data class ChatRoom(
     @SerialName("created_by") val createdBy: String? = null,
 )
 
+@Serializable
 data class ChatGroupJoinRequest(
     val id: String,
     @SerialName("room_id") val roomId: String,
