@@ -105,7 +105,7 @@ class ChatRepository {
                 if (parts.size != 3) null
                 else {
                     val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-                    Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
+                    Json { ignoreUnknownKeys = true }.decodeFromString<ChatRepoJwtPayload>(payload).sub
                 }
             } catch (_: Exception) { null }
         } ?: client.auth.currentUserOrNull()?.id
@@ -150,7 +150,7 @@ class ChatRepository {
                 try {
                     val parts = token.split(".")
                     val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-                    Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
+                    Json { ignoreUnknownKeys = true }.decodeFromString<ChatRepoJwtPayload>(payload).sub
                 } catch (_: Exception) { null }
             }
             ?: error("Chat connection lost. Please sign in again.")
