@@ -1,5 +1,6 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -70,8 +71,8 @@ fun NotificationsScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
-                items(notifications) { notification ->
-                    NotificationCard(notification)
+                items(notifications, key = { it.id }) { notification ->
+                    NotificationCard(notification, onClick = { viewModel.markAsRead(notification) })
                 }
             }
         }
@@ -79,9 +80,9 @@ fun NotificationsScreen(
 }
 
 @Composable
-private fun NotificationCard(notification: AppNotification) {
+private fun NotificationCard(notification: AppNotification, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (notification.readAt != null) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
         )
