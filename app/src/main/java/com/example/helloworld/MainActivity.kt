@@ -47,10 +47,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
-        setContent { 
+        setContent {
             val prefsViewModel: PreferencesViewModel = viewModel()
             val isDarkMode by prefsViewModel.isDarkMode.collectAsState()
-            KFCCTheme(darkTheme = isDarkMode) { KFCCApp() } 
+            KFCCTheme(darkTheme = isDarkMode) { KFCCApp() }
         }
     }
 }
@@ -100,7 +100,7 @@ fun KFCCApp(
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
                 NavigationDrawerItem(label = { Text("Settings") }, selected = currentDestination == AppDestinations.SETTINGS, onClick = { navigate(AppDestinations.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) })
                 NavigationDrawerItem(label = { Text("App Version") }, selected = currentDestination == AppDestinations.VERSION, onClick = { navigate(AppDestinations.VERSION) }, icon = { Icon(Icons.Default.Info, null) })
-                
+
                 if (adminUser != null) {
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     NavigationDrawerItem(
@@ -140,9 +140,9 @@ fun KFCCApp(
                     NavigationBarItem(selected = currentDestination == AppDestinations.SEARCH, onClick = { navigate(AppDestinations.SEARCH) }, icon = { Icon(Icons.Default.Search, "Search") }, label = { Text("Search") })
                     NavigationBarItem(selected = currentDestination == AppDestinations.CHAT, onClick = { navigate(AppDestinations.CHAT) }, icon = { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
                     NavigationBarItem(
-                        selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT, 
-                        onClick = { navigate(if (chatSignedIn || adminUser != null) AppDestinations.PROFILE else AppDestinations.ACCOUNT) }, 
-                        icon = { Icon(Icons.Default.AccountCircle, "Profile") }, 
+                        selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT,
+                        onClick = { navigate(if (chatSignedIn || adminUser != null) AppDestinations.PROFILE else AppDestinations.ACCOUNT) },
+                        icon = { Icon(Icons.Default.AccountCircle, "Profile") },
                         label = { Text(if (chatSignedIn || adminUser != null) "Profile" else "Account") }
                     )
                 }
@@ -151,12 +151,12 @@ fun KFCCApp(
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(
-                        info = churchInfo, 
+                        info = churchInfo,
                         mediaItems = mediaItems,
-                        events = events, 
-                        innerPadding = innerPadding, 
-                        onOpenChat = { navigate(AppDestinations.CHAT) }, 
-                        onOpenMedia = { navigate(AppDestinations.MEDIA) }, 
+                        events = events,
+                        innerPadding = innerPadding,
+                        onOpenChat = { navigate(AppDestinations.CHAT) },
+                        onOpenMedia = { navigate(AppDestinations.MEDIA) },
                         onOpenEvents = { navigate(AppDestinations.EVENTS) },
                         onOpenGiving = { navigate(AppDestinations.GIVING) },
                         onOpenSermons = { navigate(AppDestinations.MEDIA) },
@@ -164,8 +164,14 @@ fun KFCCApp(
                     )
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
-                    AppDestinations.CHAT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
-                    AppDestinations.ACCOUNT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = { navigate(AppDestinations.ADMIN) })
+                    AppDestinations.CHAT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = {
+                        adminViewModel.restoreSession()
+                        navigate(AppDestinations.ADMIN)
+                    })
+                    AppDestinations.ACCOUNT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = {
+                        adminViewModel.restoreSession()
+                        navigate(AppDestinations.ADMIN)
+                    })
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
                     AppDestinations.PROFILE -> ProfileScreen(innerPadding)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
@@ -259,11 +265,11 @@ private fun youtubeVideoId(url: String): String? {
     return patterns.firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
 }
 
-enum class AppDestinations(val label: String) { 
-    HOME("Home"), 
-    EVENTS("Events"), 
-    MEDIA("Media"), 
-    CHAT("Chat"), 
+enum class AppDestinations(val label: String) {
+    HOME("Home"),
+    EVENTS("Events"),
+    MEDIA("Media"),
+    CHAT("Chat"),
     ACCOUNT("Account"),
     SEARCH("Search"),
     PROFILE("Profile"),
