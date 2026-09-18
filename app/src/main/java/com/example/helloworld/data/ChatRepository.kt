@@ -64,7 +64,7 @@ class ChatRepository {
     private val client get() = SupabaseProvider.client
 
     suspend fun joinCommunity(): Result<String> = runCatching {
-        client.postgrest.rpc("join_kfcc_community").decodeSingle<String>()
+        client.postgrest.rpc("join_kfcc_community").decodeAs<String>()
     }
 
     suspend fun getCommunityRoom(): Result<ChatRoom> = runCatching {
@@ -213,11 +213,11 @@ class ChatRepository {
     }
 
     suspend fun joinGroup(roomId: String): Result<String> = runCatching {
-        client.postgrest.rpc("join_chat_group", buildJsonObject { put("p_room_id", roomId) }).decodeSingle<String>()
+        client.postgrest.rpc("join_chat_group", buildJsonObject { put("p_room_id", roomId) }).decodeAs<String>()
     }
 
     suspend fun requestGroupJoin(roomId: String): Result<String> = runCatching {
-        client.postgrest.rpc("request_chat_group_join", buildJsonObject { put("p_room_id", roomId) }).decodeSingle<String>()
+        client.postgrest.rpc("request_chat_group_join", buildJsonObject { put("p_room_id", roomId) }).decodeAs<String>()
     }
 
     suspend fun getGroupJoinRequests(roomId: String): Result<List<ChatGroupJoinRequestWithProfile>> = runCatching {
@@ -239,14 +239,14 @@ class ChatRepository {
         client.postgrest.rpc(
             "review_chat_group_join",
             buildJsonObject { put("p_request_id", requestId); put("p_approve", approve) }
-        ).decodeSingle<String>()
+        ).decodeAs<String>()
     }
 
     suspend fun deleteGroup(roomId: String): Result<String> = runCatching {
         client.postgrest.rpc(
             "delete_chat_group",
             buildJsonObject { put("p_room_id", roomId) }
-        ).decodeSingle<String>()
+        ).decodeAs<String>()
     }
 
     suspend fun getMyJoinRequest(roomId: String): Result<ChatGroupJoinRequest?> = runCatching {
