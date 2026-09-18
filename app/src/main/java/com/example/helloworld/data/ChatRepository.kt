@@ -240,6 +240,13 @@ class ChatRepository {
         ).decodeAs<String>()
     }
 
+    suspend fun deleteGroup(roomId: String): Result<String> = runCatching {
+        client.postgrest.rpc(
+            "delete_chat_group",
+            mapOf("p_room_id" to roomId)
+        ).decodeAs<String>()
+    }
+
     suspend fun getMyJoinRequest(roomId: String): Result<ChatGroupJoinRequest?> = runCatching {
         client.from("chat_group_join_requests")
             .select()
