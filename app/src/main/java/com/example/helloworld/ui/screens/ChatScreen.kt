@@ -159,6 +159,11 @@ fun ChatScreen(
                                         try {
                                             when (val result = authRepository.signIn(identifier, password)) {
                                                 is UnifiedAuthResult.Administrator -> {
+                                                    // Unified admin login imports the Supabase Auth session,
+                                                    // but ChatViewModel was created before that session existed.
+                                                    // Explicitly hand the authenticated admin session to Chat
+                                                    // so it initializes the community room immediately.
+                                                    viewModel.onSignedIn()
                                                     onAdminLoginSuccess()
                                                 }
                                                 is UnifiedAuthResult.Member -> {
