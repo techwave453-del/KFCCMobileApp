@@ -300,11 +300,7 @@ private fun CommunityChat(
         AlertDialog(
             onDismissRequest = viewModel::clearError,
             title = { Text("Chat Connection") },
-            text = {
-                SelectionContainer {
-                    Text(errorMessage)
-                }
-            },
+            text = { Text(errorMessage) },
             confirmButton = {
                 Row {
                     TextButton(onClick = {
