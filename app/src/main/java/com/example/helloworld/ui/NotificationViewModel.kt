@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,8 +22,13 @@ class NotificationViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var observeJob: Job? = null
+
     init {
         refresh()
+        observeJob = viewModelScope.launch {
+            repository.observeNotifications().collect { refresh() }
+        }
     }
 
     fun refresh() {
