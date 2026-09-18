@@ -142,6 +142,25 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    fun deleteGroup(roomId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            chatRepository.deleteGroup(roomId)
+                .onSuccess {
+                    _pendingGroupRequests.value = emptyList()
+                    loadRooms()
+                    loadDiscoverableGroups()
+                    if (_roomId.value == roomId) {
+                        chatRepository.getCommunityRoom()
+                            .onSuccess { community -> selectRoom(community.id) }
+                            .onFailure { _error.value = it.message }
+                    }
+                }
+                .onFailure { _error.value = it.message }
+            _loading.value = false
+        }
+    }
+
     fun requestGroupJoin(roomId: String) {
         viewModelScope.launch {
             _loading.value = true
