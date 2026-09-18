@@ -213,6 +213,20 @@ class ChatRepository {
         client.postgrest.rpc("request_chat_group_join", mapOf("p_room_id" to roomId)).decodeAs<String>()
     }
 
+    suspend fun getGroupJoinRequests(roomId: String): Result<List<ChatGroupJoinRequest>> = runCatching {
+        client.from("chat_group_join_requests")
+            .select { filter { eq("room_id", roomId); eq("status", "pending") } }
+            .decodeList<ChatGroupJoinRequest>()
+            .sortedByDescending { it.requestedAt }
+    }
+
+    suspend fun reviewGroupJoin(requestId: String, approve: Boolean): Result<String> = runCatching {
+        client.postgrest.rpc(
+            "review_chat_group_join",
+            mapOf("p_request_id" to requestId, "p_approve" to approve)
+        ).decodeAs<String>()
+    }
+
     suspend fun getMyJoinRequest(roomId: String): Result<ChatGroupJoinRequest?> = runCatching {
         client.from("chat_group_join_requests")
             .select()
