@@ -94,19 +94,23 @@ class ChatRepository {
         require(text.length <= 1000) { "Message is too long." }
 
         val session = client.auth.currentSessionOrNull()
-        var user = client.auth.currentUserOrNull() ?: session?.user
 
-        if (user == null && session != null) {
-            user = try { client.auth.retrieveUserForCurrentSession() } catch (_: Exception) { null }
-        }
-
-        val senderId = user?.id ?: session?.accessToken?.let { token ->
+        // The username/admin login imports a session with user = null.
+        // currentUserOrNull() can also briefly contain a stale user from the
+        // previous session, so the JWT belonging to the current session is
+        // the authoritative identity for a message insert.
+        val senderId = session?.accessToken?.let { token ->
             try {
                 val parts = token.split(".")
-                val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-                Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
+                if (parts.size != 3) null
+                else {
+                    val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+                    Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
+                }
             } catch (_: Exception) { null }
-        } ?: error("Chat connection lost. Please sign in again.")
+        } ?: client.auth.currentUserOrNull()?.id
+          ?: session?.user?.id
+          ?: error("Chat connection lost. Please sign in again.")
 
         val data = mutableMapOf(
             "room_id" to roomId,
