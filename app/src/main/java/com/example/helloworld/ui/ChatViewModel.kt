@@ -45,7 +45,7 @@ class ChatViewModel : ViewModel() {
     val joinRequests: StateFlow<Map<String, ChatGroupJoinRequest>> = _joinRequests.asStateFlow()
 
     private val _pendingGroupRequests = MutableStateFlow<List<ChatGroupJoinRequestWithProfile>>(emptyList())
-    val pendingGroupRequests: StateFlow<List<ChatGroupJoinRequest>> = _pendingGroupRequests.asStateFlow()
+    val pendingGroupRequests: StateFlow<List<ChatGroupJoinRequestWithProfile>> = _pendingGroupRequests.asStateFlow()
 
     private val _replyingTo = MutableStateFlow<ChatMessage?>(null)
     val replyingTo: StateFlow<ChatMessage?> = _replyingTo.asStateFlow()
