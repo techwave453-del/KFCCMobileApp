@@ -89,6 +89,7 @@ private fun CommunityChat(
     var showCreateGroup by remember { mutableStateOf(false) }
     var showGroupBrowser by remember { mutableStateOf(false) }
     var manageGroup by remember { mutableStateOf<ChatRoom?>(null) }
+    var deleteGroupConfirm by remember { mutableStateOf<ChatRoom?>(null) }
     var newGroupName by remember { mutableStateOf("") }
     
     val listState = rememberLazyListState()
@@ -374,7 +375,53 @@ private fun CommunityChat(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { manageGroup = null }) { Text("Done") } }
+            confirmButton = {
+                Row {
+                    TextButton(onClick = { manageGroup = null }) { Text("Done") }
+                    TextButton(
+                        onClick = {
+                            deleteGroupConfirm = group
+                            manageGroup = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Delete Group")
+                    }
+                }
+            }
+        )
+    }
+
+    deleteGroupConfirm?.let { group ->
+        AlertDialog(
+            onDismissRequest = { deleteGroupConfirm = null },
+            title = { Text("Delete Group") },
+            text = {
+                Text(
+                    "Delete “${group.title}”? This permanently removes the group, its messages, members, and pending join requests."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteGroup(group.id)
+                        deleteGroupConfirm = null
+                        showGroupBrowser = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteGroupConfirm = null }) { Text("Cancel") }
+            }
         )
     }
 
