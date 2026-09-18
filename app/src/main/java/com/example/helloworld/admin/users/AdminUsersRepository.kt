@@ -1,119 +1,86 @@
 package com.example.helloworld.admin.users
 
 import android.content.Context
-import com.example.helloworld.admin.AdminRepository
-import io.ktor.client.call.body
-import io.ktor.client.statement.HttpResponse
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
-private data class ApproveRequestBody(
+private data class ProfileRow(
+    val auth_user_id: String,
+    val legacy_admin_user_id: Long? = null,
+    val display_name: String? = null,
     val role: String,
-    val permissions: List<String>
+    val is_active: Boolean,
+    val login_email: String? = null,
+    val created_at: String? = null
 )
 
 @Serializable
-private data class StatusRequestBody(val is_active: Boolean)
+private data class PermissionRow(val permission: String)
 
-@Serializable
-private data class PermissionsRequestBody(val permissions: List<String>)
+class AdminUsersRepository(@Suppress("UNUSED_PARAMETER") context: Context) {
+    private val client get() = SupabaseProvider.client
 
-/** Server-authoritative Users & Permissions API client. */
-class AdminUsersRepository(context: Context) {
-    private val adminRepository = AdminRepository(context.applicationContext)
+    suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
+        val profiles = client.from("admin_profiles").select().decodeList<ProfileRow>()
+        profiles.map { profile ->
+            val permissions = client.from("admin_user_permissions").select {
+                filter { eq("auth_user_id", profile.auth_user_id) }
+            }.decodeList<PermissionRow>().map { it.permission }
 
-    private suspend fun check(response: HttpResponse) {
-        if (response.status.value !in 200..299) {
-            val message = try {
-                response.body<JsonObject>()["error"]?.jsonPrimitive?.contentOrNull
-            } catch (_: Exception) {
-                null
-            }
-            error(message ?: "Administrator service returned ${response.status.value}.")
-        }
-    }
-
-    suspend fun users(): Result<List<AdminManagedUser>> {
-        return try {
-            val response = adminRepository.authenticatedGet("api/admin/users")
-            check(response)
-            val users: List<AdminManagedUser> = response.body()
-            Result.success<List<AdminManagedUser>>(users)
-        } catch (error: Exception) {
-            Result.failure(error)
-        }
-    }
-
-    suspend fun accessRequests(): Result<List<AdminAccessRequest>> {
-        return try {
-            val response = adminRepository.authenticatedGet("api/admin/access/requests")
-            check(response)
-            val requests: List<AdminAccessRequest> = response.body()
-            Result.success<List<AdminAccessRequest>>(requests)
-        } catch (error: Exception) {
-            Result.failure(error)
-        }
-    }
-
-    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> {
-        return try {
-            val response = adminRepository.authenticatedPost(
-                "api/admin/access/requests/$id/approve",
-                ApproveRequestBody(role, permissions)
+            AdminManagedUser(
+                id = profile.legacy_admin_user_id ?: 0L,
+                username = profile.display_name.orEmpty(),
+                role = profile.role,
+                is_active = profile.is_active,
+                permissions = permissions,
+                created_at = profile.created_at
             )
-            check(response)
-            Result.success<Unit>(Unit)
-        } catch (error: Exception) {
-            Result.failure(error)
         }
     }
 
-    suspend fun rejectRequest(id: Long): Result<Unit> {
-        return try {
-            val response = adminRepository.authenticatedPost("api/admin/access/requests/$id/reject")
-            check(response)
-            Result.success<Unit>(Unit)
-        } catch (error: Exception) {
-            Result.failure(error)
+    suspend fun accessRequests(): Result<List<AdminAccessRequest>> =
+        Result.success(emptyList())
+
+    suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<Unit> =
+        Result.failure(UnsupportedOperationException(
+            "New administrator approval is now handled by Auth account identity and will be connected to this screen next."
+        ))
+
+    suspend fun rejectRequest(id: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException(
+            "Legacy access requests are no longer used by the direct Supabase administrator boundary."
+        ))
+
+    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
+        client.from("admin_profiles").update({
+            set("is_active", active)
+        }) {
+            filter { eq("legacy_admin_user_id", id) }
         }
     }
 
-    suspend fun setStatus(id: Long, active: Boolean): Result<Unit> {
-        return try {
-            val response = adminRepository.authenticatedPatch(
-                "api/admin/users/$id/status",
-                StatusRequestBody(active)
+    suspend fun deleteUser(id: Long): Result<Unit> = runCatching {
+        client.from("admin_profiles").delete {
+            filter { eq("legacy_admin_user_id", id) }
+        }
+    }
+
+    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
+        val profile = client.from("admin_profiles").select {
+            filter { eq("legacy_admin_user_id", id) }
+        }.decodeList<ProfileRow>().firstOrNull()
+            ?: error("Administrator account not found.")
+
+        client.from("admin_user_permissions").delete {
+            filter { eq("auth_user_id", profile.auth_user_id) }
+        }
+
+        permissions.distinct().forEach { permission ->
+            client.from("admin_user_permissions").insert(
+                mapOf("auth_user_id" to profile.auth_user_id, "permission" to permission)
             )
-            check(response)
-            Result.success<Unit>(Unit)
-        } catch (error: Exception) {
-            Result.failure(error)
-        }
-    }
-
-    suspend fun deleteUser(id: Long): Result<Unit> {
-        return try {
-            val response = adminRepository.authenticatedDelete("api/admin/users/$id")
-            check(response)
-            Result.success<Unit>(Unit)
-        } catch (error: Exception) {
-            Result.failure(error)
-        }
-    }
-
-    suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> {
-        return try {
-            val response = adminRepository.authenticatedPut(
-                "api/admin/users/$id/permissions",
-                PermissionsRequestBody(permissions)
-            )
-            check(response)
-            Result.success<Unit>(Unit)
-        } catch (error: Exception) {
-            Result.failure(error)
         }
     }
 }
