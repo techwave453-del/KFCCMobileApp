@@ -69,18 +69,22 @@ class ChatAuthRepository {
 
     fun isSignedIn(): Boolean = auth.currentSessionOrNull() != null
     fun currentUserId(): String? {
-        val user = auth.currentUserOrNull() ?: auth.currentSessionOrNull()?.user
-        if (user != null) return user.id
+        val session = auth.currentSessionOrNull()
 
-        // Fallback: Decode the 'sub' claim from the JWT if the user object is not yet loaded.
-        // This is critical for Edge Function based login where the user object is initially null.
-        val token = auth.currentSessionOrNull()?.accessToken ?: return null
-        return try {
-            val parts = token.split(".")
-            if (parts.size != 3) return null
-            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-            Json.decodeFromString<ChatAuthJwtPayload>(payload).sub
-        } catch (_: Exception) { null }
+        // Prefer the subject from the current access token. Edge-function
+        // login imports a session without a User object, and currentUserOrNull()
+        // can otherwise briefly expose a stale identity.
+        session?.accessToken?.let { token ->
+            try {
+                val parts = token.split(".")
+                if (parts.size == 3) {
+                    val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+                    return Json.decodeFromString<ChatAuthJwtPayload>(payload).sub
+                }
+            } catch (_: Exception) {}
+        }
+
+        return auth.currentUserOrNull()?.id ?: session?.user?.id
     }
     fun currentEmail(): String? {
         auth.currentUserOrNull()?.email?.let { return it }
