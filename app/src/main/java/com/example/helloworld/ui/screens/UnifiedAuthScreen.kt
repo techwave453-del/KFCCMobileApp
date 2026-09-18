@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -72,31 +75,34 @@ fun UnifiedAuthScreen(
     ) {
         Box(Modifier.fillMaxSize()) {
             Box(
-                Modifier.fillMaxWidth().height(190.dp)
+                Modifier.fillMaxWidth().height(160.dp)
                     .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)))
             )
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 24.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (churchInfo.logoUrl.isNotBlank()) {
                     AsyncImage(
                         model = churchInfo.logoUrl,
                         contentDescription = "$churchName logo",
-                        modifier = Modifier.size(76.dp).clip(RoundedCornerShape(20.dp)),
+                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(16.dp)),
                         contentScale = ContentScale.Fit
                     )
                 } else {
-                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)) {
-                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(20.dp).size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)) {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(16.dp).size(32.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(churchName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onPrimary)
-                Text(tagline, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f))
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(churchName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onPrimary)
+                Text(tagline, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f))
+                Spacer(Modifier.height(20.dp))
 
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
                     Column(Modifier.padding(20.dp)) {
                         Text(if (register) "Create Account" else "Sign In", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
@@ -129,8 +135,22 @@ fun UnifiedAuthScreen(
                                             if (result.success) verificationPending = true else error = result.message ?: "Unable to create your account."
                                         } else {
                                             when (val result = authRepository.signIn(identifier.trim(), password)) {
-                                                is UnifiedAuthResult.Administrator -> onAdminLoginSuccess()
-                                                is UnifiedAuthResult.Member -> { chatViewModel.onSignedIn(); onMemberSignedIn() }
+                                                is UnifiedAuthResult.Administrator -> {
+                                                    // Ensure the administrator has a community chat identity
+                                                    try {
+                                                        ChatAuthRepository().completeProfile(
+                                                            username = result.username,
+                                                            adminRole = "super_admin" // Initial default
+                                                        )
+                                                    } catch (_: Exception) {}
+                                                    
+                                                    chatViewModel.onSignedIn()
+                                                    onAdminLoginSuccess()
+                                                }
+                                                is UnifiedAuthResult.Member -> { 
+                                                    chatViewModel.onSignedIn()
+                                                    onMemberSignedIn() 
+                                                }
                                             }
                                         }
                                     } catch (_: Exception) { error = "Unable to complete sign in. Please try again." }

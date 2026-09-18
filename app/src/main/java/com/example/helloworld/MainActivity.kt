@@ -173,7 +173,7 @@ fun KFCCApp(
                         navigate(AppDestinations.ADMIN)
                     })
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
-                    AppDestinations.PROFILE -> ProfileScreen(innerPadding)
+                    AppDestinations.PROFILE -> ProfileScreen(innerPadding, adminViewModel = adminViewModel)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)

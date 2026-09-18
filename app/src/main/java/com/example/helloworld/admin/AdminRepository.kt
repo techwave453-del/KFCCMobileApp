@@ -144,29 +144,25 @@ class AdminRepository(context: Context) {
         }
 
     suspend fun restoreSession(): AdminUser? {
-        // Unified login imports the Auth session with user = null because the
-        // admin-login function returns its own authoritative admin user record.
-        // Reuse that record when the application-scoped repository is restoring
-        // the session immediately after navigation into the admin shell.
+        // 1. Check if we have an authoritative admin from the current session's memory.
         authenticatedAdmin?.let { cached ->
             if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) {
                 return cached
             }
         }
 
-        val user = client.auth.currentUserOrNull() ?: return null
-        val metadata = user.appMetadata
-
-        if (metadata?.get("kfcc_admin")?.toString()?.trim('"') != "true") {
-            return null
-        }
+        // 2. Check if there is an active session in the Supabase SDK.
+        val session = client.auth.currentSessionOrNull() ?: return null
+        val user = session.user
+        
+        // 3. Extract identity from metadata. Administrators have specific app_metadata.
+        val metadata = user?.appMetadata ?: return null
+        if (metadata["kfcc_admin"]?.toString()?.trim('"') != "true") return null
 
         val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
         val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
         val permissions = metadata["admin_permissions"]?.toString()
-            ?.let { raw ->
-                runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull()
-            }
+            ?.let { raw -> runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull() }
             .orEmpty()
 
         if (username.isBlank() || role.isBlank()) return null
@@ -224,6 +220,10 @@ class AdminRepository(context: Context) {
                         user = null
                     )
                 )
+
+                // Force fetching the user object so client.auth.currentUserOrNull() 
+                // is correctly populated for other repositories (like Chat).
+                runCatching { client.auth.retrieveUserForCurrentSession() }
 
                 // Store the exact authoritative user returned by admin-login.
                 // AdminViewModel.restoreSession() will read this same repository
