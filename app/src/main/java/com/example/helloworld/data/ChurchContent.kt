@@ -21,65 +21,24 @@ data class ChurchInfo(
 )
 
 @Serializable
-data class ChurchService(
-    val title: String,
-    val time: String,
-    @SerialName("image") val imageUrl: String
-)
+data class ChurchService(val title: String, val time: String, @SerialName("image") val imageUrl: String)
 
 @Serializable
-data class ChurchLink(
-    val title: String,
-    val text: String = "",
-    @SerialName("image") val imageUrl: String,
-    val url: String
-)
+data class ChurchLink(val title: String, val text: String = "", @SerialName("image") val imageUrl: String, val url: String)
 
 @Serializable
-data class MembershipClass(
-    val title: String,
-    @SerialName("image") val imageUrl: String,
-    val registrationUrl: String
-)
+data class MembershipClass(val title: String, @SerialName("image") val imageUrl: String, val registrationUrl: String)
 
 @Serializable
-data class LiveStream(
-    val enabled: Boolean = false,
-    val url: String = "",
-    val title: String = "",
-    val description: String = ""
-)
+data class LiveStream(val enabled: Boolean = false, val url: String = "", val title: String = "", val description: String = "")
 
 @Serializable
-data class MediaItem(
-    val id: Long,
-    val title: String,
-    val type: String,
-    val category: String,
-    val description: String = "",
-    val url: String,
-    val featured: Boolean = false,
-    @SerialName("created_at") val createdAt: String
-)
+data class MediaItem(val id: Long, val title: String, val type: String, val category: String, val description: String = "", val url: String, val featured: Boolean = false, @SerialName("created_at") val createdAt: String)
 
 @Serializable
-data class SiteContentRow(
-    val key: String,
-    val value: String
-)
+data class SiteContentRow(val key: String, val value: String)
 
+/** Empty fallback prevents branding one church as another when Supabase is unavailable. */
 object ChurchContent {
-    val default = ChurchInfo(
-        churchName = "Kingdom Fellowship Christian Church",
-        tagline = "Revealing Christ to Nations",
-        title = "Welcome Home",
-        subtitle = "A place of faith, fellowship, worship and transformation.",
-        aboutTitle = "About Kingdom Fellowship Christian Church",
-        aboutText = "Kingdom Fellowship Christian Church is a community committed to revealing Christ to nations through worship, fellowship, the Word of God, prayer, service and the transforming power of the Gospel.",
-        phone = "+254 700 000 000",
-        email = "hello@aickitanga.org",
-        services = emptyList(),
-        links = emptyList(),
-        membershipClasses = emptyList()
-    )
+    val default = ChurchInfo()
 }
