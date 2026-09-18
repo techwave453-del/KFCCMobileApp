@@ -87,6 +87,7 @@ private fun CommunityChat(
     var editingMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var showRoomPicker by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
+    var showGroupBrowser by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     
     val listState = rememberLazyListState()
@@ -250,9 +251,21 @@ private fun CommunityChat(
                     }
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     TextButton(
-                        onClick = { 
+                        onClick = {
                             showRoomPicker = false
-                            showCreateGroup = true 
+                            viewModel.loadDiscoverableGroups()
+                            showGroupBrowser = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Explore, null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Find Groups", modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+                    }
+                    TextButton(
+                        onClick = {
+                            showRoomPicker = false
+                            showCreateGroup = true
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -263,6 +276,53 @@ private fun CommunityChat(
                 }
             },
             confirmButton = {}
+        )
+    }
+
+    if (showGroupBrowser) {
+        val discoverableGroups by viewModel.discoverableGroups.collectAsState()
+        val joinRequests by viewModel.joinRequests.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showGroupBrowser = false },
+            title = { Text("Church Groups") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (discoverableGroups.isEmpty()) {
+                        Text("No groups are available yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        discoverableGroups.forEach { group ->
+                            val joined = rooms.any { it.id == group.id }
+                            val request = joinRequests[group.id]
+                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Group, null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(group.title, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            if (joined) "You're a member"
+                                            else if (group.joinMode == "approval") "Approval required"
+                                            else "Open to church members",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (request?.status == "pending") {
+                                            Text("Join request pending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                    when {
+                                        joined -> TextButton(onClick = { viewModel.selectRoom(group.id); showGroupBrowser = false }) { Text("Open") }
+                                        request?.status == "pending" -> TextButton(onClick = {}, enabled = false) { Text("Pending") }
+                                        group.joinMode == "approval" -> Button(onClick = { viewModel.requestGroupJoin(group.id) }) { Text("Request") }
+                                        else -> Button(onClick = { viewModel.joinGroup(group.id) }) { Text("Join") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showGroupBrowser = false }) { Text("Done") } }
         )
     }
 
