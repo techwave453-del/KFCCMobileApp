@@ -295,12 +295,28 @@ private fun CommunityChat(
         )
     }
 
-    error?.let {
+    error?.let { errorMessage ->
+        val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
         AlertDialog(
             onDismissRequest = viewModel::clearError,
             title = { Text("Chat Connection") },
-            text = { Text(it) },
-            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("OK") } }
+            text = {
+                SelectionContainer {
+                    Text(errorMessage)
+                }
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(errorMessage))
+                    }) {
+                        Text("Copy error")
+                    }
+                    TextButton(onClick = viewModel::clearError) {
+                        Text("OK")
+                    }
+                }
+            }
         )
     }
 }
