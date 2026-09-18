@@ -31,6 +31,22 @@ class NotificationViewModel : ViewModel() {
         }
     }
 
+    fun markAsRead(notification: AppNotification) {
+        if (notification.readAt != null || notification.id == "welcome") return
+
+        viewModelScope.launch {
+            repository.markAsRead(notification.id)
+                .onSuccess {
+                    _notifications.value = _notifications.value.map {
+                        if (it.id == notification.id) {
+                            it.copy(readAt = java.time.Instant.now().toString())
+                        } else it
+                    }
+                }
+                .onFailure { _error.value = it.message }
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true
