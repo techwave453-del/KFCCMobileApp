@@ -90,9 +90,15 @@ class AdminRepository(@Suppress("UNUSED_PARAMETER") context: Context) {
         )
     }
 
-    suspend fun postAnnouncement(title: String, message: String, type: String): Result<Unit> {
-        return Result.failure(UnsupportedOperationException(
-            "Broadcast notifications are being moved to the direct Supabase notification boundary."
-        ))
+    suspend fun postAnnouncement(title: String, message: String, type: String): Result<Unit> = runCatching {
+        if (title.isBlank() || message.isBlank()) error("Title and message are required.")
+        client.from("app_notifications").insert(
+            mapOf(
+                "user_id" to null,
+                "title" to title.trim(),
+                "message" to message.trim(),
+                "type" to type.trim().ifBlank { "general" }
+            )
+        )
     }
 }
