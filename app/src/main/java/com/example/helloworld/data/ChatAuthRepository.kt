@@ -79,7 +79,7 @@ class ChatAuthRepository {
                 val parts = token.split(".")
                 if (parts.size == 3) {
                     val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-                    return Json.decodeFromString<ChatAuthJwtPayload>(payload).sub
+                    return Json { ignoreUnknownKeys = true }.decodeFromString<ChatAuthJwtPayload>(payload).sub
                 }
             } catch (_: Exception) {}
         }
