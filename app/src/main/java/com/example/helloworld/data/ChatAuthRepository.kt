@@ -23,7 +23,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 @Serializable
-private data class ChatAuthJwtPayload(val sub: String)
+private data class ChatAuthJwtPayload(
+    val sub: String,
+    val email: String? = null
+)
 
 @Serializable
 data class ChatProfile(
@@ -79,7 +82,18 @@ class ChatAuthRepository {
             Json.decodeFromString<ChatAuthJwtPayload>(payload).sub
         } catch (_: Exception) { null }
     }
-    fun currentEmail(): String? = auth.currentUserOrNull()?.email ?: auth.currentSessionOrNull()?.user?.email
+    fun currentEmail(): String? {
+        auth.currentUserOrNull()?.email?.let { return it }
+        auth.currentSessionOrNull()?.user?.email?.let { return it }
+
+        val token = auth.currentSessionOrNull()?.accessToken ?: return null
+        return try {
+            val parts = token.split(".")
+            if (parts.size != 3) return null
+            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+            Json.decodeFromString<ChatAuthJwtPayload>(payload).email
+        } catch (_: Exception) { null }
+    }
 
     suspend fun getProfile(): Result<ChatProfile?> = runCatching {
         val userId = currentUserId() ?: return@runCatching null
