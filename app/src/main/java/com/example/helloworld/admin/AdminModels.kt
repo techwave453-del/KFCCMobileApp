@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class AdminUser(
     val id: Long = 0,
     val username: String = "",
+    val email: String = "",
     val role: String = "",
     val is_active: Boolean = true,
     val permissions: List<String> = emptyList()
@@ -13,7 +14,7 @@ data class AdminUser(
 
 @Serializable
 data class AdminLoginRequest(
-    val username: String,
+    val email: String,
     val password: String
 )
 
@@ -49,6 +50,8 @@ object AdminPermissions {
     const val MEDIA_DELETE = "media.delete"
     const val LIVE_VIEW = "live.view"
     const val LIVE_MANAGE = "live.manage"
+    const val EVENTS_MANAGE = "events.manage"
+    const val NOTIFICATIONS_SEND = "notifications.send"
     const val COMMENTS_VIEW = "comments.view"
     const val COMMENTS_MODERATE = "comments.moderate"
     const val USERS_VIEW = "users.view"
