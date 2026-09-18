@@ -144,6 +144,10 @@ fun UnifiedAuthScreen(
                                                         )
                                                     } catch (_: Exception) {}
                                                     
+                                                    // The AdminViewModel is created before the login session exists.
+                                                    // Explicitly restore it after admin-login imports the Supabase session
+                                                    // so Profile and Administration immediately see the same admin identity.
+                                                    adminViewModel.restoreSession()
                                                     chatViewModel.onSignedIn()
                                                     onAdminLoginSuccess()
                                                 }
