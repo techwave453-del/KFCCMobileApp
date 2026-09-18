@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.helloworld.admin.AdminRepositoryProvider
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class WebsiteContentViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = WebsiteContentRepository(AdminRepositoryProvider.get(application))
+    private val repository = WebsiteContentRepository()
     private val _content = MutableStateFlow(ChurchContent.default)
     val content: StateFlow<ChurchInfo> = _content.asStateFlow()
     private val _loading = MutableStateFlow(false)
