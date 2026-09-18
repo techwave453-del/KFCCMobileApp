@@ -58,16 +58,13 @@ class ChatRepository {
     }
 
     suspend fun getMessages(roomId: String): Result<List<ChatMessage>> = runCatching {
-        // We try to get profiles, but if the relationship is missing, 
-        // we fallback to just fetching the messages to prevent a complete failure.
         try {
             client.from("chat_messages")
                 .select(columns = Columns.raw("*, chat_profiles!sender_id(*)")) {
                     filter { eq("room_id", roomId) }
                 }
                 .decodeList<ChatMessage>()
-        } catch (e: Exception) {
-            // Fallback: Fetch without profile join if the schema relationship is broken
+        } catch (_: Exception) {
             client.from("chat_messages")
                 .select { filter { eq("room_id", roomId) } }
                 .decodeList<ChatMessage>()
@@ -79,7 +76,6 @@ class ChatRepository {
     }
 
     fun observeMessages(roomId: String): Flow<PostgresAction> {
-        // Use a unique channel ID to avoid "already joined" error if multiple flows are active
         val channelId = "chat_${roomId}_${UUID.randomUUID()}"
         val channel = client.realtime.channel(channelId)
         return channel.postgresChangeFlow<PostgresAction>(schema = "public") {
@@ -97,14 +93,13 @@ class ChatRepository {
         require(text.isNotEmpty()) { "Write a message first." }
         require(text.length <= 1000) { "Message is too long." }
 
-        // Resiliently resolve the sender ID from session or user object.
         val session = client.auth.currentSessionOrNull()
         var user = client.auth.currentUserOrNull() ?: session?.user
-        
+
         if (user == null && session != null) {
             user = try { client.auth.retrieveUserForCurrentSession() } catch (_: Exception) { null }
         }
-        
+
         val senderId = user?.id ?: session?.accessToken?.let { token ->
             try {
                 val parts = token.split(".")
@@ -118,9 +113,7 @@ class ChatRepository {
             "sender_id" to senderId,
             "message" to text,
         )
-        if (replyToId != null) {
-            data["reply_to_id"] = replyToId
-        }
+        if (replyToId != null) data["reply_to_id"] = replyToId
 
         client.from("chat_messages").insert(data)
     }
@@ -130,10 +123,7 @@ class ChatRepository {
         require(text.isNotEmpty()) { "Message cannot be empty." }
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
         client.from("chat_messages").update(
-            mapOf(
-                "message" to text,
-                "edited_at" to now
-            )
+            mapOf("message" to text, "edited_at" to now)
         ) {
             filter { eq("id", messageId) }
         }
@@ -141,32 +131,47 @@ class ChatRepository {
 
     suspend fun deleteMessage(messageId: String): Result<Unit> = runCatching {
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
-        client.from("chat_messages").update(
-            mapOf("deleted_at" to now)
-        ) {
+        client.from("chat_messages").update(mapOf("deleted_at" to now)) {
             filter { eq("id", messageId) }
         }
     }
 
     suspend fun createGroup(title: String): Result<ChatRoom> = runCatching {
         require(title.trim().isNotEmpty()) { "Group name cannot be empty." }
+
         val session = client.auth.currentSessionOrNull()
-        val userId = client.auth.currentUserOrNull()?.id ?: session?.user?.id ?: session?.accessToken?.let { token ->
-            try {
-                val parts = token.split(".")
-                val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
-                Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
-            } catch (_: Exception) { null }
-        }
-        client.from("chat_rooms").insert(
+        val userId = client.auth.currentUserOrNull()?.id
+            ?: session?.user?.id
+            ?: session?.accessToken?.let { token ->
+                try {
+                    val parts = token.split(".")
+                    val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+                    Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
+                } catch (_: Exception) { null }
+            }
+            ?: error("Chat connection lost. Please sign in again.")
+
+        val newRoom = client.from("chat_rooms").insert(
             mapOf(
                 "title" to title.trim(),
                 "type" to "group",
                 "created_by" to userId
             )
         ).decodeSingle<ChatRoom>()
+
+        // The room is intentionally private: the creator must be a member before
+        // the normal room/message RLS policies allow access.
+        client.from("chat_room_members").insert(
+            mapOf(
+                "room_id" to newRoom.id,
+                "user_id" to userId,
+                "role" to "member"
+            )
+        )
+
+        newRoom
     }
-    
+
     suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
         client.from("chat_rooms")
             .select()
