@@ -88,6 +88,7 @@ private fun CommunityChat(
     var showRoomPicker by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
     var showGroupBrowser by remember { mutableStateOf(false) }
+    var manageGroup by remember { mutableStateOf<ChatRoom?>(null) }
     var newGroupName by remember { mutableStateOf("") }
     
     val listState = rememberLazyListState()
@@ -310,6 +311,12 @@ private fun CommunityChat(
                                             Text("Join request pending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                         }
                                     }
+                                    if (group.createdBy == viewModel.currentUserId()) {
+                                        TextButton(onClick = {
+                                            viewModel.loadPendingGroupRequests(group.id)
+                                            manageGroup = group
+                                        }) { Text("Manage") }
+                                    }
                                     when {
                                         joined -> TextButton(onClick = { viewModel.selectRoom(group.id); showGroupBrowser = false }) { Text("Open") }
                                         request?.status == "pending" -> TextButton(onClick = {}, enabled = false) { Text("Pending") }
@@ -323,6 +330,41 @@ private fun CommunityChat(
                 }
             },
             confirmButton = { TextButton(onClick = { showGroupBrowser = false }) { Text("Done") } }
+        )
+    }
+
+    manageGroup?.let { group ->
+        val pendingRequests by viewModel.pendingGroupRequests.collectAsState()
+        AlertDialog(
+            onDismissRequest = { manageGroup = null },
+            title = { Text("Join Requests · " + group.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (pendingRequests.isEmpty()) {
+                        Text("There are no pending join requests.")
+                    } else {
+                        pendingRequests.forEach { request ->
+                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Member request", fontWeight = FontWeight.Bold)
+                                        Text("Requested " + request.requestedAt.substringBefore("T"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.id, false, group.id) }) {
+                                        Icon(Icons.Default.Close, "Decline")
+                                    }
+                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.id, true, group.id) }) {
+                                        Icon(Icons.Default.Check, "Approve")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { manageGroup = null }) { Text("Done") } }
         )
     }
 
