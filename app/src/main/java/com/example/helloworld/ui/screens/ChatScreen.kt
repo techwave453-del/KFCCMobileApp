@@ -349,13 +349,23 @@ private fun CommunityChat(
                                     Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(10.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text("Member request", fontWeight = FontWeight.Bold)
-                                        Text("Requested " + request.requestedAt.substringBefore("T"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        val profile = request.profile
+                                        Text(
+                                            profile?.display_name?.takeIf { it.isNotBlank() }
+                                                ?: profile?.username?.let { "@$it" }
+                                                ?: "Church member",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            "Requested " + request.request.requestedAt.substringBefore("T"),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
-                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.id, false, group.id) }) {
+                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.request.id, false, group.id) }) {
                                         Icon(Icons.Default.Close, "Decline")
                                     }
-                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.id, true, group.id) }) {
+                                    IconButton(onClick = { viewModel.reviewGroupJoin(request.request.id, true, group.id) }) {
                                         Icon(Icons.Default.Check, "Approve")
                                     }
                                 }
