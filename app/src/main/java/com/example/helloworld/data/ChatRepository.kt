@@ -41,6 +41,16 @@ data class ChatRoom(
     val id: String,
     val type: String,
     val title: String,
+    @SerialName("join_mode") val joinMode: String = "open",
+    @SerialName("created_by") val createdBy: String? = null,
+)
+
+data class ChatGroupJoinRequest(
+    val id: String,
+    @SerialName("room_id") val roomId: String,
+    @SerialName("user_id") val userId: String,
+    val status: String,
+    @SerialName("requested_at") val requestedAt: String,
 )
 
 class ChatRepository {
@@ -181,8 +191,43 @@ class ChatRepository {
     }
 
     suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
-        client.from("chat_rooms")
-            .select()
+        // Only return rooms the current member can actually enter. Group discovery
+        // is handled separately by getDiscoverableGroups().
+        val memberships = client.from("chat_room_members")
+            .select { columns = Columns.raw("room_id") }
+            .decodeList<RoomMembership>()
+        val ids = memberships.map { it.roomId }
+        if (ids.isEmpty()) emptyList()
+        else client.from("chat_rooms")
+            .select { filter { isIn("id", ids) } }
             .decodeList<ChatRoom>()
+            .sortedBy { it.title.lowercase() }
     }
+
+    suspend fun getDiscoverableGroups(): Result<List<ChatRoom>> = runCatching {
+        client.from("chat_rooms")
+            .select { filter { eq("type", "group") } }
+            .decodeList<ChatRoom>()
+            .sortedBy { it.title.lowercase() }
+    }
+
+    suspend fun joinGroup(roomId: String): Result<String> = runCatching {
+        client.postgrest.rpc("join_chat_group", mapOf("p_room_id" to roomId)).decodeAs<String>()
+    }
+
+    suspend fun requestGroupJoin(roomId: String): Result<String> = runCatching {
+        client.postgrest.rpc("request_chat_group_join", mapOf("p_room_id" to roomId)).decodeAs<String>()
+    }
+
+    suspend fun getMyJoinRequest(roomId: String): Result<ChatGroupJoinRequest?> = runCatching {
+        client.from("chat_group_join_requests")
+            .select()
+            .decodeList<ChatGroupJoinRequest>()
+            .firstOrNull { it.roomId == roomId }
+    }
+
+    @Serializable
+    private data class RoomMembership(
+        @SerialName("room_id") val roomId: String
+    )
 }
