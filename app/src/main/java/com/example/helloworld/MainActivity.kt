@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun KFCCApp(
     viewModel: ChurchViewModel = viewModel(),
-    chatViewModel: ChatViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -96,6 +96,7 @@ fun KFCCApp(
                 }
                 HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
+                NavigationDrawerItem(label = { Text("Services") }, selected = currentDestination == AppDestinations.SERVICES, onClick = { navigate(AppDestinations.SERVICES) }, icon = { Icon(Icons.Default.Church, null) })
                 NavigationDrawerItem(label = { Text("Notifications") }, selected = currentDestination == AppDestinations.NOTIFICATIONS, onClick = { navigate(AppDestinations.NOTIFICATIONS) }, icon = { Icon(Icons.Default.Notifications, null) })
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
                 NavigationDrawerItem(label = { Text("Settings") }, selected = currentDestination == AppDestinations.SETTINGS, onClick = { navigate(AppDestinations.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) })
@@ -160,8 +161,10 @@ fun KFCCApp(
                         onOpenEvents = { navigate(AppDestinations.EVENTS) },
                         onOpenGiving = { navigate(AppDestinations.GIVING) },
                         onOpenSermons = { navigate(AppDestinations.MEDIA) },
-                        onOpenLive = { showLivePlayer = true }
+                        onOpenLive = { showLivePlayer = true },
+                        onOpenServices = { navigate(AppDestinations.SERVICES) }
                     )
+                    AppDestinations.SERVICES -> ServicesScreen(churchInfo.services, innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
                     AppDestinations.CHAT -> ChatScreen(innerPadding, viewModel = chatViewModel, adminViewModel = adminViewModel, onAdminLoginSuccess = {
@@ -178,8 +181,8 @@ fun KFCCApp(
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
                     AppDestinations.VERSION -> VersionScreen(innerPadding)
-                    AppDestinations.GIVING -> GivingScreen(innerPadding)
-                    AppDestinations.ADMIN -> AdminShell(adminViewModel)
+                    AppDestinations.GIVING -> GivingScreen(churchInfo, innerPadding)
+                    AppDestinations.ADMIN -> AdminShell(adminViewModel, innerPadding, onBackToApp = { navigate(AppDestinations.HOME) })
                 }
             }
         }
@@ -267,6 +270,7 @@ private fun youtubeVideoId(url: String): String? {
 
 enum class AppDestinations(val label: String) {
     HOME("Home"),
+    SERVICES("Services"),
     EVENTS("Events"),
     MEDIA("Media"),
     CHAT("Chat"),

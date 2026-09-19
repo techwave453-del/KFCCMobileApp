@@ -30,18 +30,33 @@ import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChatProfile
 import com.example.helloworld.ui.ChatViewModel
+import com.example.helloworld.ui.ChurchViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
     innerPadding: PaddingValues,
-    chatViewModel: ChatViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 ) {
     val repository = remember { ChatAuthRepository() }
     val scope = rememberCoroutineScope()
     val adminUser by adminViewModel.user.collectAsState()
     val signedIn by chatViewModel.signedIn.collectAsState()
+    val churchViewModel: ChurchViewModel = viewModel()
+    val churchInfo by churchViewModel.churchInfo.collectAsState()
+
+    if (!signedIn && adminUser == null) {
+        UnifiedAuthScreen(
+            churchInfo = churchInfo,
+            chatViewModel = chatViewModel,
+            adminViewModel = adminViewModel,
+            innerPadding = innerPadding,
+            onMemberSignedIn = chatViewModel::initChat,
+            onAdminLoginSuccess = { /* Already handled in MainActivity */ }
+        )
+        return
+    }
     
     var profile by remember { mutableStateOf<ChatProfile?>(null) }
     var username by remember { mutableStateOf("") }

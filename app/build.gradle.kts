@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 val localProperties = Properties().apply {
@@ -16,7 +17,7 @@ val localProperties = Properties().apply {
 val supabasePublishableKey =
     System.getenv("SUPABASE_PUBLISHABLE_KEY")
         ?: localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY")
-        ?: ""
+        ?: "sb_publishable_mGcmejtGmoASLKFqWpSXLw_xGBeYTAA"
 
 android {
     namespace = "com.example.helloworld"
@@ -78,6 +79,10 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.youtube.player)

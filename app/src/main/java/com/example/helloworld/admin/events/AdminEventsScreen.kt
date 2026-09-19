@@ -53,7 +53,7 @@ fun AdminEventsScreen(
             Text("Event saved successfully.", color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
             items(events, key = { it.id }) { event ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp)) {
@@ -108,7 +108,8 @@ private fun EventEditor(
             Text(if (existing == null) "Create Event" else "Edit Event", style = MaterialTheme.typography.headlineSmall)
             TextButton(onClick = onBack) { Text("Cancel") }
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Spacer(Modifier.height(12.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
             item { Field("Title", title) { title = it } }
             item { Field("Category", category) { category = it } }
             item { Field("Short description", shortDescription) { shortDescription = it } }

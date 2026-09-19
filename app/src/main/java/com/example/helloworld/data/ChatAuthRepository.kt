@@ -223,6 +223,34 @@ class ChatAuthRepository {
         ChatAuthResult(false, e.message ?: "Unable to update email.")
     }
 
+    suspend fun resetPassword(username: String, email: String): ChatAuthResult = try {
+        val normalizedUsername = username.trim().removePrefix("@").lowercase()
+        val normalizedEmail = email.trim()
+
+        // 1. Secure server-side verification: Confirm the username matches the specific email.
+        // We call a secure Edge Function that bypasses client RLS to verify the mapping 
+        // without exposing any private account data.
+        val response = usernameLoginClient.post(
+            "${SUPABASE_FUNCTIONS_URL}/chat-reset-verify"
+        ) {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject {
+                put("username", normalizedUsername)
+                put("email", normalizedEmail)
+            })
+        }
+
+        if (response.status.value !in 200..299) {
+            return ChatAuthResult(false, "The username and email address provided do not match our records.")
+        }
+
+        // 2. Only after successful server-side match verification do we trigger the link delivery.
+        auth.resetPasswordForEmail(email = normalizedEmail)
+        ChatAuthResult(true, "A password reset link has been sent to your email address.")
+    } catch (e: Exception) {
+        ChatAuthResult(false, e.message ?: "Unable to send password reset email.")
+    }
+
     suspend fun signOut() { auth.signOut() }
 
     companion object {

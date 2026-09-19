@@ -43,7 +43,7 @@ import java.util.*
 @Composable
 fun ChatScreen(
     innerPadding: PaddingValues,
-    viewModel: ChatViewModel = viewModel(),
+    viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
     onAdminLoginSuccess: () -> Unit = {}
 ) {

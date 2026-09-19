@@ -65,6 +65,7 @@ fun UnifiedAuthScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var verificationPending by rememberSaveable { mutableStateOf(false) }
+    var showForgotPasswordDialog by rememberSaveable { mutableStateOf(false) }
 
     val churchName = churchInfo.churchName.ifBlank { "Welcome" }
     val tagline = churchInfo.tagline.ifBlank { "Growing together in faith, hope and love" }
@@ -113,7 +114,7 @@ fun UnifiedAuthScreen(
                             OutlinedTextField(username, { username = it }, Modifier.fillMaxWidth(), label = { Text("Username") }, leadingIcon = { Icon(Icons.Default.Person, null) }, singleLine = true)
                             Spacer(Modifier.height(12.dp))
                         }
-                        OutlinedTextField(identifier, { identifier = it }, Modifier.fillMaxWidth(), label = { Text("Email or phone number") }, leadingIcon = { Icon(Icons.Default.Email, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
+                        OutlinedTextField(identifier, { identifier = it }, Modifier.fillMaxWidth(), label = { Text("Email or username") }, leadingIcon = { Icon(Icons.Default.Email, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, trailingIcon = { IconButton({ showPassword = !showPassword }) { Icon(if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, "Toggle password visibility") } }, visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
                         if (register) {
@@ -166,7 +167,93 @@ fun UnifiedAuthScreen(
                             Spacer(Modifier.height(12.dp))
                             Text("Check your email to verify your account, then return and sign in.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         }
-                        if (!register) TextButton(onClick = { error = "Password reset will be connected to the Supabase recovery flow." }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Forgot password?") }
+                        if (!register) {
+                            TextButton(onClick = { showForgotPasswordDialog = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Forgot password?") }
+                        }
+
+                        if (showForgotPasswordDialog) {
+                            var usernameInput by remember { mutableStateOf(if (!identifier.contains("@")) identifier else "") }
+                            var emailInput by remember { mutableStateOf("") }
+                            var resetLoading by remember { mutableStateOf(false) }
+                            var resetMessage by remember { mutableStateOf<String?>(null) }
+                            var resetError by remember { mutableStateOf<String?>(null) }
+
+                            AlertDialog(
+                                onDismissRequest = { showForgotPasswordDialog = false },
+                                title = { Text("Reset Password") },
+                                text = {
+                                    Column {
+                                        Text("Enter your username and the email address associated with your account to receive a secure password reset link.", style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(Modifier.height(12.dp))
+                                        OutlinedTextField(
+                                            value = usernameInput,
+                                            onValueChange = { usernameInput = it },
+                                            label = { Text("Username") },
+                                            leadingIcon = { Icon(Icons.Default.Person, null) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                        Spacer(Modifier.height(12.dp))
+                                        OutlinedTextField(
+                                            value = emailInput,
+                                            onValueChange = { emailInput = it },
+                                            label = { Text("Email Address") },
+                                            leadingIcon = { Icon(Icons.Default.Email, null) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                                        )
+                                        resetMessage?.let {
+                                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                                        }
+                                        resetError?.let {
+                                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            if (usernameInput.trim().isBlank()) {
+                                                resetError = "Please enter your username."
+                                                return@Button
+                                            }
+                                            if (emailInput.isBlank() || !emailInput.contains("@")) {
+                                                resetError = "Please enter a valid email address."
+                                                return@Button
+                                            }
+                                            resetLoading = true
+                                            resetError = null
+                                            resetMessage = null
+                                            scope.launch {
+                                                val result = ChatAuthRepository().resetPassword(usernameInput, emailInput)
+                                                resetLoading = false
+                                                if (result.success) {
+                                                    resetMessage = result.message
+                                                } else {
+                                                    resetError = result.message
+                                                }
+                                            }
+                                        },
+                                        enabled = !resetLoading && usernameInput.isNotBlank() && emailInput.isNotBlank()
+                                    ) {
+                                        if (resetLoading) {
+                                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            Text("Send Reset Link")
+                                        }
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { showForgotPasswordDialog = false },
+                                        enabled = !resetLoading
+                                    ) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))

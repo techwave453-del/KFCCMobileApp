@@ -14,6 +14,7 @@ data class ChurchInfo(
     val aboutText: String = "",
     val phone: String = "",
     val email: String = "",
+    val givingUrl: String = "",
     val services: List<ChurchService> = emptyList(),
     val links: List<ChurchLink> = emptyList(),
     val membershipClasses: List<MembershipClass> = emptyList(),

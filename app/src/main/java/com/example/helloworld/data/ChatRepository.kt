@@ -1,6 +1,11 @@
 package com.example.helloworld.data
 
+import android.content.Context
 import android.util.Base64
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
@@ -10,6 +15,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.SerialName
@@ -45,6 +51,29 @@ data class ChatRoom(
 
 class ChatRepository {
     private val client get() = SupabaseProvider.client
+
+    fun getLocalMessages(roomId: String, context: Context): Flow<List<ChatMessage>> {
+        val database = AppLocalDatabase.getDatabase(context)
+        return database.chatDao().getMessagesForRoom(roomId).map { list ->
+            list.map {
+                ChatMessage(
+                    id = it.id,
+                    roomId = it.roomId,
+                    senderId = it.senderId,
+                    message = it.message,
+                    createdAt = it.createdAt,
+                    senderProfile = if (it.senderUsername != null) ChatProfile(user_id = it.senderId, username = it.senderUsername) else null
+                )
+            }
+        }
+    }
+
+    fun getLocalRooms(context: Context): Flow<List<ChatRoom>> {
+        val database = AppLocalDatabase.getDatabase(context)
+        return database.chatDao().getAllRooms().map { list ->
+            list.map { ChatRoom(id = it.id, type = it.type, title = it.title) }
+        }
+    }
 
     suspend fun joinCommunity(): Result<String> = runCatching {
         client.postgrest.rpc("join_kfcc_community").decodeAs<String>()
@@ -168,8 +197,59 @@ class ChatRepository {
     }
     
     suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
-        client.from("chat_rooms")
+        val remote = client.from("chat_rooms")
             .select()
             .decodeList<ChatRoom>()
+        try {
+            // Seed to room database database instance context
+            // To fetch application context we can do it, but let's keep compatibility
+        } catch (_: Exception) {}
+        remote
+    }
+
+    suspend fun syncRoomsToLocal(roomsList: List<ChatRoom>, context: Context) {
+        val database = AppLocalDatabase.getDatabase(context)
+        database.chatDao().insertRooms(roomsList.map { LocalChatRoomEntity(id = it.id, type = it.type, title = it.title) })
+    }
+
+    suspend fun syncMessagesToLocal(roomId: String, messagesList: List<ChatMessage>, context: Context) {
+        val database = AppLocalDatabase.getDatabase(context)
+        database.chatDao().insertMessages(messagesList.map {
+            LocalChatMessageEntity(
+                id = it.id,
+                roomId = it.roomId,
+                senderId = it.senderId,
+                message = it.message,
+                createdAt = it.createdAt,
+                senderUsername = it.senderProfile?.username,
+                syncStatus = SyncStatus.SYNCED
+            )
+        })
+    }
+
+    suspend fun saveMessageOffline(roomId: String, messageText: String, senderId: String, context: Context) {
+        val database = AppLocalDatabase.getDatabase(context)
+        val tempId = UUID.randomUUID().toString()
+        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
+        database.chatDao().insertMessages(listOf(
+            LocalChatMessageEntity(
+                id = tempId,
+                roomId = roomId,
+                senderId = senderId,
+                message = messageText,
+                createdAt = now,
+                senderUsername = "Me (Offline)",
+                syncStatus = SyncStatus.PENDING_INSERT
+            )
+        ))
+        
+        // Enqueue WorkManager job immediately for background network synchronization
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val syncRequest = OneTimeWorkRequestBuilder<SyncMessagesWorker>()
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(context).enqueue(syncRequest)
     }
 }

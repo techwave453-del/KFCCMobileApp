@@ -50,6 +50,7 @@ class ChurchRepository {
             aboutText = values["aboutText"].orEmpty(),
             phone = values["phone"].orEmpty(),
             email = values["email"].orEmpty(),
+            givingUrl = values["givingUrl"].orEmpty(),
             services = decode(values["services"], emptyList()),
             links = decode(values["links"], emptyList()),
             membershipClasses = decode(values["membershipClasses"], emptyList()),
