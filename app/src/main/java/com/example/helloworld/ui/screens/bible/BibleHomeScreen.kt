@@ -11,8 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,9 +22,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleBook
@@ -38,6 +43,39 @@ fun BibleHomeScreen(
 ) {
     val repository = remember { KfccBibleRepository() }
     val books = remember { repository.getBooks("kjv") }
+    var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
+
+    selectedBook?.let { book ->
+        AlertDialog(
+            onDismissRequest = { selectedBook = null },
+            title = { Text(book.name) },
+            text = {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items((1..book.chapterCount).toList()) { chapter ->
+                        TextButton(
+                            onClick = {
+                                selectedBook = null
+                                onOpenChapter(book.id, chapter)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Chapter $chapter",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedBook = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -46,7 +84,7 @@ fun BibleHomeScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -62,16 +100,13 @@ fun BibleHomeScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Read, reflect and discover Scripture.",
                         style = MaterialTheme.typography.headlineSmall
                     )
-
                     Text(
-                        text = "King James Version",
+                        text = "King James Version • 66 books",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 6.dp)
                     )
@@ -82,27 +117,21 @@ fun BibleHomeScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            onOpenChapter("psalms", 23)
-                        },
+                        .clickable { onOpenChapter("psalms", 23) },
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Text(
                             text = "Today's Scripture",
                             style = MaterialTheme.typography.labelLarge
                         )
-
                         Text(
                             text = "Psalm 23",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(top = 8.dp)
                         )
-
                         Text(
                             text = "The LORD is my shepherd; I shall not want.",
                             style = MaterialTheme.typography.bodyLarge,
@@ -127,15 +156,8 @@ fun BibleHomeScreen(
                 )
             }
 
-            items(
-                books.filter { it.testament == Testament.OLD }
-            ) { book ->
-                BibleBookRow(
-                    book = book,
-                    onClick = {
-                        onOpenChapter(book.id, 1)
-                    }
-                )
+            items(books.filter { it.testament == Testament.OLD }) { book ->
+                BibleBookRow(book = book, onClick = { selectedBook = book })
             }
 
             item {
@@ -146,15 +168,8 @@ fun BibleHomeScreen(
                 )
             }
 
-            items(
-                books.filter { it.testament == Testament.NEW }
-            ) { book ->
-                BibleBookRow(
-                    book = book,
-                    onClick = {
-                        onOpenChapter(book.id, 1)
-                    }
-                )
+            items(books.filter { it.testament == Testament.NEW }) { book ->
+                BibleBookRow(book = book, onClick = { selectedBook = book })
             }
         }
     }
@@ -170,21 +185,17 @@ private fun BibleBookRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Row(modifier = Modifier.padding(16.dp)) {
             Icon(
-                imageVector = Icons.Default.MenuBook,
+                imageVector = Icons.AutoMirrored.Filled.MenuBook,
                 contentDescription = null,
                 modifier = Modifier.padding(end = 14.dp)
             )
-
             Column {
                 Text(
                     text = book.name,
                     style = MaterialTheme.typography.titleMedium
                 )
-
                 Text(
                     text = "${book.chapterCount} chapters",
                     style = MaterialTheme.typography.bodyMedium
