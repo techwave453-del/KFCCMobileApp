@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class AdminUser(
     val id: String = "",
     val username: String = "",
+    val email: String = "",
     val role: String = "",
     val is_active: Boolean = true,
     val permissions: List<String> = emptyList()
