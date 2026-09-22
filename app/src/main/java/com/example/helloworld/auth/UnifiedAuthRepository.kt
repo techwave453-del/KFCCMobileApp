@@ -18,22 +18,30 @@ class UnifiedAuthRepository(
     private val chatRepository: ChatAuthRepository
 ) {
     suspend fun signIn(identifier: String, password: String): UnifiedAuthResult {
-        val username = identifier.trim().removePrefix("@").lowercase()
-        require(username.isNotEmpty() && password.isNotEmpty()) {
-            "Enter your username and password."
+        val input = identifier.trim()
+        require(input.isNotEmpty() && password.isNotEmpty()) {
+            "Enter your email or username and password."
         }
 
-        // Administrator authentication is handled by the Supabase admin-login
-        // function. It validates the legacy admin username/password and creates
-        // a normal Supabase Auth session for the mobile app.
+        // 1. If it looks like an email, try direct member sign-in first.
+        if (input.contains("@") && input.contains(".")) {
+            val result = chatRepository.signIn(input, password)
+            if (result.success) {
+                chatRepository.completeProfile()
+                val profile = chatRepository.getProfile().getOrNull()
+                return UnifiedAuthResult.Member(profile?.username ?: input.substringBefore("@"))
+            }
+        }
+
+        val username = input.removePrefix("@").lowercase()
+
+        // 2. Administrator authentication via Edge Function.
         val admin = adminRepository.login(username, password)
         if (admin.ok && admin.user != null) {
             return UnifiedAuthResult.Administrator(admin.user.username)
         }
 
-        // If it is not an administrator account, authenticate as a regular
-        // community member using the username resolver. Email is deliberately
-        // not used as the member sign-in identifier.
+        // 3. Member authentication by username via Edge Function.
         val member = chatRepository.signInWithUsername(username, password)
         if (!member.success) {
             throw IllegalArgumentException(

@@ -40,6 +40,7 @@ fun HomeScreen(
     onOpenGiving: () -> Unit = {},
     onOpenSermons: () -> Unit = {},
     onOpenLive: () -> Unit = {},
+    onOpenServices: () -> Unit = {},
 ) {
     val heroImages = remember(mediaItems) {
         mediaItems.filter { it.category.equals("hero", ignoreCase = true) && it.type.equals("image", ignoreCase = true) }
@@ -105,7 +106,7 @@ fun HomeScreen(
                             title = "Services",
                             description = "Worship times",
                             icon = Icons.Default.Church,
-                            onClick = { /* Could scroll to services section */ },
+                            onClick = onOpenServices,
                             modifier = Modifier.weight(1f),
                             imageUrl = quickAccessImages["services"]?.url
                         )

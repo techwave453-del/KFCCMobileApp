@@ -4,13 +4,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.json.Json
 
-/**
- * Public church data repository.
- *
- * Public/read operations talk directly to Supabase. The website server is no
- * longer required for the Home experience. Administrative mutations remain
- * behind the authenticated administration boundary.
- */
+/** Public church data repository. */
 class ChurchRepository {
     suspend fun getSiteContent(): ChurchInfo {
         return try {
@@ -18,7 +12,6 @@ class ChurchRepository {
                 .from("site_content")
                 .select(Columns.list("key", "value"))
                 .decodeList<SiteContentRow>()
-
             decodeChurchInfo(rows) ?: ChurchContent.default
         } catch (_: Exception) {
             ChurchContent.default
@@ -29,40 +22,27 @@ class ChurchRepository {
         return try {
             SupabaseProvider.client
                 .from("media_items")
-                .select {
-                    filter {
-                        eq("published", true)
-                    }
-                }
+                .select { filter { eq("published", true) } }
                 .decodeList<MediaItem>()
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    /** Legacy admin entry points are intentionally unavailable from the public repository. */
     suspend fun login(username: String, password: String): LoginResponse =
         LoginResponse(ok = false, error = "Use the administrator authentication flow.")
 
     suspend fun logout() = Unit
-
     suspend fun updateSiteContent(content: ChurchInfo): Boolean = false
 
-    suspend fun uploadMedia(
-        title: String,
-        description: String,
-        category: String,
-        type: String,
-        fileBytes: ByteArray,
-        fileName: String
-    ): Boolean = false
+    suspend fun uploadMedia(title: String, description: String, category: String, type: String, fileBytes: ByteArray, fileName: String): Boolean = false
 
     private fun decodeChurchInfo(rows: List<SiteContentRow>): ChurchInfo? {
         val values = rows.associate { it.key to it.value }
         if (values.isEmpty()) return null
-
         return ChurchInfo(
             churchName = values["churchName"].orEmpty(),
+            logoUrl = values["logoUrl"] ?: values["logo"] ?: values["churchLogo"].orEmpty(),
             tagline = values["tagline"].orEmpty(),
             title = values["title"].orEmpty(),
             subtitle = values["subtitle"].orEmpty(),
@@ -70,6 +50,7 @@ class ChurchRepository {
             aboutText = values["aboutText"].orEmpty(),
             phone = values["phone"].orEmpty(),
             email = values["email"].orEmpty(),
+            givingUrl = values["givingUrl"].orEmpty(),
             services = decode(values["services"], emptyList()),
             links = decode(values["links"], emptyList()),
             membershipClasses = decode(values["membershipClasses"], emptyList()),
@@ -79,20 +60,14 @@ class ChurchRepository {
 
     private inline fun <reified T> decode(raw: String?, fallback: T): T = try {
         if (raw.isNullOrBlank()) fallback else Json.decodeFromString(raw)
-    } catch (_: Exception) {
-        fallback
-    }
+    } catch (_: Exception) { fallback }
 }
 
 @kotlinx.serialization.Serializable
 data class LoginRequest(val username: String, val password: String)
 
 @kotlinx.serialization.Serializable
-data class LoginResponse(
-    val ok: Boolean = false,
-    val user: UserInfo? = null,
-    val error: String? = null
-)
+data class LoginResponse(val ok: Boolean = false, val user: UserInfo? = null, val error: String? = null)
 
 @kotlinx.serialization.Serializable
 data class UserInfo(val id: Long, val username: String, val role: String)

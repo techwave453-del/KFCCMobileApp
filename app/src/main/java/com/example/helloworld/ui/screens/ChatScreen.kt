@@ -1,23 +1,36 @@
 package com.example.helloworld.ui.screens
 
 import android.app.Application
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.admin.AdminRepositoryProvider
 import com.example.helloworld.admin.AdminViewModel
@@ -37,6 +50,8 @@ fun ChatScreen(
     ),
     onAdminLoginSuccess: () -> Unit = {}
 ) {
+    val churchViewModel: ChurchViewModel = viewModel()
+    val churchInfo by churchViewModel.churchInfo.collectAsState()
     val signedIn by viewModel.signedIn.collectAsState()
     val context = LocalContext.current
     val authRepository = remember(context) {
@@ -287,8 +302,18 @@ private fun CommunityChat(
     val sending by viewModel.sending.collectAsState()
     val error by viewModel.error.collectAsState()
     val roomId by viewModel.roomId.collectAsState()
-    var input by remember { mutableStateOf("") }
+    val rooms by viewModel.rooms.collectAsState()
+    val replyingTo by viewModel.replyingTo.collectAsState()
+    
+    var input by rememberSaveable { mutableStateOf("") }
+    var search by rememberSaveable { mutableStateOf("") }
+    var editingMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var showRoomPicker by remember { mutableStateOf(false) }
+    var showCreateGroup by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
+    
     val listState = rememberLazyListState()
+    val currentRoom = rooms.find { it.id == roomId }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -322,6 +347,8 @@ private fun CommunityChat(
 
             HorizontalDivider()
 
+        // Chat messages Area
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             if (loading && messages.isEmpty()) {
                 Box(
                     Modifier.weight(1f).fillMaxWidth(),
@@ -353,6 +380,7 @@ private fun CommunityChat(
                     }
                 }
             }
+        }
 
             error?.let {
                 Text(
@@ -407,8 +435,85 @@ private fun CommunityChat(
                         }
                     }
                 }
+            },
+            confirmButton = {}
+        )
+    }
+
+    if (showCreateGroup) {
+        AlertDialog(
+            onDismissRequest = { showCreateGroup = false },
+            title = { Text("New Group") },
+            text = {
+                OutlinedTextField(
+                    value = newGroupName,
+                    onValueChange = { newGroupName = it },
+                    label = { Text("Group Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.createGroup(newGroupName)
+                        newGroupName = ""
+                        showCreateGroup = false
+                    },
+                    enabled = newGroupName.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateGroup = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    error?.let {
+        AlertDialog(
+            onDismissRequest = viewModel::clearError,
+            title = { Text("Chat Connection") },
+            text = { Text(it) },
+            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("OK") } }
+        )
+    }
+}
+
+@Composable
+private fun EmptyState(isSearch: Boolean) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            modifier = Modifier.size(80.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (isSearch) Icons.Default.SearchOff else Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
             }
         }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text = if (isSearch) "No messages match your search" else "Welcome to the KFCC Community!",
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = if (isSearch) "Try searching for something else." else "Start the conversation by sending a message below.",
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
@@ -436,6 +541,27 @@ private fun ChatBubble(message: ChatMessage, own: Boolean) {
                     message.message,
                     Modifier.padding(top = 2.dp)
                 )
+                Spacer(Modifier.width(12.dp))
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = if (input.trim().isNotEmpty() && !sending && enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    IconButton(
+                        onClick = onSend,
+                        enabled = !sending && input.trim().isNotEmpty() && enabled
+                    ) {
+                        if (sending) {
+                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        } else {
+                            Icon(
+                                if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send, 
+                                "Send",
+                                tint = if (input.trim().isNotEmpty() && enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
     }

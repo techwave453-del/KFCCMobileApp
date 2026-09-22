@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.admin.content.WebsiteContentScreen
@@ -20,22 +22,29 @@ import com.example.helloworld.admin.events.AdminEventsViewModel
 import com.example.helloworld.admin.identity.ChurchIdentityScreen
 import com.example.helloworld.admin.live.LiveStreamingScreen
 import com.example.helloworld.admin.media.MediaCenterScreen
+import com.example.helloworld.admin.services.AdminServicesScreen
+import com.example.helloworld.admin.content.WebsiteContentViewModel
 import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
 
 private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been created, but no administration permissions have been assigned yet."
 
 @Composable
-fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
+fun AdminShell(
+    viewModel: AdminViewModel,
+    innerPadding: PaddingValues,
+    onBackToApp: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val user by viewModel.user.collectAsState()
     val loading by viewModel.isLoading.collectAsState()
     var openModule by remember { mutableStateOf<String?>(null) }
     val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
 
-    Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = Modifier.fillMaxSize().padding(innerPadding), color = MaterialTheme.colorScheme.background) {
         when {
             loading && user == null -> LoadingAdminScreen()
-            user == null -> AdminAccessRequiredScreen()
+            user == null -> AdminAccessRequiredScreen(onBackToApp)
             else -> user!!.let { currentUser ->
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
@@ -45,6 +54,8 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
+                    openModule == "services" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
+                        ModuleFrame("Services & Giving", { openModule = null }) { AdminServicesScreen(Modifier.fillMaxSize(), viewModel(factory = WebsiteContentViewModel.Factory(application))) }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
@@ -66,6 +77,7 @@ fun AdminShell(viewModel: AdminViewModel, modifier: Modifier = Modifier) {
                         { openModule = "credentials" },
                         { openModule = "identity" },
                         { openModule = "content" },
+                        { openModule = "services" },
                         { openModule = "events" },
                         { openModule = "live" },
                         { openModule = "media" },
@@ -98,13 +110,19 @@ private fun LoadingAdminScreen() {
 }
 
 @Composable
-private fun AdminAccessRequiredScreen() {
+private fun AdminAccessRequiredScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.AdminPanelSettings, null)
+        Icon(Icons.Default.AdminPanelSettings, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(16.dp))
         Text("Administration access required", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
-        Text("Sign in through the unified account screen with an administrator account to access the dashboard.")
+        Text("Sign in through the unified account screen with an administrator account to access the dashboard.", textAlign = TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onBack) {
+            Icon(Icons.Default.ArrowBack, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Back to App")
+        }
     }
 }
 
@@ -130,6 +148,7 @@ private fun AdminDashboardScreen(
     onCredentials: () -> Unit,
     onIdentity: () -> Unit,
     onContent: () -> Unit,
+    onServices: () -> Unit,
     onEvents: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
@@ -138,7 +157,8 @@ private fun AdminDashboardScreen(
     val modules = listOf(
         AdminModule("Account Credentials", "Administrator username, email, role and status", "account.credentials.view", Icons.Default.AccountCircle),
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
-        AdminModule("Website Content", "Homepage, pages, services, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
+        AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
+        AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SITE_EDIT, Icons.Default.Church),
         AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.SITE_EDIT, Icons.Default.Event),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
@@ -146,13 +166,14 @@ private fun AdminDashboardScreen(
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings)
     )
 
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBackToApp) { Icon(Icons.Default.ArrowBack, "Back to App") }
             Column(Modifier.weight(1f)) {
-                Text("Admin Dashboard", style = MaterialTheme.typography.headlineSmall)
-                Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}")
+                Text("Admin Dashboard", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (user.role == "super_admin") "Super Admin · ${user.username}" else "${user.role} · ${user.username}", style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out") }
+            IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out", tint = MaterialTheme.colorScheme.error) }
         }
         Spacer(Modifier.height(16.dp))
         HorizontalDivider()
@@ -168,6 +189,7 @@ private fun AdminDashboardScreen(
                     "Account Credentials" -> if (allowed) onCredentials else null
                     "Church Identity" -> if (allowed) onIdentity else null
                     "Website Content" -> if (allowed) onContent else null
+                    "Services & Giving" -> if (allowed) onServices else null
                     "Events Management" -> if (allowed) onEvents else null
                     "Live Streaming" -> if (allowed) onLive else null
                     "Media Center" -> if (allowed) onMedia else null

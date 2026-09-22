@@ -1,5 +1,6 @@
 package com.example.helloworld.data
 
+import android.util.Base64
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserSession
@@ -22,11 +23,16 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 @Serializable
+private data class ChatAuthJwtPayload(val sub: String)
+
+@Serializable
 data class ChatProfile(
     val user_id: String,
     val username: String,
     val display_name: String? = null,
     val avatar_url: String? = null,
+    val admin_role: String? = null,
+    val is_admin_visible: Boolean = false,
 )
 
 data class ChatAuthResult(
@@ -58,9 +64,22 @@ class ChatAuthRepository {
         }
     }
 
-    fun isSignedIn(): Boolean = auth.currentUserOrNull() != null
-    fun currentUserId(): String? = auth.currentUserOrNull()?.id
-    fun currentEmail(): String? = auth.currentUserOrNull()?.email
+    fun isSignedIn(): Boolean = auth.currentSessionOrNull() != null
+    fun currentUserId(): String? {
+        val user = auth.currentUserOrNull() ?: auth.currentSessionOrNull()?.user
+        if (user != null) return user.id
+
+        // Fallback: Decode the 'sub' claim from the JWT if the user object is not yet loaded.
+        // This is critical for Edge Function based login where the user object is initially null.
+        val token = auth.currentSessionOrNull()?.accessToken ?: return null
+        return try {
+            val parts = token.split(".")
+            if (parts.size != 3) return null
+            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+            Json.decodeFromString<ChatAuthJwtPayload>(payload).sub
+        } catch (_: Exception) { null }
+    }
+    fun currentEmail(): String? = auth.currentUserOrNull()?.email ?: auth.currentSessionOrNull()?.user?.email
 
     suspend fun getProfile(): Result<ChatProfile?> = runCatching {
         val userId = currentUserId() ?: return@runCatching null
@@ -142,23 +161,94 @@ class ChatAuthRepository {
         ChatAuthResult(false, error.message ?: "Unable to sign in.")
     }
 
-    suspend fun completeProfile(username: String? = null): ChatAuthResult {
+    suspend fun completeProfile(
+        username: String? = null,
+        avatarUrl: String? = null,
+        adminRole: String? = null,
+        isAdminVisible: Boolean? = null
+    ): ChatAuthResult {
         val userId = currentUserId() ?: return ChatAuthResult(false, "Please sign in first.")
         val metadataUsername = auth.currentUserOrNull()?.userMetadata?.get("chat_username")?.toString()?.trim('"')
         val normalizedUsername = (username ?: metadataUsername.orEmpty()).trim().removePrefix("@").lowercase()
         if (!USERNAME_REGEX.matches(normalizedUsername)) return ChatAuthResult(false, "Choose a username to continue.")
+        
         return try {
             val existing = SupabaseProvider.client.from("chat_profiles")
                 .select { filter { eq("username", normalizedUsername) } }
                 .decodeList<ChatProfile>()
+            
             if (existing.any { it.user_id != userId }) return ChatAuthResult(false, "That username is already in use.")
-            SupabaseProvider.client.from("chat_profiles")
-                .upsert(ChatProfile(user_id = userId, username = normalizedUsername))
+            
+            val current = existing.firstOrNull { it.user_id == userId }
+            val newProfile = ChatProfile(
+                user_id = userId,
+                username = normalizedUsername,
+                avatar_url = avatarUrl ?: current?.avatar_url,
+                admin_role = adminRole ?: current?.admin_role,
+                is_admin_visible = isAdminVisible ?: current?.is_admin_visible ?: false
+            )
+            
+            SupabaseProvider.client.from("chat_profiles").upsert(newProfile)
             SupabaseProvider.client.postgrest.rpc("join_kfcc_community")
             ChatAuthResult(true)
         } catch (error: Exception) {
             ChatAuthResult(false, error.message ?: "Unable to finish your chat profile.")
         }
+    }
+
+    suspend fun updateAdminRole(role: String): ChatAuthResult = runCatching {
+        val userId = currentUserId() ?: return ChatAuthResult(false, "Not signed in.")
+        SupabaseProvider.client.from("chat_profiles")
+            .update(mapOf("admin_role" to role)) {
+                filter { eq("user_id", userId) }
+            }
+        ChatAuthResult(true)
+    }.getOrElse { ChatAuthResult(false, it.message) }
+
+    suspend fun updateAdminVisibility(visible: Boolean): ChatAuthResult = runCatching {
+        val userId = currentUserId() ?: return ChatAuthResult(false, "Not signed in.")
+        SupabaseProvider.client.from("chat_profiles")
+            .update(mapOf("is_admin_visible" to visible)) {
+                filter { eq("user_id", userId) }
+            }
+        ChatAuthResult(true)
+    }.getOrElse { ChatAuthResult(false, it.message) }
+
+    suspend fun updateEmail(newEmail: String): ChatAuthResult = try {
+        auth.updateUser {
+            email = newEmail.trim()
+        }
+        ChatAuthResult(true, "A confirmation email has been sent to your new address. Please verify to complete the change.")
+    } catch (e: Exception) {
+        ChatAuthResult(false, e.message ?: "Unable to update email.")
+    }
+
+    suspend fun resetPassword(username: String, email: String): ChatAuthResult = try {
+        val normalizedUsername = username.trim().removePrefix("@").lowercase()
+        val normalizedEmail = email.trim()
+
+        // 1. Secure server-side verification: Confirm the username matches the specific email.
+        // We call a secure Edge Function that bypasses client RLS to verify the mapping 
+        // without exposing any private account data.
+        val response = usernameLoginClient.post(
+            "${SUPABASE_FUNCTIONS_URL}/chat-reset-verify"
+        ) {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject {
+                put("username", normalizedUsername)
+                put("email", normalizedEmail)
+            })
+        }
+
+        if (response.status.value !in 200..299) {
+            return ChatAuthResult(false, "The username and email address provided do not match our records.")
+        }
+
+        // 2. Only after successful server-side match verification do we trigger the link delivery.
+        auth.resetPasswordForEmail(email = normalizedEmail)
+        ChatAuthResult(true, "A password reset link has been sent to your email address.")
+    } catch (e: Exception) {
+        ChatAuthResult(false, e.message ?: "Unable to send password reset email.")
     }
 
     suspend fun signOut() { auth.signOut() }

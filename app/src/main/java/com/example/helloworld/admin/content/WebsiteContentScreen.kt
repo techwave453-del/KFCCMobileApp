@@ -38,6 +38,7 @@ fun WebsiteContentScreen(
         Field("About text", content.aboutText, { viewModel.update(content.copy(aboutText = it)) }, saving, 5)
         Field("Phone", content.phone, { viewModel.update(content.copy(phone = it)) }, saving)
         Field("Email", content.email, { viewModel.update(content.copy(email = it)) }, saving)
+        Field("Giving URL", content.givingUrl, { viewModel.update(content.copy(givingUrl = it)) }, saving)
         Text("Live Streaming", style = MaterialTheme.typography.titleMedium)
         Field("Live stream title", content.liveStream.title, { viewModel.update(content.copy(liveStream = content.liveStream.copy(title = it))) }, saving)
         Field("YouTube Live URL", content.liveStream.url, { viewModel.update(content.copy(liveStream = content.liveStream.copy(url = it))) }, saving)
