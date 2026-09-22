@@ -1,4 +1,4 @@
-package com.example.helloworld
+﻿package com.example.helloworld
 
 import android.app.Application
 import android.os.Bundle
@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.helloworld.ui.screens.bible.BibleChapterScreen
+import com.example.helloworld.ui.screens.bible.BibleHomeScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,6 +65,8 @@ fun KFCCApp(
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
+    var bibleChapter by rememberSaveable { mutableStateOf(1) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
@@ -96,7 +100,7 @@ fun KFCCApp(
                 }
                 HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
-                NavigationDrawerItem(label = { Text("Services") }, selected = currentDestination == AppDestinations.SERVICES, onClick = { navigate(AppDestinations.SERVICES) }, icon = { Icon(Icons.Default.Church, null) })
+                
                 NavigationDrawerItem(label = { Text("Notifications") }, selected = currentDestination == AppDestinations.NOTIFICATIONS, onClick = { navigate(AppDestinations.NOTIFICATIONS) }, icon = { Icon(Icons.Default.Notifications, null) })
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
                 NavigationDrawerItem(label = { Text("Settings") }, selected = currentDestination == AppDestinations.SETTINGS, onClick = { navigate(AppDestinations.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) })
@@ -164,6 +168,36 @@ fun KFCCApp(
                         onOpenLive = { showLivePlayer = true },
                         onOpenServices = { navigate(AppDestinations.SERVICES) }
                     )
+
+                    AppDestinations.BIBLE -> BibleHomeScreen(
+
+                        onBack = { navigate(AppDestinations.HOME) },
+
+                        onOpenChapter = { bookId, chapter ->
+
+                            bibleBookId = bookId
+
+                            bibleChapter = chapter
+
+                            navigate(AppDestinations.BIBLE_CHAPTER)
+
+                        }
+
+                    )
+
+                    AppDestinations.BIBLE_CHAPTER -> {
+
+                        BibleChapterScreen(
+
+                            bookId = bibleBookId ?: "psalms",
+
+                            chapterNumber = bibleChapter,
+
+                            onBack = { navigate(AppDestinations.BIBLE) }
+
+                        )
+
+                    }
                     AppDestinations.SERVICES -> ServicesScreen(churchInfo.services, innerPadding)
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
@@ -270,6 +304,8 @@ private fun youtubeVideoId(url: String): String? {
 
 enum class AppDestinations(val label: String) {
     HOME("Home"),
+    BIBLE("Bible"),
+    BIBLE_CHAPTER("Bible Chapter"),
     SERVICES("Services"),
     EVENTS("Events"),
     MEDIA("Media"),
@@ -284,3 +320,4 @@ enum class AppDestinations(val label: String) {
     GIVING("Giving"),
     ADMIN("Admin")
 }
+
