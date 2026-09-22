@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class AdminUser(
     val id: String = "",
     val username: String = "",
+    val email: String? = null,
     val role: String = "",
     val is_active: Boolean = true,
     val permissions: List<String> = emptyList()
@@ -65,3 +66,4 @@ fun AdminUser.hasPermission(permission: String): Boolean =
 
 fun AdminUser.canEditChurchIdentity(): Boolean =
     is_active && role == "super_admin" && hasPermission(AdminPermissions.IDENTITY_EDIT)
+

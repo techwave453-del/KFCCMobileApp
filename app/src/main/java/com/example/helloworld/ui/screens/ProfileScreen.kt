@@ -62,7 +62,7 @@ fun ProfileScreen(
     var username by remember { mutableStateOf("") }
     var avatarUrl by remember { mutableStateOf("") }
     var isAdminVisible by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf(repository.currentEmail().orEmpty()) }
+    var email by remember(adminUser?.email) { mutableStateOf(adminUser?.email ?: repository.currentEmail().orEmpty()) }
     var newEmail by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
@@ -80,14 +80,14 @@ fun ProfileScreen(
                     avatarUrl = p?.avatar_url.orEmpty()
                     isAdminVisible = p?.is_admin_visible ?: false
                 }
-            email = repository.currentEmail().orEmpty()
+            email = adminUser?.email ?: repository.currentEmail().orEmpty()
             loading = false
         } else {
             loading = false
         }
     }
 
-    LaunchedEffect(signedIn) { load() }
+    LaunchedEffect(signedIn, adminUser?.email) { load() }
 
     Box(Modifier.fillMaxSize().padding(innerPadding)) {
         Column(
@@ -110,6 +110,8 @@ fun ProfileScreen(
             if (adminUser != null) {
                 InfoSection(title = "Administrative Identity", icon = Icons.Default.AdminPanelSettings) {
                     InfoRow(label = "Role", value = adminUser!!.role.replace("_", " ").uppercase())
+                    Spacer(Modifier.height(8.dp))
+                    InfoRow(label = "Email", value = adminUser!!.email ?: "Not available")
                     
                     Spacer(Modifier.height(16.dp))
                     
