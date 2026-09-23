@@ -64,6 +64,11 @@ class AdminUsersRepository(context: Context) {
         val r = call(ManagementRequest("reject", id = id)); if (r.error != null) error(r.error)
     }
 
+    suspend fun setRole(id: Long, role: String): Result<Unit> = runCatching {
+        val r = call(ManagementRequest("role", id = id, role = role))
+        if (r.error != null) error(r.error)
+    }
+
     suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
         val r = call(ManagementRequest("status", id = id, active = active)); if (r.error != null) error(r.error)
     }
