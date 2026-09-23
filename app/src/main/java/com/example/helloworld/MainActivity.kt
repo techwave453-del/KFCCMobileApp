@@ -80,6 +80,7 @@ fun KFCCApp(
                     IconButton(onClick = { scope.launch { drawerState.close() } }) { Icon(Icons.Default.Close, "Close menu") }
                 }
                 HorizontalDivider()
+                NavigationDrawerItem(label = { Text("Bible") }, selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Default.MenuBook, null) })
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
                 NavigationDrawerItem(label = { Text("Settings") }, selected = currentDestination == AppDestinations.SETTINGS, onClick = { navigate(AppDestinations.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) })
                 NavigationDrawerItem(label = { Text("Version") }, selected = currentDestination == AppDestinations.VERSION, onClick = { navigate(AppDestinations.VERSION) }, icon = { Icon(Icons.Default.Info, null) })
@@ -106,27 +107,30 @@ fun KFCCApp(
     ) {
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } },
-                    actions = {
-                        BadgedBox(
-                            badge = {
-                                if (unreadNotificationCount > 0) {
-                                    Badge { Text(if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString()) }
+                if (currentDestination != AppDestinations.BIBLE) {
+                    CenterAlignedTopAppBar(
+                        title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
+                        navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } },
+                        actions = {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadNotificationCount > 0) {
+                                        Badge { Text(if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString()) }
+                                    }
+                                }
+                            ) {
+                                IconButton(onClick = { navigate(AppDestinations.NOTIFICATIONS) }) {
+                                    Icon(Icons.Default.Notifications, "Notifications")
                                 }
                             }
-                        ) {
-                            IconButton(onClick = { navigate(AppDestinations.NOTIFICATIONS) }) {
-                                Icon(Icons.Default.Notifications, "Notifications")
-                            }
                         }
-                    }
-                )
+                    )
+                }
             },
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(currentDestination == AppDestinations.HOME, { navigate(AppDestinations.HOME) }, { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
+                    NavigationBarItem(currentDestination == AppDestinations.BIBLE, { navigate(AppDestinations.BIBLE) }, { Icon(Icons.Default.MenuBook, "Bible") }, label = { Text("Bible") })
                     NavigationBarItem(currentDestination == AppDestinations.SEARCH, { navigate(AppDestinations.SEARCH) }, { Icon(Icons.Default.Search, "Search") }, label = { Text("Search") })
                     NavigationBarItem(currentDestination == AppDestinations.CHAT, { navigate(AppDestinations.CHAT) }, { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
                     NavigationBarItem(selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT, onClick = { navigate(if (chatSignedIn) AppDestinations.PROFILE else AppDestinations.ACCOUNT) }, icon = { Icon(Icons.Default.AccountCircle, "Profile") }, label = { Text("Profile") })
@@ -135,6 +139,7 @@ fun KFCCApp(
         ) { innerPadding ->
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 when (currentDestination) {
+                    AppDestinations.BIBLE -> BibleScreen(innerPadding)
                     AppDestinations.HOME -> HomeScreen(info = churchInfo, mediaItems = mediaItems, events = events, innerPadding = innerPadding, onOpenChat = { navigate(AppDestinations.CHAT) }, onOpenMedia = { navigate(AppDestinations.MEDIA) }, onOpenEvents = { navigate(AppDestinations.EVENTS) }, onOpenGiving = { navigate(AppDestinations.GIVING) }, onOpenSermons = { navigate(AppDestinations.MEDIA) }, onOpenLive = { navigate(AppDestinations.MEDIA) })
                     AppDestinations.EVENTS -> EventsScreen(events, innerPadding)
                     AppDestinations.MEDIA -> MediaScreen(mediaItems, churchInfo.liveStream, innerPadding)
@@ -158,5 +163,5 @@ fun KFCCApp(
 }
 
 enum class AppDestinations(val label: String) {
-    HOME("Home"), EVENTS("Events"), MEDIA("Media"), CHAT("Chat"), ACCOUNT("Account"), SEARCH("Search"), PROFILE("Profile"), NOTIFICATIONS("Notifications"), PREFERENCES("Preferences"), SETTINGS("Settings"), VERSION("Version"), GIVING("Giving"), ADMIN("Admin")
+    HOME("Home"), BIBLE("Bible"), EVENTS("Events"), MEDIA("Media"), CHAT("Chat"), ACCOUNT("Account"), SEARCH("Search"), PROFILE("Profile"), NOTIFICATIONS("Notifications"), PREFERENCES("Preferences"), SETTINGS("Settings"), VERSION("Version"), GIVING("Giving"), ADMIN("Admin")
 }
