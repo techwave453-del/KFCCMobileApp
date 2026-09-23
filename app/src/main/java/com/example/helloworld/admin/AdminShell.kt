@@ -91,7 +91,8 @@ fun AdminShell(
                         { openModule = "live" },
                         { openModule = "media" },
                         { openModule = "users" },
-                        { openModule = "system" }
+                        { openModule = "system" },
+                        onBackToApp
                     )
                 }
             }
