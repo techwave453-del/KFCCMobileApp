@@ -83,7 +83,11 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
     val message by viewModel.message.collectAsState()
     var approvalRequest by remember { mutableStateOf<AdminAccessRequest?>(null) }
     var permissionUser by remember { mutableStateOf<AdminManagedUser?>(null) }
+    var roleUser by remember { mutableStateOf<AdminManagedUser?>(null) }
+    var selectedRole by remember { mutableStateOf(AdminRoles.CONTENT_EDITOR) }
     var selectedPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var confirmUser by remember { mutableStateOf<AdminManagedUser?>(null) }
+    var confirmAction by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (approvalRequest != null) {
@@ -113,6 +117,23 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
         )
     }
 
+    if (roleUser != null) {
+        AlertDialog(
+            onDismissRequest = { if (!loading) roleUser = null },
+            title = { Text("Role · " + roleUser!!.username) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Choose the administrator role. Permissions are kept as currently assigned.")
+                    listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
+                        if (selectedRole == value) Button(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                        else OutlinedButton(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = { viewModel.setRole(roleUser!!, selectedRole); roleUser = null }, enabled = !loading && selectedRole != roleUser!!.role) { Text("Save role") } },
+            dismissButton = { OutlinedButton(onClick = { roleUser = null }, enabled = !loading) { Text("Cancel") } }
+        )
+    }
     if (permissionUser != null) {
         AlertDialog(
             onDismissRequest = { if (!loading) permissionUser = null },
@@ -131,6 +152,33 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
         )
     }
 
+    if (confirmUser != null && confirmAction != null) {
+        val deleting = confirmAction == "delete"
+        val enabling = confirmAction == "enable"
+        AlertDialog(
+            onDismissRequest = { if (!loading) { confirmUser = null; confirmAction = null } },
+            title = { Text(if (deleting) "Delete administrator?" else if (enabling) "Enable administrator?" else "Disable administrator?") },
+            text = {
+                Text(
+                    if (deleting) "This permanently removes " + confirmUser!!.username + " and their assigned permissions."
+                    else if (enabling) "Allow " + confirmUser!!.username + " to sign in again?"
+                    else "Prevent " + confirmUser!!.username + " from signing in until the account is enabled again."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val user = confirmUser!!
+                        if (deleting) viewModel.delete(user) else viewModel.setStatus(user, enabling)
+                        confirmUser = null
+                        confirmAction = null
+                    },
+                    enabled = !loading
+                ) { Text(if (deleting) "Delete" else if (enabling) "Enable" else "Disable") }
+            },
+            dismissButton = { OutlinedButton(onClick = { confirmUser = null; confirmAction = null }, enabled = !loading) { Text("Cancel") } }
+        )
+    }
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().padding(20.dp)) {
             Row(Modifier.fillMaxWidth()) {
@@ -171,9 +219,10 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                             if (user.role != "super_admin") {
                                 Spacer(Modifier.height(8.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = { selectedRole = when (user.role) { AdminRoles.MEDIA_MANAGER -> AdminRoles.MEDIA_MANAGER; AdminRoles.LIVE_MANAGER -> AdminRoles.LIVE_MANAGER; AdminRoles.SYSTEM_ADMIN -> AdminRoles.SYSTEM_ADMIN; else -> AdminRoles.CONTENT_EDITOR }; roleUser = user }, enabled = !loading) { Text("Role") }
                                     OutlinedButton(onClick = { selectedPermissions = user.permissions.toSet(); permissionUser = user }, enabled = !loading) { Text("Permissions") }
-                                    OutlinedButton(onClick = { viewModel.setStatus(user, !user.is_active) }, enabled = !loading) { Text(if (user.is_active) "Disable" else "Enable") }
-                                    OutlinedButton(onClick = { viewModel.delete(user) }, enabled = !loading) { Text("Delete") }
+                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = if (user.is_active) "disable" else "enable" }, enabled = !loading) { Text(if (user.is_active) "Disable" else "Enable") }
+                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = "delete" }, enabled = !loading) { Text("Delete") }
                                 }
                             }
                         }
