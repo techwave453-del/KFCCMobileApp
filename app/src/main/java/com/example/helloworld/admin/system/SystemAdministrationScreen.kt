@@ -14,6 +14,7 @@ import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 private data class AuditRow(
@@ -22,7 +23,7 @@ private data class AuditRow(
     val action: String,
     val resource: String? = null,
     val resource_id: String? = null,
-    val details: String? = null,
+    val details: JsonElement? = null,
     val created_at: String
 )
 
