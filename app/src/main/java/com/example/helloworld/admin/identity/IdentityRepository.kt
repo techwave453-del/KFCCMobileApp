@@ -4,6 +4,10 @@ import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class SiteContentRow(val key: String, val value: String)
 
 class IdentityRepository(private val adminRepository: AdminRepository) {
     private val client = SupabaseProvider.client
@@ -15,7 +19,9 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
             .select(Columns.list("id", "church_name", "official_name", "logo_url", "official_logo", "registration_details"))
             .decodeSingle<ChurchIdentityRow>()
 
-        row.toDomain()
+        val contacts = client.from("site_content").select(Columns.list("key", "value")).decodeList<SiteContentRow>()
+        val values = contacts.associate { it.key to it.value }
+        row.toDomain().copy(phone = values["phone"].orEmpty(), email = values["email"].orEmpty())
     }
 
     suspend fun save(identity: ChurchIdentity): Result<ChurchIdentity> = runCatching {
@@ -29,6 +35,11 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
                 registration_details = identity.registrationDetails.trim()
             )
         )
+
+        client.from("site_content").upsert(listOf(
+            mapOf("key" to "phone", "value" to identity.phone.trim()),
+            mapOf("key" to "email", "value" to identity.email.trim())
+        ))
 
         // The legacy logo field is not part of the new direct Supabase schema.
         identity.copy(logo = identity.logo.trim()).copy(
