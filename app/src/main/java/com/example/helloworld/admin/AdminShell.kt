@@ -23,6 +23,7 @@ import com.example.helloworld.admin.identity.ChurchIdentityScreen
 import com.example.helloworld.admin.live.LiveStreamingScreen
 import com.example.helloworld.admin.media.MediaCenterScreen
 import com.example.helloworld.admin.services.AdminServicesScreen
+import com.example.helloworld.admin.system.SystemAdministrationScreen
 import com.example.helloworld.admin.content.WebsiteContentViewModel
 import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
@@ -77,6 +78,8 @@ fun AdminShell(
                         }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
                         ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
+                    openModule == "system" && currentUser.hasPermission(AdminPermissions.AUDIT_VIEW) ->
+                        ModuleFrame("System Administration", { openModule = null }) { SystemAdministrationScreen(Modifier.fillMaxSize()) }
                     else -> AdminDashboardScreen(
                         currentUser,
                         viewModel::logout,
