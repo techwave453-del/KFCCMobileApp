@@ -49,6 +49,8 @@ fun ChurchIdentityScreen(
         OutlinedTextField(identity.churchName, { viewModel.update(identity.copy(churchName = it)) }, label = { Text("Church name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.officialName, { viewModel.update(identity.copy(officialName = it)) }, label = { Text("Official identity / legal name") }, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.registrationDetails, { viewModel.update(identity.copy(registrationDetails = it)) }, label = { Text("Registration / organization details") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, minLines = 3)
+        OutlinedTextField(identity.phone, { viewModel.update(identity.copy(phone = it)) }, label = { Text("Official phone") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
+        OutlinedTextField(identity.email, { viewModel.update(identity.copy(email = it)) }, label = { Text("Official email") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.logoUrl, { viewModel.update(identity.copy(logoUrl = it)) }, label = { Text("Logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.officialLogo, { viewModel.update(identity.copy(officialLogo = it)) }, label = { Text("Official logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.logo, { viewModel.update(identity.copy(logo = it)) }, label = { Text("Legacy logo value") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
