@@ -158,9 +158,18 @@ fun BibleScreen(innerPadding: PaddingValues) {
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
     var selectedVerse by remember { mutableStateOf<Verse?>(null) }
     var showVersionPicker by remember { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val version = BibleVersion.valueOf(selectedVersion)
     val todayVerse = todayVerses[version] ?: todayVerses.getValue(BibleVersion.ENGLISH_KJV)
+    val filteredBooks = remember(searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) bibleBooks
+        else bibleBooks.filter {
+            it.name.contains(query, ignoreCase = true) ||
+                it.abbreviation.contains(query, ignoreCase = true)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -193,7 +202,7 @@ fun BibleScreen(innerPadding: PaddingValues) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "\${bibleBooks.size} books • \${version.title}",
+                            "${bibleBooks.size} books • ${version.title}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -210,6 +219,27 @@ fun BibleScreen(innerPadding: PaddingValues) {
             }
 
             item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    placeholder = { Text("Search books") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            }
+                        }
+                    }
+                )
+            }
+
+            item {
                 Text(
                     "OLD TESTAMENT",
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -219,7 +249,7 @@ fun BibleScreen(innerPadding: PaddingValues) {
                 )
             }
 
-            itemsIndexed(bibleBooks.filter { it.testament == Testament.OLD }) { index, book ->
+            itemsIndexed(filteredBooks.filter { it.testament == Testament.OLD }) { index, book ->
                 BibleBookRow(
                     book = book,
                     accent = bookAccents[index % bookAccents.size],
@@ -237,7 +267,7 @@ fun BibleScreen(innerPadding: PaddingValues) {
                 )
             }
 
-            itemsIndexed(bibleBooks.filter { it.testament == Testament.NEW }) { index, book ->
+            itemsIndexed(filteredBooks.filter { it.testament == Testament.NEW }) { index, book ->
                 BibleBookRow(
                     book = book,
                     accent = bookAccents[(index + 2) % bookAccents.size],
@@ -370,7 +400,7 @@ private fun BibleHero(verse: Verse, onVerseClick: () -> Unit) {
 
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "“\${verse.text}”",
+                    "“${verse.text}”",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
@@ -442,13 +472,13 @@ private fun BibleBookRow(book: BibleBook, accent: Color, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(book.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "\${book.chapters} chapters",
+                "${book.chapters} chapters",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Icon(Icons.Default.ChevronRight, "Open \${book.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Icons.Default.ChevronRight, "Open ${book.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
     HorizontalDivider(
@@ -623,7 +653,7 @@ private fun verseForChapter(book: BibleBook, chapter: Int, version: BibleVersion
         return todayVerses.getValue(BibleVersion.ENGLISH_KJV)
     }
     return Verse(
-        reference = "\${book.name} $chapter:1",
+        reference = "${book.name} $chapter:1",
         text = "This verse is ready for the selected translation. Connect the licensed Bible text source to load the complete chapter here.",
         version = version
     )
@@ -697,7 +727,7 @@ private fun VerseDetailDialog(verse: Verse, onDismiss: () -> Unit) {
                             onClick = {
                                 val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "\${verse.reference}\\n\\n\${verse.text}")
+                                    putExtra(Intent.EXTRA_TEXT, "${verse.reference}\n\n${verse.text}")
                                 }
                                 context.startActivity(Intent.createChooser(sendIntent, "Share verse"))
                             },
