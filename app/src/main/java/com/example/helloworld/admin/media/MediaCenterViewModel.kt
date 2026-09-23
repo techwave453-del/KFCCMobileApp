@@ -111,7 +111,7 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
     fun delete(item: AdminMediaItem, onComplete: () -> Unit) {
         viewModelScope.launch {
             _deleting.value = true; _error.value = null; _actionMessage.value = null
-            repository.delete(item.id)
+            repository.delete(item)
                 .onSuccess { _actionMessage.value = "Media deleted."; onComplete(); load() }
                 .onFailure { _error.value = it.message ?: "Unable to delete media." }
             _deleting.value = false
