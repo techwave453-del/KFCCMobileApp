@@ -1,43 +1,60 @@
 package com.example.helloworld.admin.identity
 
-import com.example.helloworld.admin.AdminRepository
-import io.ktor.client.call.body
-import io.ktor.http.HttpStatusCode
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.postgrest.from
 
-class IdentityRepository(private val adminRepository: AdminRepository) {
-    companion object {
-        private const val CONTENT_PATH = "api/site/content"
-    }
+class IdentityRepository {
+    private val client = SupabaseProvider.client
 
     suspend fun load(): Result<ChurchIdentity> = runCatching {
-        val response = adminRepository.authenticatedGet(CONTENT_PATH)
-        when (response.status) {
-            HttpStatusCode.OK -> response.body<ChurchIdentity>()
-            HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
-            HttpStatusCode.Forbidden -> error("You are logged in, but you do not have permission to view Church Identity.")
-            else -> error("Identity service returned ${response.status.value}.")
-        }
+        client.from("church_identity")
+            .select()
+            .decodeSingle<ChurchIdentityRow>()
+            .toDomain()
     }
 
     suspend fun save(identity: ChurchIdentity): Result<ChurchIdentity> = runCatching {
-        val body = mapOf(
-            "churchName" to identity.churchName.trim(),
-            "officialName" to identity.officialName.trim(),
-            "logo" to identity.logo.trim(),
-            "logoUrl" to identity.logoUrl.trim(),
-            "officialLogo" to identity.officialLogo.trim(),
-            "registrationDetails" to identity.registrationDetails.trim()
-        )
-        val response = adminRepository.authenticatedPut(CONTENT_PATH, body)
-        when (response.status) {
-            HttpStatusCode.OK, HttpStatusCode.Created -> response.body<ChurchIdentity>()
-            HttpStatusCode.Unauthorized -> error("Your administrator session has expired. Please login again.")
-            HttpStatusCode.Forbidden -> error("You are logged in, but you do not have permission to edit Church Identity.")
-            HttpStatusCode.NotFound -> error("The Church Identity API endpoint was not found.")
-            else -> {
-                val message = try { response.body<Map<String, String>>()["error"] } catch (_: Exception) { null }
-                error(message ?: "Unable to save Church Identity (${response.status.value}).")
+        client.from("church_identity").update(
+            {
+                set("church_name", identity.churchName.trim())
+                set("official_name", identity.officialName.trim())
+                set("logo_url", identity.logoUrl.trim())
+                set("official_logo", identity.officialLogo.trim())
+                set("registration_details", identity.registrationDetails.trim())
             }
+        ) {
+            filter { eq("id", 1) }
         }
+
+        // Keep the legacy public logo value synchronized because some public
+        // app/site readers still consume it from site_content.
+        client.from("site_content").upsert(
+            mapOf("key" to "churchName", "value" to identity.churchName.trim())
+        )
+        client.from("site_content").upsert(
+            mapOf("key" to "logo", "value" to identity.logo.trim())
+        )
+        client.from("site_content").upsert(
+            mapOf("key" to "logoUrl", "value" to identity.logoUrl.trim())
+        )
+
+        identity
+    }
+
+    private data class ChurchIdentityRow(
+        val id: Int = 1,
+        val church_name: String = "",
+        val official_name: String = "",
+        val logo_url: String = "",
+        val official_logo: String = "",
+        val registration_details: String = ""
+    ) {
+        fun toDomain() = ChurchIdentity(
+            churchName = church_name,
+            officialName = official_name,
+            logoUrl = logo_url,
+            officialLogo = official_logo,
+            registrationDetails = registration_details
+        )
     }
 }
