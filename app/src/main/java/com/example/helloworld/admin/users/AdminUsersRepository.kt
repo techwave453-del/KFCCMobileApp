@@ -14,6 +14,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
+private data class ManagementRequest(
+    val action: String,
+    val id: Long? = null,
+    val active: Boolean? = null,
+    val role: String? = null,
+    val permissions: List<String>? = null
+)
+
+@Serializable
 private data class ManagementResponse(
     val users: List<AdminManagedUser> = emptyList(),
     val requests: List<AdminAccessRequest> = emptyList(),
@@ -28,43 +37,43 @@ class AdminUsersRepository(context: Context) {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }
 
-    private suspend fun call(action: String, extra: Map<String, Any?> = emptyMap()): ManagementResponse {
+    private suspend fun call(request: ManagementRequest): ManagementResponse {
         val token = client.auth.currentAccessTokenOrNull()
             ?: error("Administrator session has expired. Please login again.")
         return http.post("$FUNCTIONS_URL/admin-management") {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody(mapOf("action" to action) + extra)
+            setBody(request)
         }.body()
     }
 
     suspend fun users(): Result<List<AdminManagedUser>> = runCatching {
-        val r = call("list"); if (r.error != null) error(r.error); r.users
+        val r = call(ManagementRequest("list")); if (r.error != null) error(r.error); r.users
     }
 
     suspend fun accessRequests(): Result<List<AdminAccessRequest>> = runCatching {
-        val r = call("requests"); if (r.error != null) error(r.error); r.requests
+        val r = call(ManagementRequest("requests")); if (r.error != null) error(r.error); r.requests
     }
 
     suspend fun approveRequest(id: Long, role: String, permissions: List<String>): Result<String?> = runCatching {
-        val r = call("approve", mapOf("id" to id, "role" to role, "permissions" to permissions))
+        val r = call(ManagementRequest("approve", id = id, role = role, permissions = permissions))
         if (r.error != null) error(r.error); r.activation_code
     }
 
     suspend fun rejectRequest(id: Long): Result<Unit> = runCatching {
-        val r = call("reject", mapOf("id" to id)); if (r.error != null) error(r.error)
+        val r = call(ManagementRequest("reject", id = id)); if (r.error != null) error(r.error)
     }
 
     suspend fun setStatus(id: Long, active: Boolean): Result<Unit> = runCatching {
-        val r = call("status", mapOf("id" to id, "active" to active)); if (r.error != null) error(r.error)
+        val r = call(ManagementRequest("status", id = id, active = active)); if (r.error != null) error(r.error)
     }
 
     suspend fun deleteUser(id: Long): Result<Unit> = runCatching {
-        val r = call("delete", mapOf("id" to id)); if (r.error != null) error(r.error)
+        val r = call(ManagementRequest("delete", id = id)); if (r.error != null) error(r.error)
     }
 
     suspend fun setPermissions(id: Long, permissions: List<String>): Result<Unit> = runCatching {
-        val r = call("permissions", mapOf("id" to id, "permissions" to permissions)); if (r.error != null) error(r.error)
+        val r = call(ManagementRequest("permissions", id = id, permissions = permissions)); if (r.error != null) error(r.error)
     }
 
     companion object {
