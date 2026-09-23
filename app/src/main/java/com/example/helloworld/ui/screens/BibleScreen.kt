@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -408,7 +409,7 @@ private fun HeroVideo(url: String) {
         modifier = Modifier.fillMaxSize(),
         factory = {
             PlayerView(it).apply {
-                player = player
+                this.player = player
                 useController = false
                 setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
             }
