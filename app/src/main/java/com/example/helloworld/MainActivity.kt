@@ -96,6 +96,7 @@ fun KFCCApp(
                 }
                 HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
+                NavigationDrawerItem(label = { Text("Bible") }, selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Default.MenuBook, null) })
                 NavigationDrawerItem(label = { Text("Services") }, selected = currentDestination == AppDestinations.SERVICES, onClick = { navigate(AppDestinations.SERVICES) }, icon = { Icon(Icons.Default.Church, null) })
                 NavigationDrawerItem(label = { Text("Notifications") }, selected = currentDestination == AppDestinations.NOTIFICATIONS, onClick = { navigate(AppDestinations.NOTIFICATIONS) }, icon = { Icon(Icons.Default.Notifications, null) })
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
@@ -138,6 +139,7 @@ fun KFCCApp(
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
+                    NavigationBarItem(selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Default.MenuBook, "Bible") }, label = { Text("Bible") })
                     NavigationBarItem(selected = currentDestination == AppDestinations.SEARCH, onClick = { navigate(AppDestinations.SEARCH) }, icon = { Icon(Icons.Default.Search, "Search") }, label = { Text("Search") })
                     NavigationBarItem(selected = currentDestination == AppDestinations.CHAT, onClick = { navigate(AppDestinations.CHAT) }, icon = { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
                     NavigationBarItem(
@@ -151,6 +153,7 @@ fun KFCCApp(
         ) { innerPadding ->
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 when (currentDestination) {
+                    AppDestinations.BIBLE -> BibleScreen(innerPadding)
                     AppDestinations.HOME -> HomeScreen(
                         info = churchInfo,
                         mediaItems = mediaItems,
@@ -270,6 +273,7 @@ private fun youtubeVideoId(url: String): String? {
 
 enum class AppDestinations(val label: String) {
     HOME("Home"),
+    BIBLE("Bible"),
     SERVICES("Services"),
     EVENTS("Events"),
     MEDIA("Media"),
