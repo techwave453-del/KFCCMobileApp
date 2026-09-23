@@ -271,13 +271,10 @@ class AdminRepository(context: Context) {
             mapOf("key" to "subtitle", "value" to content.subtitle),
             mapOf("key" to "aboutTitle", "value" to content.aboutTitle),
             mapOf("key" to "aboutText", "value" to content.aboutText),
-            mapOf("key" to "phone", "value" to content.phone),
-            mapOf("key" to "email", "value" to content.email),
             mapOf("key" to "givingUrl", "value" to content.givingUrl),
             mapOf("key" to "services", "value" to Json.encodeToString(content.services)),
             mapOf("key" to "links", "value" to Json.encodeToString(content.links)),
-            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses)),
-            mapOf("key" to "liveStream", "value" to Json.encodeToString(content.liveStream))
+            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses))
         )
 
         client.from("site_content").upsert(rows)
