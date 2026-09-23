@@ -2,6 +2,7 @@ package com.example.helloworld.admin.identity
 
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
+import kotlinx.serialization.Serializable
 
 class IdentityRepository {
     private val client = SupabaseProvider.client
@@ -35,6 +36,7 @@ class IdentityRepository {
         identity
     }
 
+    @Serializable
     private data class ChurchIdentityRow(
         val id: Int = 1,
         val church_name: String = "",
