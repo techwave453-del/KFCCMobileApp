@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.helloworld.admin.AdminRepository
+import com.example.helloworld.data.ChurchInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +14,9 @@ import kotlinx.coroutines.launch
 
 class WebsiteContentViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WebsiteContentRepository()
+    private val legacyRepository = AdminRepository(application)
+    private val _content = MutableStateFlow(ChurchInfo())
+    val content: StateFlow<ChurchInfo> = _content.asStateFlow()
     private val _pages = MutableStateFlow<List<CmsPage>>(emptyList())
     val pages: StateFlow<List<CmsPage>> = _pages.asStateFlow()
     private val _sections = MutableStateFlow<List<CmsSection>>(emptyList())
@@ -32,6 +37,9 @@ class WebsiteContentViewModel(application: Application) : AndroidViewModel(appli
     fun refresh() = viewModelScope.launch {
         _loading.value = true
         _error.value = null
+        legacyRepository.loadSiteContent()
+            .onSuccess { _content.value = it }
+            .onFailure { _error.value = it.message ?: "Unable to load website content." }
         repository.loadPages()
             .onSuccess { pages ->
                 _pages.value = pages
@@ -56,6 +64,21 @@ class WebsiteContentViewModel(application: Application) : AndroidViewModel(appli
             .onSuccess { _sections.value = it }
             .onFailure { _error.value = it.message ?: "Unable to load page sections." }
         _loading.value = false
+    }
+
+    fun update(content: ChurchInfo) {
+        _content.value = content
+        _saved.value = false
+    }
+
+    fun save() = viewModelScope.launch {
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
+        legacyRepository.saveSiteContent(_content.value)
+            .onSuccess { _content.value = it; _saved.value = true }
+            .onFailure { _error.value = it.message ?: "Unable to save website content." }
+        _saving.value = false
     }
 
     fun saveSection(section: CmsSection, heading: String, body: String, media: String, eyebrow: String) = viewModelScope.launch {
