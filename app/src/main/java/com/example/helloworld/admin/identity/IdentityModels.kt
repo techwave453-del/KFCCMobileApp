@@ -9,7 +9,9 @@ data class ChurchIdentity(
     val logo: String = "",
     val logoUrl: String = "",
     val officialLogo: String = "",
-    val registrationDetails: String = ""
+    val registrationDetails: String = "",
+    val phone: String = "",
+    val email: String = ""
 )
 
 @Serializable
