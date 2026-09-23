@@ -50,6 +50,7 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun reject(request: AdminAccessRequest) = action("reject") { repository.rejectRequest(request.id) }
+    fun setRole(user: AdminManagedUser, role: String) = action("role") { repository.setRole(user.id, role) }
     fun setStatus(user: AdminManagedUser, active: Boolean) = action("status") { repository.setStatus(user.id, active) }
     fun delete(user: AdminManagedUser) = action("delete") { repository.deleteUser(user.id) }
     fun setPermissions(user: AdminManagedUser, permissions: List<String>) =
