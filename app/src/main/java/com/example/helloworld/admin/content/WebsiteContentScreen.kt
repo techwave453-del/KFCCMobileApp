@@ -110,10 +110,39 @@ private fun CmsSectionEditor(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(section.section_type.replaceFirstChar { it.uppercase() } + " • Section " + (section.position + 1), style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(eyebrow, { eyebrow = it }, label = { Text("Eyebrow") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(heading, { heading = it }, label = { Text("Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(body, { body = it }, label = { Text("Body") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(media, { media = it }, label = { Text("Media / URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+            when (section.section_type.lowercase()) {
+                "hero" -> {
+                    OutlinedTextField(eyebrow, { eyebrow = it }, label = { Text("Eyebrow") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Hero Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Hero Text") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(media, { media = it }, label = { Text("Hero Image URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+                "youtube", "video" -> {
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Video Title") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(media, { media = it }, label = { Text("YouTube / Video URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Description") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+                "giving" -> {
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Giving Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Giving Message") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(media, { media = it }, label = { Text("Giving Link / URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+                "contact" -> {
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Contact Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Contact Details") }, minLines = 4, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+                "image_text", "gallery", "cards", "cta" -> {
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Text") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(media, { media = it }, label = { Text("Image / Media URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+                else -> {
+                    OutlinedTextField(heading, { heading = it }, label = { Text("Heading") }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(body, { body = it }, label = { Text("Body") }, minLines = 3, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(media, { media = it }, label = { Text("Media / URL") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                }
+            }
+
             Button(onClick = { onSave(heading, body, media, eyebrow) }, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
                 if (saving) CircularProgressIndicator(Modifier.size(20.dp)) else Text("Save Section")
             }
