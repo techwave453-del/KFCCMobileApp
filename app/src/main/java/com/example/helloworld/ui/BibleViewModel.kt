@@ -15,6 +15,7 @@ data class BibleUiState(
     val translations: List<BibleTranslation> = emptyList(),
     val books: List<BibleBookRecord> = emptyList(),
     val selectedTranslationId: String = "kjv",
+    val featuredVerse: BibleVerseRecord? = null,
     val chapter: List<BibleVerseRecord> = emptyList(),
     val searchResults: List<BibleVerseRecord> = emptyList(),
     val loading: Boolean = false,
@@ -36,12 +37,14 @@ class BibleViewModel(
             runCatching {
                 val translations = repository.getTranslations()
                 val books = repository.getBooks()
+                val featured = repository.getVerse("kjv", "JHN", 3, 16)
                 val selected = translations.firstOrNull { it.id == _state.value.selectedTranslationId }
                     ?: translations.firstOrNull()
                 _state.value = _state.value.copy(
                     translations = translations,
                     books = books,
                     selectedTranslationId = selected?.id ?: _state.value.selectedTranslationId,
+                    featuredVerse = featured,
                     loading = false
                 )
             }.onFailure { error ->
