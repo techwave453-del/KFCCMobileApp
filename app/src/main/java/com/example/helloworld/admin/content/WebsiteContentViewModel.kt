@@ -35,16 +35,37 @@ class WebsiteContentViewModel(application: Application) : AndroidViewModel(appli
         _loading.value = false
     }
 
-    fun update(value: ChurchInfo) { _content.value = value; _saved.value = false }
+    fun update(value: ChurchInfo) {
+        _content.value = value
+        _saved.value = false
+    }
 
-    fun save() = viewModelScope.launch {
-        _saving.value = true; _error.value = null; _saved.value = false
-        repository.save(_content.value).onSuccess { _content.value = it; _saved.value = true }.onFailure { _error.value = it.message }
+    fun save(
+        canEditIdentity: Boolean = false,
+        canManageLive: Boolean = false
+    ) = viewModelScope.launch {
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
+        repository.save(_content.value, canEditIdentity, canManageLive)
+            .onSuccess { _content.value = it; _saved.value = true }
+            .onFailure { _error.value = it.message }
+        _saving.value = false
+    }
+
+    fun saveLiveStream() = viewModelScope.launch {
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
+        repository.saveLiveStream(_content.value.liveStream)
+            .onSuccess { _saved.value = true }
+            .onFailure { _error.value = it.message }
         _saving.value = false
     }
 
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = WebsiteContentViewModel(application) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            WebsiteContentViewModel(application) as T
     }
 }
