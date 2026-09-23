@@ -36,17 +36,7 @@ fun WebsiteContentScreen(
         Field("Homepage subtitle", content.subtitle, { viewModel.update(content.copy(subtitle = it)) }, saving, 2)
         Field("About heading", content.aboutTitle, { viewModel.update(content.copy(aboutTitle = it)) }, saving)
         Field("About text", content.aboutText, { viewModel.update(content.copy(aboutText = it)) }, saving, 5)
-        Field("Phone", content.phone, { viewModel.update(content.copy(phone = it)) }, saving)
-        Field("Email", content.email, { viewModel.update(content.copy(email = it)) }, saving)
         Field("Giving URL", content.givingUrl, { viewModel.update(content.copy(givingUrl = it)) }, saving)
-        Text("Live Streaming", style = MaterialTheme.typography.titleMedium)
-        Field("Live stream title", content.liveStream.title, { viewModel.update(content.copy(liveStream = content.liveStream.copy(title = it))) }, saving)
-        Field("YouTube Live URL", content.liveStream.url, { viewModel.update(content.copy(liveStream = content.liveStream.copy(url = it))) }, saving)
-        Field("Live description", content.liveStream.description, { viewModel.update(content.copy(liveStream = content.liveStream.copy(description = it))) }, saving, 3)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Enable live stream", modifier = Modifier.weight(1f))
-            Switch(checked = content.liveStream.enabled, onCheckedChange = { viewModel.update(content.copy(liveStream = content.liveStream.copy(enabled = it))) }, enabled = !saving)
-        }
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
         if (saved) Text("Website Content saved successfully.", color = MaterialTheme.colorScheme.primary)
         Button(onClick = viewModel::save, enabled = !loading && !saving, modifier = Modifier.fillMaxWidth()) {
