@@ -4,21 +4,12 @@ import android.content.Context
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
-import kotlinx.serialization.Serializable
 import java.util.UUID
 
-@Serializable
-private data class MediaUpdateRequest(
-    val title: String,
-    val description: String,
-    val category: String,
-    val published: Boolean? = null,
-    val featured: Boolean? = null
-)
-
-/** Server-authoritative Media Center API client. */
+/** Direct Supabase Data API + Storage client for the Admin Media Center. */
 class MediaRepository(context: Context) {
     private val client = SupabaseProvider.client
+    private val bucket = client.storage.from("church-media")
 
     suspend fun load(): Result<List<AdminMediaItem>> = runCatching {
         client.from("media_items")
@@ -27,12 +18,19 @@ class MediaRepository(context: Context) {
             .sortedByDescending { it.created_at }
     }
 
-    suspend fun update(id: Long, title: String, description: String, category: String, published: Boolean? = null, featured: Boolean? = null): Result<AdminMediaItem> = runCatching {
+    suspend fun update(
+        id: Long,
+        title: String,
+        description: String,
+        category: String,
+        published: Boolean? = null,
+        featured: Boolean? = null
+    ): Result<AdminMediaItem> = runCatching {
         client.from("media_items")
             .update({
-                set("title", title)
-                set("description", description)
-                set("category", category)
+                set("title", title.trim())
+                set("description", description.trim())
+                set("category", category.trim())
                 if (published != null) set("published", published)
                 if (featured != null) set("featured", featured)
             }) {
@@ -48,33 +46,52 @@ class MediaRepository(context: Context) {
             }
     }
 
-    suspend fun delete(id: Long): Result<Unit> = runCatching {
-        // We might want to delete from storage too if it's a hosted file, 
-        // but for now just delete the DB record.
+    suspend fun delete(item: AdminMediaItem): Result<Unit> = runCatching {
         client.from("media_items").delete {
-            filter { eq("id", id) }
+            filter { eq("id", item.id) }
+        }
+
+        item.storage_path?.takeIf { it.isNotBlank() }?.let { path ->
+            runCatching { bucket.delete(path) }
         }
     }
 
-    suspend fun upload(bytes: ByteArray, fileName: String, mimeType: String, title: String, description: String, category: String, type: String): Result<AdminMediaItem> = runCatching {
+    suspend fun upload(
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+        title: String,
+        description: String,
+        category: String,
+        type: String
+    ): Result<AdminMediaItem> = runCatching {
         val path = "${UUID.randomUUID()}_$fileName"
-        val bucket = client.storage.from("media")
-        
+
         bucket.upload(path, bytes) {
-            upsert = true
+            upsert = false
+            contentType = mimeType
         }
-        
+
         val publicUrl = bucket.publicUrl(path)
-        
+
         val item = mapOf(
-            "title" to title,
-            "description" to description,
-            "category" to category,
+            "title" to title.trim(),
+            "description" to description.trim(),
+            "category" to category.trim(),
             "type" to type,
             "url" to publicUrl,
-            "published" to true
+            "storage_path" to path,
+            "published" to true,
+            "featured" to false
         )
-        
-        client.from("media_items").insert(item).decodeSingle<AdminMediaItem>()
+
+        try {
+            client.from("media_items")
+                .insert(item)
+                .decodeSingle<AdminMediaItem>()
+        } catch (error: Exception) {
+            runCatching { bucket.delete(path) }
+            throw error
+        }
     }
 }
