@@ -26,16 +26,10 @@ class IdentityRepository {
             filter { eq("id", 1) }
         }
 
-        // Keep the legacy public logo value synchronized because some public
-        // app/site readers still consume it from site_content.
+        // Keep the public church name synchronized with the legacy site_content
+        // key. This key is explicitly protected by identity.edit RLS.
         client.from("site_content").upsert(
             mapOf("key" to "churchName", "value" to identity.churchName.trim())
-        )
-        client.from("site_content").upsert(
-            mapOf("key" to "logo", "value" to identity.logo.trim())
-        )
-        client.from("site_content").upsert(
-            mapOf("key" to "logoUrl", "value" to identity.logoUrl.trim())
         )
 
         identity
