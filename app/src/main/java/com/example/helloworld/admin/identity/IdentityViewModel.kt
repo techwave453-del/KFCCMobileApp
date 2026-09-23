@@ -12,8 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class IdentityViewModel(application: Application) : AndroidViewModel(application) {
-    // Reuse the same authenticated admin client/session as AdminViewModel.
-    private val repository = IdentityRepository(AdminRepositoryProvider.get(application))
+    private val repository = IdentityRepository()
     private val _identity = MutableStateFlow(ChurchIdentity())
     val identity: StateFlow<ChurchIdentity> = _identity.asStateFlow()
     private val _loading = MutableStateFlow(false)
