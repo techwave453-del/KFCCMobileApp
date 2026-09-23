@@ -19,7 +19,9 @@ import com.example.helloworld.admin.content.WebsiteContentViewModel
 fun LiveStreamingScreen(
     modifier: Modifier = Modifier,
     viewModel: WebsiteContentViewModel = viewModel(
-        factory = WebsiteContentViewModel.Factory(LocalContext.current.applicationContext as Application)
+        factory = WebsiteContentViewModel.Factory(
+            LocalContext.current.applicationContext as Application
+        )
     )
 ) {
     val content by viewModel.content.collectAsState()
@@ -37,7 +39,7 @@ fun LiveStreamingScreen(
             Column(Modifier.weight(1f)) {
                 Text("Live Streaming", style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "Control the public live-service experience without changing Church Identity.",
+                    "Manage the live-service settings directly in Supabase.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -50,10 +52,17 @@ fun LiveStreamingScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Broadcast status", style = MaterialTheme.typography.titleMedium)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (live.enabled) "Live streaming is enabled" else "Live streaming is disabled", Modifier.weight(1f))
+                    Text(
+                        if (live.enabled) "Live streaming is enabled" else "Live streaming is disabled",
+                        Modifier.weight(1f)
+                    )
                     Switch(
                         checked = live.enabled,
-                        onCheckedChange = { viewModel.update(content.copy(liveStream = live.copy(enabled = it))) },
+                        onCheckedChange = {
+                            viewModel.update(
+                                content.copy(liveStream = live.copy(enabled = it))
+                            )
+                        },
                         enabled = !saving
                     )
                 }
@@ -70,20 +79,16 @@ fun LiveStreamingScreen(
             viewModel.update(content.copy(liveStream = live.copy(description = it)))
         }
 
-        Text(
-            "The public site reads these settings from the server. The mobile app does not store a second copy of the livestream configuration.",
-            style = MaterialTheme.typography.bodySmall
-        )
-
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
         if (saved) Text("Live-stream settings saved successfully.", color = MaterialTheme.colorScheme.primary)
 
         Button(
-            onClick = viewModel::save,
+            onClick = viewModel::saveLiveStream,
             enabled = !loading && !saving,
             modifier = Modifier.fillMaxWidth()
         ) {
-            if (saving) CircularProgressIndicator(Modifier.size(20.dp)) else Text("Save Live Streaming")
+            if (saving) CircularProgressIndicator(Modifier.size(20.dp))
+            else Text("Save Live Streaming")
         }
     }
 }
