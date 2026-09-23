@@ -32,6 +32,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import com.example.helloworld.data.BibleBookRecord
+import com.example.helloworld.ui.BibleViewModel
 
 private const val HERO_IMAGE_URL =
     "https://images.pexels.com/photos/53959/pexels-photo-53959.jpeg?auto=compress&cs=tinysrgb&w=1200"
@@ -123,13 +127,20 @@ private data class BibleBook(
     val testament: Testament
 )
 
+private fun BibleBookRecord.toUiBook(): BibleBook = BibleBook(
+    name = name,
+    abbreviation = abbreviation,
+    chapters = chapterCount,
+    testament = if (testament == "NT") Testament.NEW else Testament.OLD
+)
+
 private enum class BibleVersion(
     val title: String,
     val subtitle: String,
     val available: Boolean
 ) {
     ENGLISH_KJV("English", "King James Version", true),
-    KISWAHILI_ULB("Kiswahili", "Swahili Unlocked Literal Bible", true),
+    KISWAHILI_ULB("Kiswahili", "Swahili Unlocked Literal Bible", false),
     KIKAMBA("Kikamba", "Mbivilia — Bible Society of Kenya", false)
 }
 
@@ -154,6 +165,10 @@ private val todayVerses = mapOf(
 
 @Composable
 fun BibleScreen(innerPadding: PaddingValues) {
+    val bibleViewModel: BibleViewModel = viewModel()
+    val bibleState by bibleViewModel.state.collectAsState()
+    LaunchedEffect(Unit) { bibleViewModel.load() }
+
     var selectedVersion by rememberSaveable { mutableStateOf(BibleVersion.ENGLISH_KJV.name) }
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
     var selectedVerse by remember { mutableStateOf<Verse?>(null) }
@@ -161,11 +176,16 @@ fun BibleScreen(innerPadding: PaddingValues) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val version = BibleVersion.valueOf(selectedVersion)
-    val todayVerse = todayVerses[version] ?: todayVerses.getValue(BibleVersion.ENGLISH_KJV)
-    val filteredBooks = remember(searchQuery) {
+    val dbBooks = bibleState.books.map { it.toUiBook() }
+    val activeBooks = if (dbBooks.isEmpty()) bibleBooks else dbBooks
+    val todayDbVerse = bibleState.featuredVerse
+    val todayVerse = todayDbVerse?.let {
+        Verse("John 3:16", it.text, BibleVersion.ENGLISH_KJV)
+    } ?: todayVerses[version] ?: todayVerses.getValue(BibleVersion.ENGLISH_KJV)
+    val filteredBooks = remember(activeBooks, searchQuery) {
         val query = searchQuery.trim()
-        if (query.isBlank()) bibleBooks
-        else bibleBooks.filter {
+        if (query.isBlank()) activeBooks
+        else activeBooks.filter {
             it.name.contains(query, ignoreCase = true) ||
                 it.abbreviation.contains(query, ignoreCase = true)
         }
@@ -202,7 +222,7 @@ fun BibleScreen(innerPadding: PaddingValues) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "${bibleBooks.size} books • ${version.title}",
+                            "${activeBooks.size} books • ${version.title}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -288,12 +308,28 @@ fun BibleScreen(innerPadding: PaddingValues) {
         )
     }
 
+    LaunchedEffect(bibleState.chapter) {
+        val first = bibleState.chapter.firstOrNull()
+        if (first != null) {
+            val bookName = bibleState.books.firstOrNull { it.id == first.bookId }?.name ?: first.bookId
+            selectedVerse = Verse(
+                reference = "$bookName ${first.chapter}:${first.verse}",
+                text = first.text,
+                version = BibleVersion.ENGLISH_KJV
+            )
+            selectedBook = null
+        }
+    }
+
     selectedBook?.let { book ->
         BibleBookDialog(
             book = book,
             version = version,
             onDismiss = { selectedBook = null },
-            onVerseClick = { selectedVerse = it }
+            onChapterClick = { chapter ->
+                val dbBook = bibleState.books.firstOrNull { it.name == book.name }
+                if (dbBook != null) bibleViewModel.loadChapter(dbBook.id, chapter)
+            }
         )
     }
 
@@ -566,7 +602,7 @@ private fun BibleBookDialog(
     book: BibleBook,
     version: BibleVersion,
     onDismiss: () -> Unit,
-    onVerseClick: (Verse) -> Unit
+    onChapterClick: (Int) -> Unit
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -616,7 +652,7 @@ private fun BibleBookDialog(
                                 ) {
                                     row.forEach { chapter ->
                                         OutlinedButton(
-                                            onClick = { onVerseClick(verseForChapter(book, chapter, version)) },
+                                            onClick = { onChapterClick(chapter) },
                                             modifier = Modifier.weight(1f),
                                             contentPadding = PaddingValues(vertical = 10.dp),
                                             shape = RoundedCornerShape(14.dp)
@@ -643,20 +679,6 @@ private fun BibleBookDialog(
             }
         }
     }
-}
-
-private fun verseForChapter(book: BibleBook, chapter: Int, version: BibleVersion): Verse {
-    if (book.name == "John" && chapter == 3 && version == BibleVersion.KISWAHILI_ULB) {
-        return todayVerses.getValue(BibleVersion.KISWAHILI_ULB)
-    }
-    if (book.name == "John" && chapter == 3 && version == BibleVersion.ENGLISH_KJV) {
-        return todayVerses.getValue(BibleVersion.ENGLISH_KJV)
-    }
-    return Verse(
-        reference = "${book.name} $chapter:1",
-        text = "This verse is ready for the selected translation. Connect the licensed Bible text source to load the complete chapter here.",
-        version = version
-    )
 }
 
 @Composable
