@@ -105,7 +105,7 @@ fun SystemAdministrationScreen(
                             )
                             Text(row.created_at, style = MaterialTheme.typography.labelSmall)
                             if (!row.details.isNullOrBlank()) {
-                                Text(row.details!!, style = MaterialTheme.typography.bodySmall)
+                                Text(row.details.toString(), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
