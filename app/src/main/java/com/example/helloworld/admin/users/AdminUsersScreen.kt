@@ -41,7 +41,6 @@ private val assignablePermissions = listOf(
     AdminPermissions.AUDIT_VIEW,
     AdminPermissions.IDENTITY_VIEW,
     AdminPermissions.SITE_EDIT,
-    AdminPermissions.SITE_EDIT,
     AdminPermissions.HOMEPAGE_EDIT,
     AdminPermissions.ABOUT_EDIT,
     AdminPermissions.SERVICES_EDIT,
@@ -98,8 +97,8 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                     Text("Choose a role preset. You can fine-tune its permissions below.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
-                            if (role == value) Button(onClick = { role = value }) { Text(roleLabel(value)) }
-                            else OutlinedButton(onClick = { role = value }) { Text(value) }
+                            if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }) { Text(roleLabel(value)) }
+                            else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }) { Text(roleLabel(value)) }
                         }
                     }
                     assignablePermissions.forEach { permission ->
