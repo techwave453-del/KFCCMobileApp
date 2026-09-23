@@ -29,8 +29,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.admin.AdminPermissions
+import com.example.helloworld.admin.AdminRoles
 
 private val assignablePermissions = listOf(
+    AdminPermissions.USERS_VIEW,
+    AdminPermissions.USERS_CREATE,
+    AdminPermissions.USERS_EDIT,
+    AdminPermissions.USERS_DISABLE,
+    AdminPermissions.USERS_DELETE,
+    AdminPermissions.USERS_PERMISSIONS,
+    AdminPermissions.AUDIT_VIEW,
+    AdminPermissions.IDENTITY_VIEW,
+    AdminPermissions.SITE_EDIT,
     AdminPermissions.SITE_EDIT,
     AdminPermissions.HOMEPAGE_EDIT,
     AdminPermissions.ABOUT_EDIT,
@@ -49,6 +59,22 @@ private val assignablePermissions = listOf(
     AdminPermissions.COMMENTS_MODERATE
 )
 
+private val rolePresets = mapOf(
+    AdminRoles.CONTENT_EDITOR to listOf(AdminPermissions.SITE_EDIT, AdminPermissions.HOMEPAGE_EDIT, AdminPermissions.ABOUT_EDIT, AdminPermissions.SERVICES_EDIT, AdminPermissions.LINKS_EDIT, AdminPermissions.CLASSES_EDIT, AdminPermissions.GALLERY_EDIT, AdminPermissions.THEME_EDIT),
+    AdminRoles.MEDIA_MANAGER to listOf(AdminPermissions.MEDIA_VIEW, AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE),
+    AdminRoles.LIVE_MANAGER to listOf(AdminPermissions.LIVE_VIEW, AdminPermissions.LIVE_MANAGE, AdminPermissions.COMMENTS_VIEW, AdminPermissions.COMMENTS_MODERATE),
+    AdminRoles.SYSTEM_ADMIN to listOf(AdminPermissions.USERS_VIEW, AdminPermissions.USERS_CREATE, AdminPermissions.USERS_EDIT, AdminPermissions.USERS_DISABLE, AdminPermissions.USERS_DELETE, AdminPermissions.USERS_PERMISSIONS, AdminPermissions.AUDIT_VIEW)
+)
+
+private fun roleLabel(role: String): String = when (role) {
+    AdminRoles.CONTENT_EDITOR -> "Content Editor"
+    AdminRoles.MEDIA_MANAGER -> "Media Manager"
+    AdminRoles.LIVE_MANAGER -> "Live Manager"
+    AdminRoles.SYSTEM_ADMIN -> "System Administrator"
+    AdminRoles.SUPER_ADMIN -> "Super Admin"
+    else -> "Custom Permissions"
+}
+
 @Composable
 fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewModel, onBack: () -> Unit) {
     val users by viewModel.users.collectAsState()
@@ -62,17 +88,17 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (approvalRequest != null) {
-        var role by remember(approvalRequest?.id) { mutableStateOf("custom") }
+        var role by remember(approvalRequest?.id) { mutableStateOf(AdminRoles.CONTENT_EDITOR) }
         var permissions by remember(approvalRequest?.id) { mutableStateOf<Set<String>>(emptySet()) }
         AlertDialog(
             onDismissRequest = { if (!loading) approvalRequest = null },
             title = { Text("Approve ${approvalRequest!!.username}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Choose the administrator role and permissions.")
+                    Text("Choose a role preset. You can fine-tune its permissions below.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("custom", "admin").forEach { value ->
-                            if (role == value) Button(onClick = { role = value }) { Text(value) }
+                        listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
+                            if (role == value) Button(onClick = { role = value }) { Text(roleLabel(value)) }
                             else OutlinedButton(onClick = { role = value }) { Text(value) }
                         }
                     }
