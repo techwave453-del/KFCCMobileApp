@@ -33,6 +33,14 @@ data class AdminMeResponse(
     val requiresPasswordSetup: Boolean = false
 )
 
+object AdminRoles {
+    const val SUPER_ADMIN = "super_admin"
+    const val CONTENT_EDITOR = "content_editor"
+    const val MEDIA_MANAGER = "media_manager"
+    const val LIVE_MANAGER = "live_manager"
+    const val SYSTEM_ADMIN = "custom"
+}
+
 object AdminPermissions {
     const val IDENTITY_VIEW = "identity.view"
     const val IDENTITY_EDIT = "identity.edit"
@@ -49,7 +57,7 @@ object AdminPermissions {
     const val MEDIA_EDIT = "media.edit"
     const val MEDIA_DELETE = "media.delete"
     const val LIVE_VIEW = "live.view"
-    const val LIVE_MANAGE = "live.manage"
+    const val LIVE_MANAGE = "live.edit"
     const val COMMENTS_VIEW = "comments.view"
     const val COMMENTS_MODERATE = "comments.moderate"
     const val USERS_VIEW = "users.view"
