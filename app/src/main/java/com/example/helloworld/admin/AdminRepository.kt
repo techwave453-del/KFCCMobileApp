@@ -65,12 +65,7 @@ class AdminRepository(context: Context) {
      * Restores the administrator from Supabase Auth + admin_profiles/admin_user_permissions.
      * The website/Render server is not consulted for authorization or module access.
      */
-    suspend fun restoreSession(): AdminUser? {
-        authenticatedAdmin?.let { cached ->
-            if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) return cached
-        }
-
-        val session = client.auth.currentSessionOrNull() ?: return null
+    suspend fun restoreSession(): AdminUser? {        val session = client.auth.currentSessionOrNull() ?: return null
         val user = runCatching {
             client.auth.currentUserOrNull() ?: client.auth.retrieveUserForCurrentSession()
         }.getOrNull() ?: session.user ?: return null
