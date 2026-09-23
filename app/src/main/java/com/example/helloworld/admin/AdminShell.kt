@@ -54,7 +54,7 @@ fun AdminShell(
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
-                    openModule == "services" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
+                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SITE_EDIT) || currentUser.hasPermission(AdminPermissions.SERVICES_EDIT)) ->
                         ModuleFrame("Services & Giving", { openModule = null }) { AdminServicesScreen(Modifier.fillMaxSize(), viewModel(factory = WebsiteContentViewModel.Factory(application))) }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
@@ -161,7 +161,7 @@ private fun AdminDashboardScreen(
     onSystem: () -> Unit
 ) {
     val modules = listOf(
-        AdminModule("Account Credentials", "Administrator username, email, role and status", "account.credentials.view", Icons.Default.AccountCircle),
+        AdminModule("Account Credentials", "Administrator username, email, role and status", AdminPermissions.ACCOUNT_CREDENTIALS_VIEW, Icons.Default.AccountCircle),
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
         AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
         AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SITE_EDIT, Icons.Default.Church),
