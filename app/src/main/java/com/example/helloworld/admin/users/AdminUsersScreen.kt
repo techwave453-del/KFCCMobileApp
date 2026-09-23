@@ -99,10 +99,10 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Choose a role preset. You can fine-tune its permissions below.")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
-                            if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }) { Text(roleLabel(value)) }
-                            else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }) { Text(roleLabel(value)) }
+                            if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                            else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
                         }
                     }
                     assignablePermissions.forEach { permission ->
@@ -218,11 +218,11 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                             Text("${user.permissions.size} assigned permissions", style = MaterialTheme.typography.bodySmall)
                             if (user.role != "super_admin") {
                                 Spacer(Modifier.height(8.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(onClick = { selectedRole = when (user.role) { AdminRoles.MEDIA_MANAGER -> AdminRoles.MEDIA_MANAGER; AdminRoles.LIVE_MANAGER -> AdminRoles.LIVE_MANAGER; AdminRoles.SYSTEM_ADMIN -> AdminRoles.SYSTEM_ADMIN; else -> AdminRoles.CONTENT_EDITOR }; roleUser = user }, enabled = !loading) { Text("Role") }
-                                    OutlinedButton(onClick = { selectedPermissions = user.permissions.toSet(); permissionUser = user }, enabled = !loading) { Text("Permissions") }
-                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = if (user.is_active) "disable" else "enable" }, enabled = !loading) { Text(if (user.is_active) "Disable" else "Enable") }
-                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = "delete" }, enabled = !loading) { Text("Delete") }
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedButton(onClick = { selectedRole = when (user.role) { AdminRoles.MEDIA_MANAGER -> AdminRoles.MEDIA_MANAGER; AdminRoles.LIVE_MANAGER -> AdminRoles.LIVE_MANAGER; AdminRoles.SYSTEM_ADMIN -> AdminRoles.SYSTEM_ADMIN; else -> AdminRoles.CONTENT_EDITOR }; roleUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Role") }
+                                    OutlinedButton(onClick = { selectedPermissions = user.permissions.toSet(); permissionUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Permissions") }
+                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = if (user.is_active) "disable" else "enable" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(if (user.is_active) "Disable" else "Enable") }
+                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = "delete" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Delete") }
                                 }
                             }
                         }
