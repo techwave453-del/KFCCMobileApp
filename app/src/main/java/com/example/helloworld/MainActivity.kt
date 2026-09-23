@@ -131,10 +131,12 @@ fun KFCCApp(
     ) {
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } }
-                )
+                if (currentDestination != AppDestinations.BIBLE) {
+                    CenterAlignedTopAppBar(
+                        title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
+                        navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } }
+                    )
+                }
             },
             bottomBar = {
                 NavigationBar {
