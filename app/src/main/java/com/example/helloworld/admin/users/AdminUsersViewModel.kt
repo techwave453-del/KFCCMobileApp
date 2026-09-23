@@ -26,22 +26,45 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
-        _loading.value = true; _error.value = null
-        val usersResult = repository.users()
-        usersResult.onSuccess { _users.value = it }.onFailure { _error.value = it.message }
-        repository.accessRequests().onSuccess { _requests.value = it }.onFailure { if (_error.value == null) _error.value = it.message }
+        _loading.value = true
+        _error.value = null
+        repository.users().onSuccess { _users.value = it }.onFailure { _error.value = it.message }
+        repository.accessRequests().onSuccess { _requests.value = it }
+            .onFailure { if (_error.value == null) _error.value = it.message }
         _loading.value = false
     }
 
-    fun approve(request: AdminAccessRequest, role: String, permissions: List<String>) = action("approve") { repository.approveRequest(request.id, role, permissions) }
+    fun approve(request: AdminAccessRequest, role: String, permissions: List<String>) = viewModelScope.launch {
+        _loading.value = true
+        _error.value = null
+        _message.value = null
+        repository.approveRequest(request.id, role, permissions)
+            .onSuccess { code ->
+                _message.value = if (!code.isNullOrBlank()) {
+                    "Administrator approved. One-time activation password: $code"
+                } else "Administrator approved."
+                refresh()
+            }
+            .onFailure { _error.value = it.message ?: "Unable to approve administrator." }
+        _loading.value = false
+    }
+
     fun reject(request: AdminAccessRequest) = action("reject") { repository.rejectRequest(request.id) }
     fun setStatus(user: AdminManagedUser, active: Boolean) = action("status") { repository.setStatus(user.id, active) }
     fun delete(user: AdminManagedUser) = action("delete") { repository.deleteUser(user.id) }
-    fun setPermissions(user: AdminManagedUser, permissions: List<String>) = action("permissions") { repository.setPermissions(user.id, permissions) }
+    fun setPermissions(user: AdminManagedUser, permissions: List<String>) =
+        action("permissions") { repository.setPermissions(user.id, permissions) }
 
     private fun action(label: String, operation: suspend () -> Result<Unit>) = viewModelScope.launch {
-        _loading.value = true; _error.value = null; _message.value = null
-        operation().onSuccess { _message.value = "Administrator $label updated."; refresh() }.onFailure { _error.value = it.message ?: "Unable to update administrator." }
+        _loading.value = true
+        _error.value = null
+        _message.value = null
+        operation().onSuccess {
+            _message.value = "Administrator $label updated."
+            refresh()
+        }.onFailure {
+            _error.value = it.message ?: "Unable to update administrator."
+        }
         _loading.value = false
     }
 
@@ -49,6 +72,7 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = AdminUsersViewModel(application) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            AdminUsersViewModel(application) as T
     }
 }
