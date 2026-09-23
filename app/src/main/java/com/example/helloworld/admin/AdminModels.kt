@@ -42,6 +42,7 @@ object AdminRoles {
 }
 
 object AdminPermissions {
+    const val ACCOUNT_CREDENTIALS_VIEW = "account.credentials.view"
     const val IDENTITY_VIEW = "identity.view"
     const val IDENTITY_EDIT = "identity.edit"
     const val SITE_EDIT = "site.edit"
