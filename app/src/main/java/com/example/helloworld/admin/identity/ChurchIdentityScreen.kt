@@ -51,7 +51,6 @@ fun ChurchIdentityScreen(
         OutlinedTextField(identity.registrationDetails, { viewModel.update(identity.copy(registrationDetails = it)) }, label = { Text("Registration / organization details") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, minLines = 3)
         OutlinedTextField(identity.logoUrl, { viewModel.update(identity.copy(logoUrl = it)) }, label = { Text("Logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.officialLogo, { viewModel.update(identity.copy(officialLogo = it)) }, label = { Text("Official logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-        OutlinedTextField(identity.logo, { viewModel.update(identity.copy(logo = it)) }, label = { Text("Legacy logo value") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
         if (saved) Text("Church Identity saved successfully.", color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(4.dp))
