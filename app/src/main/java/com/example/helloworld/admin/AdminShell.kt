@@ -53,7 +53,13 @@ fun AdminShell(
                     openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) && currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) ->
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
-                        ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
+                        ModuleFrame("Website Content", { openModule = null }) {
+                            WebsiteContentScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                canEditIdentity = currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT),
+                                canManageLive = currentUser.hasPermission(AdminPermissions.LIVE_MANAGE)
+                            )
+                        }
                     openModule == "services" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Services & Giving", { openModule = null }) { AdminServicesScreen(Modifier.fillMaxSize(), viewModel(factory = WebsiteContentViewModel.Factory(application))) }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
