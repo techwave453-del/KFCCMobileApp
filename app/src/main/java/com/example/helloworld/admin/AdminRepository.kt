@@ -10,6 +10,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -47,10 +48,6 @@ private data class AdminSessionUser(
 class AdminRepository(context: Context) {
     private val client = SupabaseProvider.client
 
-    // The admin-login edge function returns the authoritative administrator
-    // record separately from the Supabase Auth user. The imported session may
-    // legitimately contain user = null, so keep the authoritative admin record
-    // here until restoreSession() can reconstruct it from the authenticated app.
     @Volatile
     private var authenticatedAdmin: AdminUser? = null
 
@@ -60,120 +57,42 @@ class AdminRepository(context: Context) {
         }
     }
 
-    private val adminApiClient = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-    }
-
     private suspend fun accessToken(): String =
         client.auth.currentAccessTokenOrNull()
             ?: error("Your administrator session has expired. Please login again.")
 
-    private fun apiUrl(path: String): String =
-        "$ADMIN_API_BASE_URL/${path.trimStart('/')}"
-
-    suspend fun authenticatedGet(path: String): HttpResponse =
-        adminApiClient.get(apiUrl(path)) {
-            bearerAuth(accessToken())
-            accept(ContentType.Application.Json)
-        }
-
-    suspend fun authenticatedPost(path: String): HttpResponse =
-        adminApiClient.post(apiUrl(path)) {
-            bearerAuth(accessToken())
-            accept(ContentType.Application.Json)
-        }
-
-    suspend fun authenticatedPost(path: String, body: Any): HttpResponse =
-        adminApiClient.post(apiUrl(path)) {
-            bearerAuth(accessToken())
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Json)
-            setBody(body)
-        }
-
-    suspend fun authenticatedPut(path: String, body: Any): HttpResponse =
-        adminApiClient.put(apiUrl(path)) {
-            bearerAuth(accessToken())
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Json)
-            setBody(body)
-        }
-
-    suspend fun authenticatedPatch(path: String, body: Any): HttpResponse =
-        adminApiClient.patch(apiUrl(path)) {
-            bearerAuth(accessToken())
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Json)
-            setBody(body)
-        }
-
-    suspend fun authenticatedDelete(path: String): HttpResponse =
-        adminApiClient.delete(apiUrl(path)) {
-            bearerAuth(accessToken())
-            accept(ContentType.Application.Json)
-        }
-
-    suspend fun authenticatedMultipartUpload(
-        path: String,
-        bytes: ByteArray,
-        fileName: String,
-        mimeType: String,
-        fields: Map<String, String>
-    ): HttpResponse =
-        adminApiClient.post(apiUrl(path)) {
-            bearerAuth(accessToken())
-            setBody(
-                MultiPartFormDataContent(
-                    formData {
-                        fields.forEach { (key, value) -> append(key, value) }
-                        append(
-                            key = "file",
-                            value = bytes,
-                            headers = Headers.build {
-                                append(
-                                    HttpHeaders.ContentDisposition,
-                                    "form-data; name=\"file\"; filename=\"$fileName\""
-                                )
-                                append(HttpHeaders.ContentType, mimeType)
-                            }
-                        )
-                    }
-                )
-            )
-        }
-
+    /**
+     * Restores the administrator from Supabase Auth + admin_profiles/admin_user_permissions.
+     * The website/Render server is not consulted for authorization or module access.
+     */
     suspend fun restoreSession(): AdminUser? {
-        // 1. Check if we have an authoritative admin from the current session's memory.
         authenticatedAdmin?.let { cached ->
-            if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) {
-                return cached
-            }
+            if (client.auth.currentAccessTokenOrNull() != null && cached.is_active) return cached
         }
 
-        // 2. Check if there is an active session in the Supabase SDK.
         val session = client.auth.currentSessionOrNull() ?: return null
-        val user = session.user
-        
-        // 3. Extract identity from metadata. Administrators have specific app_metadata.
-        val metadata = user?.appMetadata ?: return null
-        if (metadata["kfcc_admin"]?.toString()?.trim('"') != "true") return null
+        val user = runCatching {
+            client.auth.currentUserOrNull() ?: client.auth.retrieveUserForCurrentSession()
+        }.getOrNull() ?: session.user ?: return null
 
-        val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
-        val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
-        val permissions = metadata["admin_permissions"]?.toString()
-            ?.let { raw -> runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull() }
-            .orEmpty()
+        val profile = client.from("admin_profiles")
+            .select()
+            .decodeList<AdminProfileRow>()
+            .firstOrNull { it.auth_user_id == user.id && it.is_active }
 
-        if (username.isBlank() || role.isBlank()) return null
+        profile ?: return null
+
+        val permissions = client.from("admin_user_permissions")
+            .select(Columns.list("permission"))
+            .decodeList<AdminPermissionRow>()
+            .map { it.permission }
 
         return AdminUser(
-            id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
-            username = username,
-            email = user.email ?: "",
-            role = role,
-            is_active = true,
+            id = profile.auth_user_id,
+            username = profile.display_name?.takeIf { it.isNotBlank() } ?: user.email.orEmpty(),
+            email = user.email ?: profile.login_email.orEmpty(),
+            role = profile.role,
+            is_active = profile.is_active,
             permissions = permissions
         ).also { authenticatedAdmin = it }
     }
@@ -189,6 +108,9 @@ class AdminRepository(context: Context) {
         }
 
         return try {
+            // Authentication remains in the dedicated Supabase Edge Function because it
+            // performs the legacy username/password verification and creates the Auth session.
+            // All post-login admin data access is direct Supabase Data API access.
             val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
                 contentType(ContentType.Application.Json)
                 setBody(AdminLoginRequest(normalized, password))
@@ -224,18 +146,17 @@ class AdminRepository(context: Context) {
                     )
                 )
 
-                // Force fetching the user object so client.auth.currentUserOrNull() 
-                // is correctly populated for other repositories (like Chat).
                 runCatching { client.auth.retrieveUserForCurrentSession() }
-
-                // Store the exact authoritative user returned by admin-login.
-                // AdminViewModel.restoreSession() will read this same repository
-                // instance when the AdminShell is entered after unified sign-in.
                 authenticatedAdmin = adminUser
 
+                // Re-read the authoritative admin profile/permissions from Supabase.
+                val restored = restoreSession()
                 AdminLoginResponse(
-                    ok = true,
-                    user = adminUser
+                    ok = restored != null,
+                    user = restored,
+                    error = if (restored == null) {
+                        "Your administrator session could not be verified."
+                    } else null
                 )
             }
         } catch (e: Exception) {
@@ -251,7 +172,6 @@ class AdminRepository(context: Context) {
         try {
             client.auth.signOut()
         } catch (_: Exception) {
-            // Signing out locally is best-effort.
         }
     }
 
@@ -263,25 +183,59 @@ class AdminRepository(context: Context) {
         decodeChurchInfo(rows) ?: ChurchContent.default
     }
 
-    suspend fun saveSiteContent(content: ChurchInfo): Result<ChurchInfo> = runCatching {
-        val rows = listOf(
-            mapOf("key" to "churchName", "value" to content.churchName),
+    /**
+     * Saves only normal Website Content fields. Protected contact and live-stream
+     * fields are saved through their own permission-gated operations below.
+     */
+    suspend fun saveSiteContent(
+        content: ChurchInfo,
+        canEditIdentity: Boolean = false,
+        canManageLive: Boolean = false
+    ): Result<ChurchInfo> = runCatching {
+        val rows = mutableListOf(
             mapOf("key" to "tagline", "value" to content.tagline),
             mapOf("key" to "title", "value" to content.title),
             mapOf("key" to "subtitle", "value" to content.subtitle),
             mapOf("key" to "aboutTitle", "value" to content.aboutTitle),
             mapOf("key" to "aboutText", "value" to content.aboutText),
-            mapOf("key" to "phone", "value" to content.phone),
-            mapOf("key" to "email", "value" to content.email),
             mapOf("key" to "givingUrl", "value" to content.givingUrl),
             mapOf("key" to "services", "value" to Json.encodeToString(content.services)),
             mapOf("key" to "links", "value" to Json.encodeToString(content.links)),
-            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses)),
-            mapOf("key" to "liveStream", "value" to Json.encodeToString(content.liveStream))
+            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses))
         )
+
+        if (canEditIdentity) {
+            rows += mapOf("key" to "churchName", "value" to content.churchName)
+            rows += mapOf("key" to "phone", "value" to content.phone)
+            rows += mapOf("key" to "email", "value" to content.email)
+        }
+
+        if (canManageLive) {
+            rows += mapOf("key" to "liveStream", "value" to Json.encodeToString(content.liveStream))
+        }
 
         client.from("site_content").upsert(rows)
         content
+    }
+
+    suspend fun saveLiveStream(liveStream: LiveStream): Result<Unit> = runCatching {
+        client.from("site_content").upsert(
+            mapOf("key" to "liveStream", "value" to Json.encodeToString(liveStream))
+        )
+    }
+
+    suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
+        client.from("site_content").upsert(mapOf("key" to key, "value" to value))
+    }
+
+    suspend fun postAnnouncement(
+        title: String,
+        message: String,
+        type: String
+    ): Result<Unit> = runCatching {
+        client.from("app_notifications").insert(
+            mapOf("title" to title, "message" to message, "type" to type)
+        )
     }
 
     private fun decodeChurchInfo(rows: List<SiteContentRow>): ChurchInfo? {
@@ -312,34 +266,25 @@ class AdminRepository(context: Context) {
             fallback
         }
 
-    suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
-        client.from("site_content").upsert(
-            mapOf("key" to key, "value" to value)
-        )
-    }
-
-    suspend fun postAnnouncement(
-        title: String,
-        message: String,
-        type: String
-    ): Result<Unit> = runCatching {
-        client.from("app_notifications").insert(
-            mapOf(
-                "title" to title,
-                "message" to message,
-                "type" to type
-            )
-        )
-    }
-
     companion object {
         private const val SUPABASE_FUNCTIONS_URL =
             "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
-
-        private const val ADMIN_API_BASE_URL =
-            "https://kingdomfellowshipchristianchurch.onrender.com"
     }
 }
+
+@Serializable
+private data class AdminProfileRow(
+    val auth_user_id: String,
+    val display_name: String? = null,
+    val role: String,
+    val is_active: Boolean,
+    val login_email: String? = null
+)
+
+@Serializable
+private data class AdminPermissionRow(
+    val permission: String
+)
 
 @Serializable
 private data class AdminErrorResponse(
