@@ -71,6 +71,8 @@ fun AdminShell(
                         }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
                         ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
+                    openModule == "system" && currentUser.hasPermission(AdminPermissions.AUDIT_VIEW) ->
+                        ModuleFrame("System Administration", { openModule = null }) { SystemAdministrationScreen(currentUser, Modifier.fillMaxSize()) }
                     else -> AdminDashboardScreen(
                         currentUser,
                         onBackToApp,
@@ -82,7 +84,8 @@ fun AdminShell(
                         { openModule = "events" },
                         { openModule = "live" },
                         { openModule = "media" },
-                        { openModule = "users" }
+                        { openModule = "users" },
+                        { openModule = "system" }
                     )
                 }
             }
@@ -154,7 +157,8 @@ private fun AdminDashboardScreen(
     onEvents: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
-    onUsers: () -> Unit
+    onUsers: () -> Unit,
+    onSystem: () -> Unit
 ) {
     val modules = listOf(
         AdminModule("Account Credentials", "Administrator username, email, role and status", "account.credentials.view", Icons.Default.AccountCircle),
@@ -196,6 +200,7 @@ private fun AdminDashboardScreen(
                     "Live Streaming" -> if (allowed) onLive else null
                     "Media Center" -> if (allowed) onMedia else null
                     "Users & Permissions" -> if (allowed) onUsers else null
+                    "System Administration" -> if (allowed) onSystem else null
                     else -> null
                 }
                 Card(Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier)) {
