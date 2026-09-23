@@ -47,6 +47,7 @@ class IdentityRepository {
     ) {
         fun toDomain() = ChurchIdentity(
             churchName = church_name,
+            logo = logo_url,
             officialName = official_name,
             logoUrl = logo_url,
             officialLogo = official_logo,
