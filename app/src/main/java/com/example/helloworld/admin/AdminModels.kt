@@ -52,6 +52,8 @@ object AdminPermissions {
     const val LIVE_MANAGE = "live.manage"
     const val COMMENTS_VIEW = "comments.view"
     const val COMMENTS_MODERATE = "comments.moderate"
+    const val EVENTS_MANAGE = "events.manage"
+    const val NOTIFICATIONS_SEND = "notifications.send"
     const val USERS_VIEW = "users.view"
     const val USERS_CREATE = "users.create"
     const val USERS_EDIT = "users.edit"
