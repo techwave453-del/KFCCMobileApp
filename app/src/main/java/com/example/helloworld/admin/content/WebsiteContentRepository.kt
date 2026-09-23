@@ -6,6 +6,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 @Serializable
@@ -16,6 +17,11 @@ data class CmsPage(
     val menu_label: String,
     val status: String = "draft",
     val show_in_navigation: Boolean = false
+)
+
+@Serializable
+private data class CmsSectionContentRow(
+    val content: JsonObject = buildJsonObject { }
 )
 
 @Serializable
@@ -45,7 +51,11 @@ class WebsiteContentRepository {
     }
 
     suspend fun updateSection(sectionId: Long, heading: String, body: String, media: String, eyebrow: String): Result<Unit> = runCatching {
+        val existing = client.from("cms_sections")
+            .select(Columns.list("content"))
+            .decodeSingle<CmsSectionContentRow>()
         val payload = buildJsonObject {
+            existing.content.forEach { (key, value) -> put(key, value) }
             put("heading", heading)
             put("body", body)
             put("media", media)
@@ -53,6 +63,14 @@ class WebsiteContentRepository {
         }
         client.from("cms_sections").update(mapOf("content" to payload)) {
             filter { eq("id", sectionId) }
+        }
+    }
+
+    suspend fun updatePageDetails(pageId: Long, menuLabel: String, showInNavigation: Boolean): Result<Unit> = runCatching {
+        client.from("cms_pages").update(
+            mapOf("menu_label" to menuLabel.trim(), "show_in_navigation" to showInNavigation)
+        ) {
+            filter { eq("id", pageId) }
         }
     }
 
