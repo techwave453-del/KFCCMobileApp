@@ -67,3 +67,4 @@ fun AdminUser.hasPermission(permission: String): Boolean =
 fun AdminUser.canEditChurchIdentity(): Boolean =
     is_active && role == "super_admin" && hasPermission(AdminPermissions.IDENTITY_EDIT)
 
+

@@ -1,4 +1,4 @@
-﻿package com.example.helloworld
+package com.example.helloworld
 
 import android.app.Application
 import android.os.Bundle
@@ -100,6 +100,7 @@ fun KFCCApp(
                 }
                 HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
+                NavigationDrawerItem(label = { Text("Bible") }, selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Filled.MenuBook, null) })
                 
                 NavigationDrawerItem(label = { Text("Notifications") }, selected = currentDestination == AppDestinations.NOTIFICATIONS, onClick = { navigate(AppDestinations.NOTIFICATIONS) }, icon = { Icon(Icons.Default.Notifications, null) })
                 NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
@@ -320,4 +321,6 @@ enum class AppDestinations(val label: String) {
     GIVING("Giving"),
     ADMIN("Admin")
 }
+
+
 

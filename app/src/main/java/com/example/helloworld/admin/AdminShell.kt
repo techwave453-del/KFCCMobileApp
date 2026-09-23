@@ -48,6 +48,8 @@ fun AdminShell(
             else -> user!!.let { currentUser ->
                 when {
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
+                    openModule == "credentials" ->
+                        ModuleFrame("Account Credentials", { openModule = null }) { AccountCredentialsScreen(currentUser, Modifier.fillMaxSize()) }
                     openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) && currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) ->
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
@@ -71,8 +73,9 @@ fun AdminShell(
                         ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
                     else -> AdminDashboardScreen(
                         currentUser,
-                        viewModel::logout,
                         onBackToApp,
+                        viewModel::logout,
+                        { openModule = "credentials" },
                         { openModule = "identity" },
                         { openModule = "content" },
                         { openModule = "services" },
@@ -142,8 +145,9 @@ private data class AdminModule(val title: String, val description: String, val p
 @Composable
 private fun AdminDashboardScreen(
     user: AdminUser,
-    onLogout: () -> Unit,
     onBackToApp: () -> Unit,
+    onLogout: () -> Unit,
+    onCredentials: () -> Unit,
     onIdentity: () -> Unit,
     onContent: () -> Unit,
     onServices: () -> Unit,
@@ -153,6 +157,7 @@ private fun AdminDashboardScreen(
     onUsers: () -> Unit
 ) {
     val modules = listOf(
+        AdminModule("Account Credentials", "Administrator username, email, role and status", "account.credentials.view", Icons.Default.AccountCircle),
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
         AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
         AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SITE_EDIT, Icons.Default.Church),
@@ -183,6 +188,7 @@ private fun AdminDashboardScreen(
                 val allowed = user.hasPermission(module.permission) &&
                     (module.title != "Church Identity" || user.hasPermission(AdminPermissions.IDENTITY_EDIT))
                 val action = when (module.title) {
+                    "Account Credentials" -> if (allowed) onCredentials else null
                     "Church Identity" -> if (allowed) onIdentity else null
                     "Website Content" -> if (allowed) onContent else null
                     "Services & Giving" -> if (allowed) onServices else null
@@ -207,3 +213,5 @@ private fun AdminDashboardScreen(
         }
     }
 }
+
+

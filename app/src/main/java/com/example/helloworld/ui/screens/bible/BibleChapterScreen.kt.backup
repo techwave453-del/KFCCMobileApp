@@ -216,164 +216,85 @@ private fun ChapterNotLoaded(
     }
 }
 
-
 @Composable
-
 private fun BibleReader(
-
     chapter: BibleChapter,
-
     onVerseClick: (BibleVerse) -> Unit
-
 ) {
-
     LazyColumn(
-
         modifier = Modifier.fillMaxSize(),
-
         contentPadding = PaddingValues(
-
             start = 20.dp,
-
             top = 20.dp,
-
             end = 20.dp,
-
             bottom = 110.dp
-
         )
-
     ) {
-
         item {
-
             Row(
-
                 modifier = Modifier
-
                     .fillMaxWidth()
-
                     .padding(bottom = 18.dp),
-
                 verticalAlignment = Alignment.CenterVertically
-
             ) {
-
                 Surface(
-
                     modifier = Modifier.size(44.dp),
-
                     shape = CircleShape,
-
                     color = MaterialTheme.colorScheme.primaryContainer
-
                 ) {
-
                     Box(
-
                         contentAlignment = Alignment.Center
-
                     ) {
-
                         Icon(
-
                             imageVector = Icons.Default.MenuBook,
-
                             contentDescription = null,
-
                             tint = MaterialTheme.colorScheme.primary,
-
                             modifier = Modifier.size(23.dp)
-
                         )
-
                     }
 
+
+                    Column(
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) {
+                        Text(
+                            text = "Reading Scripture",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            text = "${chapter.chapterNumber} • ${chapter.verses.size} verses",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
+                ChapterHeader(chapter)
 
-
-                Column(
-
-                    modifier = Modifier.padding(start = 12.dp)
-
-                ) {
-
-                    Text(
-
-                        text = "Reading Scripture",
-
-                        style = MaterialTheme.typography.labelMedium,
-
-                        color = MaterialTheme.colorScheme.primary,
-
-                        fontWeight = FontWeight.Bold
-
-                    )
-
-
-
-                    Text(
-
-                        text = "${chapter.chapterNumber} • ${chapter.verses.size} verses",
-
-                        style = MaterialTheme.typography.bodyMedium,
-
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-
-                    )
-
-                }
-
+                Spacer(modifier = Modifier.height(22.dp))
             }
 
+            items(
+                items = chapter.verses,
+                key = { it.number }
+            ) { verse ->
+                BibleVerseRow(
+                    verse = verse,
+                    onClick = {
+                        onVerseClick(verse)
+                    }
+                )
+            }
 
-
-            ChapterHeader(chapter)
-
-
-
-            Spacer(modifier = Modifier.height(22.dp))
-
+            item {
+                Spacer(modifier = Modifier.height(28.dp))
+                ChapterEnd()
+            }
         }
-
-
-
-        items(
-
-            items = chapter.verses,
-
-            key = { it.number }
-
-        ) { verse ->
-
-            BibleVerseRow(
-
-                verse = verse,
-
-                onClick = {
-
-                    onVerseClick(verse)
-
-                }
-
-            )
-
-        }
-
-
-
-        item {
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            ChapterEnd()
-
-        }
-
     }
-
-}
 
     @Composable
     private fun ChapterHeader(
