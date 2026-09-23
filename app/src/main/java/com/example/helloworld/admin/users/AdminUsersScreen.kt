@@ -46,7 +46,16 @@ private val assignablePermissions = listOf(
     AdminPermissions.LIVE_VIEW,
     AdminPermissions.LIVE_MANAGE,
     AdminPermissions.COMMENTS_VIEW,
-    AdminPermissions.COMMENTS_MODERATE
+    AdminPermissions.COMMENTS_MODERATE,
+    AdminPermissions.EVENTS_MANAGE,
+    AdminPermissions.NOTIFICATIONS_SEND,
+    AdminPermissions.USERS_VIEW,
+    AdminPermissions.USERS_CREATE,
+    AdminPermissions.USERS_EDIT,
+    AdminPermissions.USERS_DISABLE,
+    AdminPermissions.USERS_DELETE,
+    AdminPermissions.USERS_PERMISSIONS,
+    AdminPermissions.AUDIT_VIEW
 )
 
 @Composable
@@ -71,7 +80,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Choose the administrator role and permissions.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("custom", "admin").forEach { value ->
+                        listOf("content_editor", "media_manager", "live_manager", "custom").forEach { value ->
                             if (role == value) Button(onClick = { role = value }) { Text(value) }
                             else OutlinedButton(onClick = { role = value }) { Text(value) }
                         }
