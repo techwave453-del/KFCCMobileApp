@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,8 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import com.example.helloworld.data.bible.BibleChapter
+import com.example.helloworld.data.bible.BibleBook
 import com.example.helloworld.data.bible.BibleVerse
 import com.example.helloworld.data.bible.KfccBibleRepository
 
@@ -59,21 +60,22 @@ fun BibleChapterScreen(
     chapterNumber: Int,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val repository = remember { KfccBibleRepository(context) }
+    val repository = remember { KfccBibleRepository() }
 
-    val books = remember {
-        repository.getBooks("kjv")
+    val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
+        value = runCatching { repository.getBooks("kjv") }.getOrDefault(emptyList())
     }
 
     val book = books.firstOrNull { it.id == bookId }
 
-    val chapter = remember(bookId, chapterNumber) {
-        repository.getChapter(
-            translationId = "kjv",
-            bookId = bookId,
-            chapterNumber = chapterNumber
-        )
+    val chapter by produceState<BibleChapter?>(initialValue = null, repository, bookId, chapterNumber) {
+        value = runCatching {
+            repository.getChapter(
+                translationId = "kjv",
+                bookId = bookId,
+                chapterNumber = chapterNumber
+            )
+        }.getOrNull()
     }
 
     var selectedVerse by remember {
