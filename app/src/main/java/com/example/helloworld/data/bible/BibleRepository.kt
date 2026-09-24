@@ -37,6 +37,7 @@ private data class BibleBookRow(
     val name: String,
     val abbreviation: String,
     val testament: String,
+    val book_order: Int,
     val chapter_count: Int
 )
 
@@ -78,13 +79,12 @@ class KfccBibleRepository : BibleRepository {
     }
 
     override suspend fun getBooks(translationId: String): List<BibleBook> {
-        // Books are shared across translations; verses determine whether a
-        // translation is actually populated.
         return SupabaseProvider.client
             .from("bible_books")
-            .select(Columns.list("id", "name", "abbreviation", "testament", "chapter_count"))
+            .select {
+                order("book_order", Order.ASCENDING)
+            }
             .decodeList<BibleBookRow>()
-            .sortedBy { row -> row.id }
             .map {
                 BibleBook(
                     id = it.id,
