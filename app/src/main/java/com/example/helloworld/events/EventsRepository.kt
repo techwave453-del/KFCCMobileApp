@@ -1,6 +1,5 @@
 package com.example.helloworld.events
 
-import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.data.SupabaseProvider
 import com.example.helloworld.data.offline.KfccContentRepository
@@ -8,7 +7,6 @@ import com.example.helloworld.data.offline.KfccDatabase
 import com.example.helloworld.data.offline.KfccOutboxRepository
 import com.example.helloworld.data.offline.EventEntity
 import kotlinx.serialization.json.Json
-import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -106,8 +104,6 @@ class EventsRepository(private val adminRepository: AdminRepository? = null) {
             start_at = ""
         )))
     }
-
-    private suspend fun EventDao.deleteById(id: Long) = deleteByIdInternal(id)
 
     private fun toEventEntity(x: Event) = EventEntity(
         id = x.id,
