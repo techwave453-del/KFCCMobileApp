@@ -2,7 +2,6 @@ package com.example.helloworld.data.bible
 
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.serialization.Serializable
 
@@ -129,6 +128,8 @@ class KfccBibleRepository : BibleRepository {
         val normalized = query.trim()
         if (normalized.isBlank()) return emptyList()
 
+        val bookNames = getBooks(translationId).associate { it.id to it.name }
+
         return SupabaseProvider.client
             .from("bible_verses")
             .select {
@@ -145,7 +146,7 @@ class KfccBibleRepository : BibleRepository {
             .map { row ->
                 BibleSearchResult(
                     bookId = row.book_id,
-                    bookName = row.book_id,
+                    bookName = bookNames[row.book_id] ?: row.book_id,
                     chapter = row.chapter,
                     verse = row.verse,
                     text = row.text
