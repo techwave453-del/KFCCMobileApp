@@ -1,20 +1,34 @@
 package com.example.helloworld.data.offline
 
+import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
-import com.example.helloworld.data.MediaItem
-import com.example.helloworld.data.AppNotification
-import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.EventItem
+import com.example.helloworld.data.MediaItem
+import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
 class KfccContentRepository(
     private val db: KfccDatabase
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    fun observeChurchInfo(): Flow<ChurchInfo> =
+        db.siteContentDao().observeAll().map { decodeChurchInfo(it) ?: ChurchContent.default }
+
+    fun observeMedia(): Flow<List<MediaItem>> =
+        db.mediaItemDao().observePublished().map { it.map(::toMedia) }
+
+    fun observeEvents(): Flow<List<EventItem>> =
+        db.eventDao().observePublished().map { it.map(::toEvent) }
+
+    fun observeNotifications(userId: String?): Flow<List<AppNotification>> =
+        db.notificationDao().observeForUser(userId).map { it.map(::toNotification) }
 
     suspend fun getChurchInfo(): ChurchInfo {
         val local = decodeChurchInfo(db.siteContentDao().getAll())
