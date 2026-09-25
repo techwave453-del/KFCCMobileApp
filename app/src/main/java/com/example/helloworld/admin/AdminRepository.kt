@@ -1,6 +1,8 @@
 package com.example.helloworld.admin
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
@@ -349,26 +351,44 @@ class AdminRepository(context: Context) {
         title: String,
         message: String,
         type: String
-    ): Result<Unit> = runCatching {
+    ): Result<Boolean> = runCatching {
         val id = UUID.randomUUID().toString()
         val createdAt = java.time.Instant.now().toString()
-        offlineDb.notificationDao().upsertAll(
-            listOf(NotificationEntity(id, null, title, message, type, createdAt))
+        val payload = NotificationSyncPayload(
+            id = id,
+            title = title,
+            message = message,
+            type = type,
+            createdAt = createdAt
         )
-        outbox.enqueue(
-            entityType = "app_notifications",
-            operationType = "INSERT",
-            entityId = id,
-            payload = Json.encodeToString(
-                NotificationSyncPayload(
-                    id = id,
-                    title = title,
-                    message = message,
-                    type = type,
-                    createdAt = createdAt
-                )
+
+        if (isNetworkAvailable()) {
+            client.from("app_notifications").insert(payload)
+            offlineDb.notificationDao().upsertAll(
+                listOf(NotificationEntity(id, null, title, message, type, createdAt))
             )
-        )
+            true
+        } else {
+            offlineDb.notificationDao().upsertAll(
+                listOf(NotificationEntity(id, null, title, message, type, createdAt))
+            )
+            outbox.enqueue(
+                entityType = "app_notifications",
+                operationType = "INSERT",
+                entityId = id,
+                payload = Json.encodeToString(payload)
+            )
+            false
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager =
+            appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     companion object {
