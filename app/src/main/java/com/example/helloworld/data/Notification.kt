@@ -10,5 +10,6 @@ data class AppNotification(
     val message: String,
     val type: String, // welcome, admin, chat, general
     @SerialName("created_at") val createdAt: String,
+    @SerialName("user_id") val userId: String? = null,
     val readAt: String? = null
 )
