@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +25,30 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    init { restoreSession() }
+    init {
+        // Supabase restores the persisted session asynchronously. Wait for the
+        // Auth session status instead of treating the initial loading state as
+        // a real sign-out.
+        viewModelScope.launch {
+            SupabaseProvider.client.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> restoreSession()
+                    is SessionStatus.NotAuthenticated -> {
+                        _user.value = null
+                        _isLoading.value = false
+                    }
+                    is SessionStatus.Initializing,
+                    is SessionStatus.RefreshFailure -> {
+                        // Keep the current admin during startup/temporary refresh failures.
+                    }
+                }
+            }
+        }
+
+        if (SupabaseProvider.client.auth.currentSessionOrNull() != null) {
+            restoreSession()
+        }
+    }
 
     fun restoreSession() {
         viewModelScope.launch {
