@@ -203,6 +203,7 @@ private fun AdminDashboardScreen(
                     "Website Content" -> if (allowed) onContent else null
                     "Services & Giving" -> if (allowed) onServices else null
                     "Events Management" -> if (allowed) onEvents else null
+                    "Notifications" -> if (allowed) onNotifications else null
                     "Live Streaming" -> if (allowed) onLive else null
                     "Media Center" -> if (allowed) onMedia else null
                     "Users & Permissions" -> if (allowed) onUsers else null
