@@ -2,6 +2,7 @@ package com.example.helloworld.notifications
 
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
