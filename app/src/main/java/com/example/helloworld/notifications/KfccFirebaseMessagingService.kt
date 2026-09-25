@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.helloworld.MainActivity
@@ -20,7 +21,9 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         CoroutineScope(Dispatchers.IO).launch {
-            DeviceTokenRepository().registerToken(token)
+            DeviceTokenRepository().registerToken(token).onFailure {
+                Log.e(TAG, "Unable to register refreshed FCM token", it)
+            }
         }
     }
 
@@ -71,5 +74,9 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
                 )
             )
         }
+    }
+
+    private companion object {
+        const val TAG = "KfccPush"
     }
 }
