@@ -102,6 +102,10 @@ class ChatAuthRepository {
                 this.password = password
                 data = buildJsonObject { put("chat_username", normalizedUsername) }
             }
+            com.example.helloworld.notifications.KfccNotificationScheduler.deliverSignupWelcome(
+                KfccDataContext.appContext,
+                normalizedUsername
+            )
             ChatAuthResult(true, "Check your email to verify your account, then return to KFCC Chat.", true)
         } catch (error: Exception) {
             ChatAuthResult(false, error.message ?: "Unable to create your account.")
