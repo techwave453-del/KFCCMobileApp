@@ -3,17 +3,27 @@ package com.example.helloworld.data.offline
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.helloworld.data.EventItem
-import com.example.helloworld.data.MediaItem
-import com.example.helloworld.data.SiteContentRow
+import com.example.helloworld.admin.media.AdminMediaItem
 import com.example.helloworld.data.AppNotification
+import com.example.helloworld.data.EventItem
+import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.events.EventInput
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+@Serializable
+private data class MediaSyncPayload(
+    val title: String? = null,
+    val description: String? = null,
+    val category: String? = null,
+    val published: Boolean? = null,
+    val featured: Boolean? = null
+)
 
 class KfccContentSyncWorker(
     appContext: Context,
@@ -21,6 +31,7 @@ class KfccContentSyncWorker(
 ) : CoroutineWorker(appContext, params) {
 
     private val db = KfccDatabase.getInstance(appContext)
+    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun doWork(): Result = runCatching {
         processOutbox()
@@ -29,11 +40,7 @@ class KfccContentSyncWorker(
         syncEvents()
         syncNotifications()
         Result.success()
-    }.getOrElse {
-        Result.retry()
-    }
-
-    private val json = Json { ignoreUnknownKeys = true }
+    }.getOrElse { Result.retry() }
 
     private suspend fun processOutbox() {
         val dao = db.syncOperationDao()
@@ -44,11 +51,17 @@ class KfccContentSyncWorker(
                     "site_content" -> processSiteContent(operation)
                     "app_notifications" -> processNotification(operation)
                     "events" -> processEvent(operation)
+                    "media_items" -> processMedia(operation)
                     else -> error("Unsupported sync entity: " + operation.entityType)
                 }
                 dao.delete(operation.operationId)
             } catch (e: Exception) {
-                dao.updateStatus(operation.operationId, if (attempts >= 5) "failed" else "pending", attempts, e.message)
+                dao.updateStatus(
+                    operation.operationId,
+                    if (attempts >= 5) "failed" else "pending",
+                    attempts,
+                    e.message
+                )
                 if (attempts < 5) throw e
             }
         }
@@ -57,8 +70,15 @@ class KfccContentSyncWorker(
     private suspend fun processSiteContent(operation: SyncOperationEntity) {
         val body = json.parseToJsonElement(operation.payload).jsonObject
         when (operation.operationType) {
-            "UPSERT" -> SupabaseProvider.client.from("site_content").upsert(mapOf("key" to body.getValue("key").jsonPrimitive.content, "value" to body.getValue("value").jsonPrimitive.content))
-            "DELETE" -> SupabaseProvider.client.from("site_content").delete { filter { eq("key", body.getValue("key").jsonPrimitive.content) } }
+            "UPSERT" -> SupabaseProvider.client.from("site_content").upsert(
+                mapOf(
+                    "key" to body.getValue("key").jsonPrimitive.content,
+                    "value" to body.getValue("value").jsonPrimitive.content
+                )
+            )
+            "DELETE" -> SupabaseProvider.client.from("site_content").delete {
+                filter { eq("key", body.getValue("key").jsonPrimitive.content) }
+            }
             else -> error("Unsupported site_content operation: " + operation.operationType)
         }
     }
@@ -66,8 +86,39 @@ class KfccContentSyncWorker(
     private suspend fun processNotification(operation: SyncOperationEntity) {
         val body = json.parseToJsonElement(operation.payload).jsonObject
         when (operation.operationType) {
-            "INSERT" -> SupabaseProvider.client.from("app_notifications").insert(mapOf("title" to body.getValue("title").jsonPrimitive.content, "message" to body.getValue("message").jsonPrimitive.content, "type" to body.getValue("type").jsonPrimitive.content))
+            "INSERT" -> SupabaseProvider.client.from("app_notifications").insert(
+                mapOf(
+                    "title" to body.getValue("title").jsonPrimitive.content,
+                    "message" to body.getValue("message").jsonPrimitive.content,
+                    "type" to body.getValue("type").jsonPrimitive.content
+                )
+            )
             else -> error("Unsupported app_notifications operation: " + operation.operationType)
+        }
+    }
+
+    private suspend fun processMedia(operation: SyncOperationEntity) {
+        when (operation.operationType) {
+            "UPDATE" -> {
+                val id = operation.entityId?.toLongOrNull() ?: error("Missing media id")
+                val payload = json.decodeFromString<MediaSyncPayload>(operation.payload)
+                SupabaseProvider.client.from("media_items").update({
+                    payload.title?.let { set("title", it) }
+                    payload.description?.let { set("description", it) }
+                    payload.category?.let { set("category", it) }
+                    payload.published?.let { set("published", it) }
+                    payload.featured?.let { set("featured", it) }
+                }) {
+                    filter { eq("id", id) }
+                }
+            }
+            "DELETE" -> {
+                val id = operation.entityId?.toLongOrNull() ?: error("Missing media id")
+                SupabaseProvider.client.from("media_items").delete {
+                    filter { eq("id", id) }
+                }
+            }
+            else -> error("Unsupported media_items operation: " + operation.operationType)
         }
     }
 
@@ -75,80 +126,64 @@ class KfccContentSyncWorker(
         val input = json.decodeFromString<EventInput>(operation.payload)
         when (operation.operationType) {
             "INSERT" -> SupabaseProvider.client.from("events").insert(input)
-            "UPDATE" -> SupabaseProvider.client.from("events").update(input) { filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) } }
-            "DELETE" -> SupabaseProvider.client.from("events").delete { filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) } }
+            "UPDATE" -> SupabaseProvider.client.from("events").update(input) {
+                filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) }
+            }
+            "DELETE" -> SupabaseProvider.client.from("events").delete {
+                filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) }
+            }
             else -> error("Unsupported events operation: " + operation.operationType)
         }
     }
+
     private suspend fun syncSiteContent() {
-        val rows = SupabaseProvider.client
-            .from("site_content")
+        val rows = SupabaseProvider.client.from("site_content")
             .select(Columns.list("key", "value"))
             .decodeList<SiteContentRow>()
         db.siteContentDao().upsertAll(rows.map { SiteContentEntity(it.key, it.value) })
     }
 
     private suspend fun syncMedia() {
-        val rows = SupabaseProvider.client
-            .from("media_items")
-            .select { filter { eq("published", true) } }
-            .decodeList<MediaItem>()
+        val rows = SupabaseProvider.client.from("media_items")
+            .select()
+            .decodeList<AdminMediaItem>()
         db.mediaItemDao().clear()
         db.mediaItemDao().upsertAll(rows.map {
             MediaItemEntity(
                 id = it.id,
-                legacyId = null,
+                legacyId = it.legacy_id,
                 title = it.title,
                 type = it.type,
                 category = it.category,
                 description = it.description,
                 url = it.url,
-                storagePath = null,
-                createdAt = it.createdAt,
-                published = true,
-                thumbnailUrl = null,
+                storagePath = it.storage_path,
+                createdAt = it.created_at,
+                published = it.published,
+                thumbnailUrl = it.thumbnail_url,
                 featured = it.featured
             )
         })
     }
 
     private suspend fun syncEvents() {
-        val rows = SupabaseProvider.client
-            .from("events")
-            .select()
-            .decodeList<EventItem>()
+        val rows = SupabaseProvider.client.from("events").select().decodeList<EventItem>()
         db.eventDao().clear()
         db.eventDao().upsertAll(rows.map {
             EventEntity(
-                id = it.id,
-                slug = it.slug,
-                title = it.title,
-                category = it.category,
-                shortDescription = it.shortDescription,
-                description = it.description,
-                image = it.image,
-                flyerUrl = it.flyerUrl,
-                startAt = it.startAt,
-                endAt = it.endAt,
-                allDay = it.allDay,
-                location = it.location,
-                address = it.address,
-                attendanceType = it.attendanceType,
-                registrationUrl = it.registrationUrl,
-                contact = it.contact,
-                livestreamUrl = it.livestreamUrl,
-                featured = it.featured,
-                status = it.status,
-                displayOrder = it.displayOrder,
-                createdAt = it.createdAt,
-                updatedAt = it.updatedAt
+                id = it.id, slug = it.slug, title = it.title, category = it.category,
+                shortDescription = it.shortDescription, description = it.description, image = it.image,
+                flyerUrl = it.flyerUrl, startAt = it.startAt, endAt = it.endAt, allDay = it.allDay,
+                location = it.location, address = it.address, attendanceType = it.attendanceType,
+                registrationUrl = it.registrationUrl, contact = it.contact, livestreamUrl = it.livestreamUrl,
+                featured = it.featured, status = it.status, displayOrder = it.displayOrder,
+                createdAt = it.createdAt, updatedAt = it.updatedAt
             )
         })
     }
 
     private suspend fun syncNotifications() {
-        val rows = SupabaseProvider.client
-            .from("app_notifications")
+        val rows = SupabaseProvider.client.from("app_notifications")
             .select()
             .decodeList<AppNotification>()
         db.notificationDao().upsertAll(rows.map {
