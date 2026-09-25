@@ -104,6 +104,11 @@ class KfccNotificationWorker(
                 .getStringSet(KEY_SERVER_DELIVERED, emptySet())
                 .orEmpty()
                 .toMutableSet()
+            // Migrate IDs delivered by older app versions into the server-managed
+            // set so a notification deleted before this update is also removed.
+            if (serverDelivered.isEmpty()) {
+                serverDelivered.addAll(delivered.filterNot { it.startsWith("signup-") })
+            }
             serverDelivered
                 .filter { it !in activeServerIds }
                 .forEach { id ->
