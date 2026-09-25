@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
+import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.offline.KfccDatabase
 import com.example.helloworld.data.offline.KfccOutboxRepository
 import com.example.helloworld.data.offline.NotificationEntity
@@ -58,7 +59,10 @@ private data class NotificationSyncPayload(
     val message: String,
     val type: String,
     @SerialName("created_at") val createdAt: String,
-    @SerialName("user_id") val userId: String? = null
+    @SerialName("user_id") val userId: String? = null,
+    @SerialName("is_enabled") val isEnabled: Boolean = true,
+    @SerialName("show_on_install") val showOnInstall: Boolean = false,
+    @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false
 )
 
 
@@ -347,10 +351,49 @@ class AdminRepository(context: Context) {
         )
     }
 
+    suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
+        client.from("app_notifications")
+            .select()
+            .decodeList<AppNotification>()
+            .sortedByDescending { it.createdAt }
+    }
+
+    suspend fun updateNotification(
+        id: String,
+        title: String,
+        message: String,
+        type: String,
+        isEnabled: Boolean,
+        showOnInstall: Boolean,
+        showOnSignIn: Boolean
+    ): Result<Unit> = runCatching {
+        client.from("app_notifications").update(
+            mapOf(
+                "title" to title.trim(),
+                "message" to message.trim(),
+                "type" to type.trim().ifBlank { "general" },
+                "is_enabled" to isEnabled,
+                "show_on_install" to showOnInstall,
+                "show_on_sign_in" to showOnSignIn,
+                "updated_at" to java.time.Instant.now().toString()
+            )
+        ) {
+            filter { eq("id", id) }
+        }
+    }
+
+    suspend fun deleteNotification(id: String): Result<Unit> = runCatching {
+        client.from("app_notifications").delete {
+            filter { eq("id", id) }
+        }
+    }
+
     suspend fun postAnnouncement(
         title: String,
         message: String,
-        type: String
+        type: String,
+        showOnInstall: Boolean = false,
+        showOnSignIn: Boolean = false
     ): Result<Boolean> = runCatching {
         val id = UUID.randomUUID().toString()
         val createdAt = java.time.Instant.now().toString()
@@ -359,7 +402,9 @@ class AdminRepository(context: Context) {
             title = title,
             message = message,
             type = type,
-            createdAt = createdAt
+            createdAt = createdAt,
+            showOnInstall = showOnInstall,
+            showOnSignIn = showOnSignIn
         )
 
         if (isNetworkAvailable()) {
@@ -379,6 +424,38 @@ class AdminRepository(context: Context) {
                 payload = Json.encodeToString(payload)
             )
             false
+        }
+    }
+
+    suspend fun setInstallDefault(id: String, enabled: Boolean): Result<Unit> = runCatching {
+        if (enabled) {
+            client.from("app_notifications").update(mapOf("show_on_install" to false)) {
+                filter { eq("show_on_install", true) }
+            }
+        }
+        client.from("app_notifications").update(
+            mapOf(
+                "show_on_install" to enabled,
+                "updated_at" to java.time.Instant.now().toString()
+            )
+        ) {
+            filter { eq("id", id) }
+        }
+    }
+
+    suspend fun setSignInDefault(id: String, enabled: Boolean): Result<Unit> = runCatching {
+        if (enabled) {
+            client.from("app_notifications").update(mapOf("show_on_sign_in" to false)) {
+                filter { eq("show_on_sign_in", true) }
+            }
+        }
+        client.from("app_notifications").update(
+            mapOf(
+                "show_on_sign_in" to enabled,
+                "updated_at" to java.time.Instant.now().toString()
+            )
+        ) {
+            filter { eq("id", id) }
         }
     }
 
