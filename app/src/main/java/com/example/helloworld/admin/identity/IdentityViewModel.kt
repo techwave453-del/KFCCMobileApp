@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.helloworld.admin.AdminRepositoryProvider
 import com.example.helloworld.data.offline.KfccContentSyncScheduler
 import com.example.helloworld.data.offline.KfccDatabase
-import com.example.helloworld.data.offline.KfccDataContext
 import com.example.helloworld.data.offline.SiteContentEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,7 +67,7 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
                 )
 
                 // Also schedule an authoritative cloud -> Room reconciliation.
-                KfccContentSyncScheduler.syncNow(KfccDataContext.appContext)
+                KfccContentSyncScheduler.syncNow(getApplication<Application>())
             }
             .onFailure { _error.value = it.message ?: "Unable to save Church Identity." }
         _saving.value = false
