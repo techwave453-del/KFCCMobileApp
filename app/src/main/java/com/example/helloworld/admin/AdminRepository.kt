@@ -349,7 +349,7 @@ class AdminRepository(context: Context) {
             operationType = "INSERT",
             entityId = id,
             payload = Json.encodeToString(
-                mapOf("title" to title, "message" to message, "type" to type)
+                mapOf("id" to id, "title" to title, "message" to message, "type" to type, "created_at" to createdAt)
             )
         )
     }
