@@ -6,6 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.admin.AdminRepositoryProvider
+import com.example.helloworld.data.offline.KfccContentSyncScheduler
+import com.example.helloworld.data.offline.KfccDatabase
+import com.example.helloworld.data.offline.KfccDataContext
+import com.example.helloworld.data.offline.SiteContentEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +18,7 @@ import kotlinx.coroutines.launch
 class IdentityViewModel(application: Application) : AndroidViewModel(application) {
     // Reuse the same authenticated admin client/session as AdminViewModel.
     private val repository = IdentityRepository(AdminRepositoryProvider.get(application))
+    private val db = KfccDatabase.getInstance(application)
     private val _identity = MutableStateFlow(ChurchIdentity())
     val identity: StateFlow<ChurchIdentity> = _identity.asStateFlow()
     private val _loading = MutableStateFlow(false)
@@ -46,7 +51,25 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
         _error.value = null
         _saved.value = false
         repository.save(_identity.value)
-            .onSuccess { _identity.value = it; _saved.value = true }
+            .onSuccess {
+                val savedIdentity = it
+                _identity.value = savedIdentity
+                _saved.value = true
+
+                // Update the local source of truth immediately so the public
+                // app reflects the new identity without waiting for the next
+                // periodic WorkManager sync.
+                db.siteContentDao().upsertAll(
+                    listOf(
+                        SiteContentEntity("churchName", savedIdentity.churchName),
+                        SiteContentEntity("logoUrl", savedIdentity.logoUrl),
+                        SiteContentEntity("officialLogo", savedIdentity.officialLogo)
+                    )
+                )
+
+                // Also schedule an authoritative cloud -> Room reconciliation.
+                KfccContentSyncScheduler.syncNow(KfccDataContext.appContext)
+            }
             .onFailure { _error.value = it.message ?: "Unable to save Church Identity." }
         _saving.value = false
     }
