@@ -32,6 +32,7 @@ class KfccContentSyncWorker(
 
     private val db = KfccDatabase.getInstance(appContext)
     private val json = Json { ignoreUnknownKeys = true }
+    private val eventIdMap = mutableMapOf<Long, Long>()
 
     override suspend fun doWork(): Result = runCatching {
         processOutbox()
@@ -92,7 +93,8 @@ class KfccContentSyncWorker(
                     "title" to body.getValue("title").jsonPrimitive.content,
                     "message" to body.getValue("message").jsonPrimitive.content,
                     "type" to body.getValue("type").jsonPrimitive.content,
-                    "created_at" to body.getValue("created_at").jsonPrimitive.content
+                    "created_at" to body.getValue("created_at").jsonPrimitive.content,
+                    "user_id" to body["user_id"]?.jsonPrimitive?.content
                 )
             )
             else -> error("Unsupported app_notifications operation: " + operation.operationType)
@@ -127,16 +129,65 @@ class KfccContentSyncWorker(
     private suspend fun processEvent(operation: SyncOperationEntity) {
         val input = json.decodeFromString<EventInput>(operation.payload)
         when (operation.operationType) {
-            "INSERT" -> SupabaseProvider.client.from("events").insert(input)
-            "UPDATE" -> SupabaseProvider.client.from("events").update(input) {
-                filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) }
+            "INSERT" -> {
+                val created = SupabaseProvider.client.from("events")
+                    .insert(input)
+                    .decodeSingle<EventItem>()
+
+                val localId = operation.entityId?.toLongOrNull()
+                if (localId != null && localId < 0) {
+                    db.eventDao().deleteById(localId)
+                    db.eventDao().upsertAll(listOf(toEventEntity(created)))
+                    eventIdMap[localId] = created.id
+                    db.syncOperationDao().remapPendingEntityId(
+                        entityType = "events",
+                        oldEntityId = localId.toString(),
+                        newEntityId = created.id.toString()
+                    )
+                }
             }
-            "DELETE" -> SupabaseProvider.client.from("events").delete {
-                filter { eq("id", operation.entityId?.toLongOrNull() ?: error("Missing event id")) }
+            "UPDATE" -> {
+                val rawId = operation.entityId?.toLongOrNull() ?: error("Missing event id")
+                val serverId = eventIdMap[rawId] ?: rawId
+                SupabaseProvider.client.from("events").update(input) {
+                    filter { eq("id", serverId) }
+                }
+            }
+            "DELETE" -> {
+                val rawId = operation.entityId?.toLongOrNull() ?: error("Missing event id")
+                val serverId = eventIdMap[rawId] ?: rawId
+                SupabaseProvider.client.from("events").delete {
+                    filter { eq("id", serverId) }
+                }
             }
             else -> error("Unsupported events operation: " + operation.operationType)
         }
     }
+
+    private fun toEventEntity(x: EventItem) = EventEntity(
+        id = x.id,
+        slug = x.slug,
+        title = x.title,
+        category = x.category,
+        shortDescription = x.shortDescription,
+        description = x.description,
+        image = x.image,
+        flyerUrl = x.flyerUrl,
+        startAt = x.startAt,
+        endAt = x.endAt,
+        allDay = x.allDay,
+        location = x.location,
+        address = x.address,
+        attendanceType = x.attendanceType,
+        registrationUrl = x.registrationUrl,
+        contact = x.contact,
+        livestreamUrl = x.livestreamUrl,
+        featured = x.featured,
+        status = x.status,
+        displayOrder = x.displayOrder,
+        createdAt = x.createdAt,
+        updatedAt = x.updatedAt
+    )
 
     private suspend fun syncSiteContent() {
         val rows = SupabaseProvider.client.from("site_content")
@@ -149,7 +200,9 @@ class KfccContentSyncWorker(
         val rows = SupabaseProvider.client.from("media_items")
             .select()
             .decodeList<AdminMediaItem>()
-        db.mediaItemDao().clear()
+        // Keep negative local IDs while their queued mutations are still pending.
+        // Server-backed rows are replaced by the authoritative snapshot.
+        db.mediaItemDao().deleteServerBacked()
         db.mediaItemDao().upsertAll(rows.map {
             MediaItemEntity(
                 id = it.id,
@@ -170,7 +223,8 @@ class KfccContentSyncWorker(
 
     private suspend fun syncEvents() {
         val rows = SupabaseProvider.client.from("events").select().decodeList<EventItem>()
-        db.eventDao().clear()
+        // Keep negative optimistic IDs until their INSERT operation is reconciled.
+        db.eventDao().deleteServerBacked()
         db.eventDao().upsertAll(rows.map {
             EventEntity(
                 id = it.id, slug = it.slug, title = it.title, category = it.category,
