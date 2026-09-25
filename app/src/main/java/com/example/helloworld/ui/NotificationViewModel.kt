@@ -39,9 +39,28 @@ class NotificationViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            repository.getNotifications()
+            repository.syncFromServer()
+                .onSuccess { rows ->
+                    _notifications.value = rows.sortedByDescending(AppNotification::createdAt)
+                }
                 .onFailure { _error.value = it.message }
             _isLoading.value = false
+        }
+    }
+
+    fun markAllAsRead() {
+        viewModelScope.launch {
+            val ids = _notifications.value
+                .filter { it.readAt == null }
+                .map { it.id }
+            if (ids.isEmpty()) return@launch
+
+            repository.markAllAsRead(ids).onSuccess {
+                val now = java.time.Instant.now().toString()
+                _notifications.value = _notifications.value.map { notification ->
+                    if (notification.id in ids) notification.copy(readAt = now) else notification
+                }
+            }
         }
     }
 }
