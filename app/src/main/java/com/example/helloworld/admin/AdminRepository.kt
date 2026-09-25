@@ -4,6 +4,10 @@ import android.content.Context
 import com.example.helloworld.data.ChurchContent
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.LiveStream
+import com.example.helloworld.data.offline.KfccDatabase
+import com.example.helloworld.data.offline.KfccOutboxRepository
+import com.example.helloworld.data.offline.NotificationEntity
+import com.example.helloworld.data.offline.SiteContentEntity
 import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
@@ -24,6 +28,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.UUID
 
 @Serializable
 private data class AdminSessionResponse(
@@ -45,6 +50,9 @@ private data class AdminSessionUser(
 )
 
 class AdminRepository(context: Context) {
+    private val appContext = context.applicationContext
+    private val offlineDb = KfccDatabase.getInstance(appContext)
+    private val outbox = KfccOutboxRepository(appContext, offlineDb)
     private val client = SupabaseProvider.client
 
     // The admin-login edge function returns the authoritative administrator
@@ -265,19 +273,26 @@ class AdminRepository(context: Context) {
 
     suspend fun saveSiteContent(content: ChurchInfo): Result<ChurchInfo> = runCatching {
         val rows = listOf(
-            mapOf("key" to "churchName", "value" to content.churchName),
-            mapOf("key" to "tagline", "value" to content.tagline),
-            mapOf("key" to "title", "value" to content.title),
-            mapOf("key" to "subtitle", "value" to content.subtitle),
-            mapOf("key" to "aboutTitle", "value" to content.aboutTitle),
-            mapOf("key" to "aboutText", "value" to content.aboutText),
-            mapOf("key" to "givingUrl", "value" to content.givingUrl),
-            mapOf("key" to "services", "value" to Json.encodeToString(content.services)),
-            mapOf("key" to "links", "value" to Json.encodeToString(content.links)),
-            mapOf("key" to "membershipClasses", "value" to Json.encodeToString(content.membershipClasses))
+            SiteContentEntity("churchName", content.churchName),
+            SiteContentEntity("tagline", content.tagline),
+            SiteContentEntity("title", content.title),
+            SiteContentEntity("subtitle", content.subtitle),
+            SiteContentEntity("aboutTitle", content.aboutTitle),
+            SiteContentEntity("aboutText", content.aboutText),
+            SiteContentEntity("givingUrl", content.givingUrl),
+            SiteContentEntity("services", Json.encodeToString(content.services)),
+            SiteContentEntity("links", Json.encodeToString(content.links)),
+            SiteContentEntity("membershipClasses", Json.encodeToString(content.membershipClasses))
         )
-
-        client.from("site_content").upsert(rows)
+        offlineDb.siteContentDao().upsertAll(rows)
+        rows.forEach { row ->
+            outbox.enqueue(
+                entityType = "site_content",
+                operationType = "UPSERT",
+                entityId = row.key,
+                payload = Json.encodeToString(mapOf("key" to row.key, "value" to row.value))
+            )
+        }
         content
     }
 
@@ -310,8 +325,12 @@ class AdminRepository(context: Context) {
         }
 
     suspend fun updateSiteContent(key: String, value: String): Result<Unit> = runCatching {
-        client.from("site_content").upsert(
-            mapOf("key" to key, "value" to value)
+        offlineDb.siteContentDao().upsertAll(listOf(SiteContentEntity(key, value)))
+        outbox.enqueue(
+            entityType = "site_content",
+            operationType = "UPSERT",
+            entityId = key,
+            payload = Json.encodeToString(mapOf("key" to key, "value" to value))
         )
     }
 
@@ -320,11 +339,17 @@ class AdminRepository(context: Context) {
         message: String,
         type: String
     ): Result<Unit> = runCatching {
-        client.from("app_notifications").insert(
-            mapOf(
-                "title" to title,
-                "message" to message,
-                "type" to type
+        val id = UUID.randomUUID().toString()
+        val createdAt = java.time.Instant.now().toString()
+        offlineDb.notificationDao().upsertAll(
+            listOf(NotificationEntity(id, null, title, message, type, createdAt))
+        )
+        outbox.enqueue(
+            entityType = "app_notifications",
+            operationType = "INSERT",
+            entityId = id,
+            payload = Json.encodeToString(
+                mapOf("title" to title, "message" to message, "type" to type)
             )
         )
     }
