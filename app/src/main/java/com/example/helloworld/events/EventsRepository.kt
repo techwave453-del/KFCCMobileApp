@@ -6,6 +6,8 @@ import com.example.helloworld.data.SupabaseProvider
 import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * Events data access.
@@ -18,6 +20,9 @@ class EventsRepository(private val adminRepository: AdminRepository? = null) {
     private val offline by lazy {
         KfccContentRepository(KfccDatabase.getInstance(KfccDataContext.appContext))
     }
+
+    fun observePublicEvents(): Flow<List<Event>> =
+        offline.observeEvents().map { items -> items.map(::toEvent) }
 
     suspend fun getPublicEvents(): Result<List<Event>> = runCatching {
         offline.getEvents().map(::toEvent)
