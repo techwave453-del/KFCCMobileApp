@@ -5,6 +5,9 @@ import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.data.SupabaseProvider
 import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
+import com.example.helloworld.data.offline.KfccOutboxRepository
+import com.example.helloworld.data.offline.EventEntity
+import kotlinx.serialization.json.Json
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -16,6 +19,11 @@ import kotlinx.coroutines.flow.map
  * use the authenticated Supabase boundary.
  */
 class EventsRepository(private val adminRepository: AdminRepository? = null) {
+
+    private val context = KfccDataContext.appContext
+    private val db = KfccDatabase.getInstance(context)
+    private val outbox = KfccOutboxRepository(context, db)
+    private val json = Json { ignoreUnknownKeys = true }
 
     private val offline by lazy {
         KfccContentRepository(KfccDatabase.getInstance(KfccDataContext.appContext))
@@ -37,24 +45,94 @@ class EventsRepository(private val adminRepository: AdminRepository? = null) {
     }
 
     suspend fun create(input: EventInput): Result<Event> = runCatching {
-        SupabaseProvider.client
-            .from("events")
-            .insert(input)
-            .decodeSingle<Event>()
+        val localId = -System.currentTimeMillis()
+        val optimistic = Event(
+            id = localId,
+            title = input.title,
+            category = input.category,
+            short_description = input.short_description,
+            description = input.description,
+            image = input.image,
+            flyer_url = input.flyer_url,
+            start_at = input.start_at,
+            end_at = input.end_at,
+            all_day = input.all_day,
+            location = input.location,
+            address = input.address,
+            attendance_type = input.attendance_type,
+            registration_url = input.registration_url,
+            contact = input.contact,
+            livestream_url = input.livestream_url,
+            featured = input.featured,
+            status = input.status,
+            display_order = input.display_order
+        )
+        db.eventDao().upsertAll(listOf(toEventEntity(optimistic)))
+        outbox.enqueue("events", "INSERT", null, json.encodeToString(input))
+        optimistic
     }
 
     suspend fun update(id: Long, input: EventInput): Result<Event> = runCatching {
-        SupabaseProvider.client
-            .from("events")
-            .update(input) { filter { eq("id", id) } }
-            .decodeSingle<Event>()
+        val optimistic = Event(
+            id = id,
+            title = input.title,
+            category = input.category,
+            short_description = input.short_description,
+            description = input.description,
+            image = input.image,
+            flyer_url = input.flyer_url,
+            start_at = input.start_at,
+            end_at = input.end_at,
+            all_day = input.all_day,
+            location = input.location,
+            address = input.address,
+            attendance_type = input.attendance_type,
+            registration_url = input.registration_url,
+            contact = input.contact,
+            livestream_url = input.livestream_url,
+            featured = input.featured,
+            status = input.status,
+            display_order = input.display_order
+        )
+        db.eventDao().upsertAll(listOf(toEventEntity(optimistic)))
+        outbox.enqueue("events", "UPDATE", id.toString(), json.encodeToString(input))
+        optimistic
     }
 
     suspend fun delete(id: Long): Result<Unit> = runCatching {
-        SupabaseProvider.client
-            .from("events")
-            .delete { filter { eq("id", id) } }
+        db.eventDao().deleteById(id)
+        outbox.enqueue("events", "DELETE", id.toString(), json.encodeToString(EventInput(
+            title = "",
+            start_at = ""
+        )))
     }
+
+    private suspend fun EventDao.deleteById(id: Long) = deleteByIdInternal(id)
+
+    private fun toEventEntity(x: Event) = EventEntity(
+        id = x.id,
+        slug = x.slug,
+        title = x.title,
+        category = x.category,
+        shortDescription = x.short_description,
+        description = x.description,
+        image = x.image,
+        flyerUrl = x.flyer_url,
+        startAt = x.start_at,
+        endAt = x.end_at,
+        allDay = x.all_day,
+        location = x.location,
+        address = x.address,
+        attendanceType = x.attendance_type,
+        registrationUrl = x.registration_url,
+        contact = x.contact,
+        livestreamUrl = x.livestream_url,
+        featured = x.featured,
+        status = x.status,
+        displayOrder = x.display_order,
+        createdAt = "",
+        updatedAt = ""
+    )
 
     private fun toEvent(x: com.example.helloworld.data.EventItem) = Event(
         id = x.id,
