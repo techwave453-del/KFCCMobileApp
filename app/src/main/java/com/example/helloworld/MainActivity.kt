@@ -51,22 +51,40 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTube
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private var openNotifications by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
+
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             val prefsViewModel: PreferencesViewModel = viewModel()
             val isDarkMode by prefsViewModel.isDarkMode.collectAsState()
-            KFCCTheme(darkTheme = isDarkMode) { KFCCApp() }
+            KFCCTheme(darkTheme = isDarkMode) {\n                KFCCApp(\n                    openNotifications = openNotifications,\n                    onNotificationOpened = { openNotifications = false }\n                )\n            }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)) {
+            openNotifications = true
+        }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_NOTIFICATIONS = "kfcc.open_notifications"
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KFCCApp(
+    openNotifications: Boolean = false,
+    onNotificationOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
@@ -85,6 +103,13 @@ fun KFCCApp(
     var showLivePlayer by remember { mutableStateOf(false) }
     val activity = LocalContext.current as? MainActivity
     val context = LocalContext.current
+
+    LaunchedEffect(openNotifications) {
+        if (openNotifications) {
+            currentDestination = AppDestinations.NOTIFICATIONS
+            onNotificationOpened()
+        }
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { }
