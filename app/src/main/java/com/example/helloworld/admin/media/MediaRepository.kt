@@ -99,7 +99,7 @@ class MediaRepository(context: Context) {
         val bucket = client.storage.from("media")
         bucket.upload(path, bytes) {
             upsert = true
-            contentType = mimeType
+            contentType = io.ktor.http.ContentType.parse(mimeType)
         }
         val publicUrl = bucket.publicUrl(path)
         val item = mapOf(
