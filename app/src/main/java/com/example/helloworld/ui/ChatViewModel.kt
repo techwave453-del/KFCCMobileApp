@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.data.*
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
@@ -52,6 +53,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val replyingTo: StateFlow<ChatMessage?> = _replyingTo.asStateFlow()
 
     private var observeJob: Job? = null
+    private var sessionInitialized = false
 
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -61,8 +63,38 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Automatically sign in if the Supabase client already has a session
+        // Supabase restores the persisted session asynchronously from Android storage.
+        // Listen to sessionStatus so a cold app start does not appear signed out
+        // while Auth is still loading the saved session.
+        viewModelScope.launch {
+            SupabaseProvider.client.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> {
+                        _signedIn.value = true
+                        if (!sessionInitialized) {
+                            sessionInitialized = true
+                            initChat()
+                        }
+                    }
+                    is SessionStatus.NotAuthenticated -> {
+                        sessionInitialized = false
+                        _signedIn.value = false
+                        _roomId.value = null
+                        observeJob?.cancel()
+                    }
+                    is SessionStatus.Initializing,
+                    is SessionStatus.RefreshFailure -> {
+                        // Do not clear the current session during storage loading
+                        // or a temporary token-refresh failure.
+                    }
+                }
+            }
+        }
+
+        // Covers a session that was already restored before the collector started.
         if (authRepository.isSignedIn()) {
+            _signedIn.value = true
+            sessionInitialized = true
             initChat()
         }
     }
@@ -72,7 +104,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             _loading.value = true
             _error.value = null
             
-            // If signed in but user info is missing (common for new admin sessions), 
+            if (!authRepository.isSignedIn()) {
+                _signedIn.value = false
+                _loading.value = false
+                return@launch
+            }
+
+            // If signed in but user info is missing (common for imported admin sessions),
             // proactively fetch user details from Supabase Auth.
             if (authRepository.isSignedIn()) {
                 try {
@@ -178,6 +216,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             authRepository.signOut()
             _signedIn.value = false
             _roomId.value = null
+            sessionInitialized = false
+            observeJob?.cancel()
         }
     }
 
