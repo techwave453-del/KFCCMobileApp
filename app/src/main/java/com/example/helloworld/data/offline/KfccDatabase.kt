@@ -16,9 +16,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MediaItemEntity::class,
         EventEntity::class,
         NotificationEntity::class,
-        NotificationReadEntity::class
+        NotificationReadEntity::class,
+        SyncOperationEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class KfccDatabase : RoomDatabase() {
@@ -29,6 +30,7 @@ abstract class KfccDatabase : RoomDatabase() {
     abstract fun mediaItemDao(): MediaItemDao
     abstract fun eventDao(): EventDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun syncOperationDao(): SyncOperationDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -48,6 +50,14 @@ abstract class KfccDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS sync_operations (operationId TEXT NOT NULL PRIMARY KEY, entityType TEXT NOT NULL, operationType TEXT NOT NULL, entityId TEXT, payload TEXT NOT NULL, createdAt INTEGER NOT NULL, attempts INTEGER NOT NULL, status TEXT NOT NULL, lastError TEXT)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_operations_status ON sync_operations(status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_operations_createdAt ON sync_operations(createdAt)")
+            }
+        }
+
         @Volatile private var INSTANCE: KfccDatabase? = null
 
         fun getInstance(context: Context): KfccDatabase =
@@ -57,7 +67,7 @@ abstract class KfccDatabase : RoomDatabase() {
                     KfccDatabase::class.java,
                     "kfcc_offline.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }
