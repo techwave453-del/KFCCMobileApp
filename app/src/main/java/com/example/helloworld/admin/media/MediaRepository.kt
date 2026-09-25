@@ -28,16 +28,18 @@ class MediaRepository(context: Context) {
     private val db = KfccDatabase.getInstance(appContext)
     private val outbox = KfccOutboxRepository(appContext, db)
 
-    suspend fun load(): Result<List<AdminMediaItem>> = runCatching {
-        val local = db.mediaItemDao().getAll()
-        if (local.isNotEmpty()) {
-            return@runCatching local.map(::toAdminItem)
+    suspend fun load(): Result<List<AdminMediaItem>> {
+        return runCatching {
+            client.from("media_items")
+                .select()
+                .decodeList<AdminMediaItem>()
+                .sortedByDescending { it.created_at }
+                .also { db.mediaItemDao().upsertAll(it.map(::toEntity)) }
+        }.recoverCatching {
+            val local = db.mediaItemDao().getAll()
+            if (local.isEmpty()) throw it
+            local.map(::toAdminItem)
         }
-        client.from("media_items")
-            .select()
-            .decodeList<AdminMediaItem>()
-            .sortedByDescending { it.created_at }
-            .also { db.mediaItemDao().upsertAll(it.map(::toEntity)) }
     }
 
     suspend fun update(
