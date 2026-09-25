@@ -39,7 +39,7 @@ class KfccContentSyncWorker(
     private suspend fun syncMedia() {
         val rows = SupabaseProvider.client
             .from("media_items")
-            .select()
+            .select { filter { eq("published", true) } }
             .decodeList<MediaItem>()
         db.mediaItemDao().clear()
         db.mediaItemDao().upsertAll(rows.map {
