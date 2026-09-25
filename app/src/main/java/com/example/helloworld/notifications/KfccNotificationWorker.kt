@@ -56,8 +56,7 @@ class KfccNotificationWorker(
         }.getOrElse { Result.retry() }
     }
 
-            val churchName = NotificationBrandRepository().getChurchName().ifBlank { "Church" }
-            ensureChannel(churchName)
+    private fun ensureChannel(churchName: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
