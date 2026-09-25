@@ -4,11 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Notification(
+data class AppNotification(
     val id: String,
     val title: String,
     val message: String,
     val type: String, // welcome, admin, chat, general
     @SerialName("created_at") val createdAt: String,
-    val read: Boolean = false
+    val readAt: String? = null
 )
