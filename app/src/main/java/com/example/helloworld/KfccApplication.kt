@@ -7,6 +7,7 @@ import com.example.helloworld.data.bible.BibleOfflineSeeder
 import com.example.helloworld.data.bible.BibleSyncScheduler
 import com.example.helloworld.data.offline.KfccContentSyncScheduler
 import com.example.helloworld.data.offline.KfccDatabase
+import com.example.helloworld.notifications.KfccNotificationScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
@@ -23,5 +24,6 @@ class KfccApplication : Application() {
 
         BibleSyncScheduler.schedule(this)
         KfccContentSyncScheduler.schedule(this)
+        KfccNotificationScheduler.schedule(this)
     }
 }
