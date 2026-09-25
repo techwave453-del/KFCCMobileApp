@@ -24,8 +24,12 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
             _message.value = null
             _error.value = null
             repository.postAnnouncement(title.trim(), body.trim(), type.trim().ifBlank { "general" })
-                .onSuccess {
-                    _message.value = "Notification sent successfully."
+                .onSuccess { sentDirectly ->
+                    _message.value = if (sentDirectly) {
+                        "Notification sent successfully."
+                    } else {
+                        "Notification saved offline. It will be sent automatically when the connection is restored."
+                    }
                     onComplete()
                 }
                 .onFailure { _error.value = it.message ?: "Unable to send notification." }
