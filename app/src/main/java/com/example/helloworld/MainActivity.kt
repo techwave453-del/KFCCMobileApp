@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.helloworld.data.LocalCache
+import com.example.helloworld.data.NotificationRepository
 import com.example.helloworld.ui.ChurchViewModel
 import com.example.helloworld.ui.ChatViewModel
 import com.example.helloworld.admin.AdminViewModel
@@ -49,6 +50,7 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
 
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        handleNotificationIntent(intent)
         openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
@@ -75,13 +78,26 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleNotificationIntent(intent)
         if (intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)) {
             openNotifications = true
         }
     }
 
+    private fun handleNotificationIntent(intent: android.content.Intent?) {
+        val notificationId = intent?.getStringExtra(EXTRA_NOTIFICATION_ID).orEmpty()
+        if (notificationId.isBlank()) return
+
+        // A notification opened from the Android tray is immediately considered read.
+        NotificationManagerCompat.from(this).cancel(notificationId.hashCode())
+        lifecycleScope.launch {
+            NotificationRepository().markAsRead(notificationId)
+        }
+    }
+
     companion object {
         const val EXTRA_OPEN_NOTIFICATIONS = "kfcc.open_notifications"
+        const val EXTRA_NOTIFICATION_ID = "kfcc.notification_id"
     }
 }
 
