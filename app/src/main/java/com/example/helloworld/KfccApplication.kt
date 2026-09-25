@@ -5,6 +5,7 @@ import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.data.LocalCache
 import com.example.helloworld.data.bible.BibleOfflineSeeder
 import com.example.helloworld.data.bible.BibleSyncScheduler
+import com.example.helloworld.data.offline.KfccContentSyncScheduler
 import com.example.helloworld.data.offline.KfccDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -15,9 +16,12 @@ class KfccApplication : Application() {
         KfccDataContext.initialize(this)
         LocalCache.initialize(this)
         KfccDatabase.getInstance(this)
+
         runBlocking(Dispatchers.IO) {
             BibleOfflineSeeder.seedIfNeeded(this@KfccApplication)
         }
+
         BibleSyncScheduler.schedule(this)
+        KfccContentSyncScheduler.schedule(this)
     }
 }
