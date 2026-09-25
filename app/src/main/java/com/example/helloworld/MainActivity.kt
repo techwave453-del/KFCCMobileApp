@@ -1,9 +1,14 @@
 package com.example.helloworld
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -33,6 +38,7 @@ import com.example.helloworld.ui.theme.KFCCTheme
 import com.example.helloworld.ui.PreferencesViewModel
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -78,6 +84,21 @@ fun KFCCApp(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
     val activity = LocalContext.current as? MainActivity
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     LaunchedEffect(churchInfo.churchName) {
         activity?.title = churchInfo.churchName.ifBlank { "KFCC" }
