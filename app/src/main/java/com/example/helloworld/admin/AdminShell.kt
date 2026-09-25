@@ -26,6 +26,7 @@ import com.example.helloworld.admin.services.AdminServicesScreen
 import com.example.helloworld.admin.content.WebsiteContentViewModel
 import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
+import com.example.helloworld.admin.notifications.AdminNotificationsScreen
 
 private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been created, but no administration permissions have been assigned yet."
 
@@ -58,6 +59,8 @@ fun AdminShell(
                         ModuleFrame("Services & Giving", { openModule = null }) { AdminServicesScreen(Modifier.fillMaxSize(), viewModel(factory = WebsiteContentViewModel.Factory(application))) }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
+                    openModule == "notifications" && currentUser.hasPermission(AdminPermissions.NOTIFICATIONS_SEND) ->
+                        ModuleFrame("Notifications", { openModule = null }) { AdminNotificationsScreen(Modifier.fillMaxSize()) }
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
                         ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
                     openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
@@ -82,6 +85,7 @@ fun AdminShell(
                         { openModule = "content" },
                         { openModule = "services" },
                         { openModule = "events" },
+                        { openModule = "notifications" },
                         { openModule = "live" },
                         { openModule = "media" },
                         { openModule = "users" },
@@ -155,6 +159,7 @@ private fun AdminDashboardScreen(
     onContent: () -> Unit,
     onServices: () -> Unit,
     onEvents: () -> Unit,
+    onNotifications: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
     onUsers: () -> Unit,
@@ -166,6 +171,7 @@ private fun AdminDashboardScreen(
         AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
         AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SITE_EDIT, Icons.Default.Church),
         AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.SITE_EDIT, Icons.Default.Event),
+        AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
         AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People),
