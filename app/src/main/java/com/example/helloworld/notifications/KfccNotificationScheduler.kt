@@ -14,8 +14,11 @@ import java.util.concurrent.TimeUnit
 object KfccNotificationScheduler {
     private const val PERIODIC_NAME = "kfcc_notification_poll"
     private const val SIGN_IN_WORK = "kfcc_sign_in_notification"
+    private const val SIGN_UP_WORK = "kfcc_sign_up_notification"
     const val KEY_MODE = "notification_mode"
+    const val KEY_USERNAME = "notification_username"
     const val MODE_SIGN_IN = "sign_in"
+    const val MODE_SIGN_UP = "sign_up"
 
     fun schedule(context: Context) {
         val constraints = Constraints.Builder()
@@ -32,25 +35,49 @@ object KfccNotificationScheduler {
     }
 
     fun syncNow(context: Context) {
-        enqueue(context, null)
+        enqueue(context, null, requireNetwork = true)
     }
 
     fun deliverSignInDefault(context: Context) {
-        enqueue(context, MODE_SIGN_IN)
+        enqueue(context, MODE_SIGN_IN, requireNetwork = true)
     }
 
-    private fun enqueue(context: Context, mode: String?) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+    fun deliverSignupWelcome(context: Context, username: String) {
+        val data = Data.Builder()
+            .putString(KEY_MODE, MODE_SIGN_UP)
+            .putString(KEY_USERNAME, username)
             .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            SIGN_UP_WORK,
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<KfccNotificationWorker>()
+                .setInputData(data)
+                .build()
+        )
+    }
+
+    private fun enqueue(context: Context, mode: String?, requireNetwork: Boolean) {
         val builder = OneTimeWorkRequestBuilder<KfccNotificationWorker>()
         if (mode != null) {
             builder.setInputData(Data.Builder().putString(KEY_MODE, mode).build())
         }
+        if (requireNetwork) {
+            builder.setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+        }
+
         WorkManager.getInstance(context).enqueueUniqueWork(
-            if (mode == MODE_SIGN_IN) SIGN_IN_WORK else "kfcc_notification_sync_now",
+            when (mode) {
+                MODE_SIGN_IN -> SIGN_IN_WORK
+                MODE_SIGN_UP -> SIGN_UP_WORK
+                else -> "kfcc_notification_sync_now"
+            },
             ExistingWorkPolicy.REPLACE,
-            builder.setConstraints(constraints).build()
+            builder.build()
         )
     }
 }
