@@ -16,7 +16,6 @@ import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 
 class KfccNotificationWorker(
     appContext: Context,
@@ -101,9 +100,7 @@ class KfccNotificationWorker(
         ids: MutableSet<String>
     ) {
         val trimmed = ids.toList().takeLast(MAX_DELIVERED_IDS).toSet()
-        val array = JSONArray()
-        trimmed.forEach(array::put)
-        preferences.edit().putString(KEY_DELIVERED, trimmed.joinToString("\u0001")).apply()
+        preferences.edit().putStringSet(KEY_DELIVERED, trimmed).apply()
     }
 
     companion object {
