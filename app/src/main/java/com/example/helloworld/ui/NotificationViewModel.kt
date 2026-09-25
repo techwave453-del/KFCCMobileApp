@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
+import com.example.helloworld.data.KfccDataContext
+import com.example.helloworld.notifications.KfccNotificationScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,10 +30,12 @@ class NotificationViewModel : ViewModel() {
                 _notifications.value = it.sortedByDescending(AppNotification::createdAt)
             }
         }
+        KfccNotificationScheduler.syncNow(KfccDataContext.appContext)
         refresh()
     }
 
     fun refresh() {
+        KfccNotificationScheduler.syncNow(KfccDataContext.appContext)
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
