@@ -48,17 +48,16 @@ class NotificationViewModel : ViewModel() {
         }
     }
 
-    fun markAllAsRead() {
+    fun markAsRead(notificationId: String) {
         viewModelScope.launch {
-            val ids = _notifications.value
-                .filter { it.readAt == null }
-                .map { it.id }
-            if (ids.isEmpty()) return@launch
-
-            repository.markAllAsRead(ids).onSuccess {
+            repository.markAsRead(notificationId).onSuccess {
                 val now = java.time.Instant.now().toString()
                 _notifications.value = _notifications.value.map { notification ->
-                    if (notification.id in ids) notification.copy(readAt = now) else notification
+                    if (notification.id == notificationId && notification.readAt == null) {
+                        notification.copy(readAt = now)
+                    } else {
+                        notification
+                    }
                 }
             }
         }
