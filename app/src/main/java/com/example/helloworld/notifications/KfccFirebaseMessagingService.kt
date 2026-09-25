@@ -30,14 +30,17 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
-        val title = message.notification?.title
-            ?: message.data["title"]
-            ?: "KFCC"
         val body = message.notification?.body
             ?: message.data["message"]
             ?: return
 
-        ensureChannel()
+        val configuredTitle = message.notification?.title
+            ?: message.data["title"]
+        val title = configuredTitle ?: NotificationBrandRepository().getChurchName().ifBlank {
+            "Church Notification"
+        }
+
+        ensureChannel(title)
 
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -64,12 +67,12 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
-    private fun ensureChannel() {
+    private fun ensureChannel(churchName: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(
                     KfccNotificationWorker.CHANNEL_ID,
-                    "KFCC Church Notifications",
+                    "$churchName Notifications",
                     NotificationManager.IMPORTANCE_DEFAULT
                 )
             )
