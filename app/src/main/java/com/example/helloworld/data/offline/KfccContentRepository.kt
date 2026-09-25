@@ -119,5 +119,12 @@ class KfccContentRepository(private val db: KfccDatabase) {
         NotificationEntity(x.id, x.userId, x.title, x.message, x.type, x.createdAt)
 
     private fun toNotification(x: NotificationEntity) =
-        AppNotification(x.id, x.userId, x.title, x.message, x.type, x.createdAt)
+        AppNotification(
+            id = x.id,
+            title = x.title,
+            message = x.message,
+            type = x.type,
+            createdAt = x.createdAt,
+            userId = x.userId
+        )
 }
