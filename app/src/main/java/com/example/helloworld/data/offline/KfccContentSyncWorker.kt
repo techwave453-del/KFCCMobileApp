@@ -88,9 +88,11 @@ class KfccContentSyncWorker(
         when (operation.operationType) {
             "INSERT" -> SupabaseProvider.client.from("app_notifications").insert(
                 mapOf(
+                    "id" to body.getValue("id").jsonPrimitive.content,
                     "title" to body.getValue("title").jsonPrimitive.content,
                     "message" to body.getValue("message").jsonPrimitive.content,
-                    "type" to body.getValue("type").jsonPrimitive.content
+                    "type" to body.getValue("type").jsonPrimitive.content,
+                    "created_at" to body.getValue("created_at").jsonPrimitive.content
                 )
             )
             else -> error("Unsupported app_notifications operation: " + operation.operationType)
