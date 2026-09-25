@@ -23,4 +23,13 @@ interface SyncOperationDao {
 
     @Query("DELETE FROM sync_operations WHERE operationId = :operationId")
     suspend fun delete(operationId: String)
+
+    @Query("""
+        UPDATE sync_operations
+        SET entityId = :newEntityId
+        WHERE entityType = :entityType
+          AND entityId = :oldEntityId
+          AND status = 'pending'
+    """)
+    suspend fun remapPendingEntityId(entityType: String, oldEntityId: String, newEntityId: String)
 }
