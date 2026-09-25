@@ -49,8 +49,8 @@ class KfccNotificationWorker(
                     }
                     val signupNotification = AppNotification(
                         id = "signup-${System.currentTimeMillis()}-${username.hashCode()}",
-                        title = "Welcome to $churchName",
-                        message = "$greeting, $username! Your KFCC account has been created successfully. Please verify your email, then sign in to continue.",
+                        title = "$greeting, $username",
+                        message = "Your $churchName account has been created successfully. Please verify your email, then sign in to continue.",
                         type = "welcome",
                         createdAt = java.time.Instant.now().toString()
                     )
@@ -60,22 +60,15 @@ class KfccNotificationWorker(
             }
 
             if (mode == KfccNotificationScheduler.MODE_SIGN_IN) {
-                val postedIds = mutableSetOf<String>()
-
-                val defaultNotification = repository.getPublicDefault(onInstall = false).getOrNull()
-                if (defaultNotification != null) {
-                    postNotification(defaultNotification)
-                    postedIds.add(defaultNotification.id)
-                }
-
                 if (SupabaseProvider.client.auth.currentUserOrNull() != null) {
+                    // The signed-in user's read state is authoritative. This prevents
+                    // a sign-in default from being shown again after the user has viewed it.
                     val unread = repository.syncFromServer().getOrThrow()
                         .filter { it.readAt == null }
                         .sortedBy { it.createdAt }
 
-                    unread.filter { it.id !in postedIds }.forEach { notification ->
+                    unread.forEach { notification ->
                         postNotification(notification)
-                        postedIds.add(notification.id)
                     }
                 }
                 return@runCatching Result.success()
