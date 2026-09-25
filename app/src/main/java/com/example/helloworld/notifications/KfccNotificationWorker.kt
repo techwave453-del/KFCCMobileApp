@@ -80,6 +80,12 @@ class KfccNotificationWorker(
                 if (installDefault != null && installDefault.id !in delivered) {
                     postNotification(installDefault)
                     delivered.add(installDefault.id)
+                    val serverDelivered = preferences
+                        .getStringSet(KEY_SERVER_DELIVERED, emptySet())
+                        .orEmpty()
+                        .toMutableSet()
+                    serverDelivered.add(installDefault.id)
+                    saveServerDelivered(preferences, serverDelivered)
                 }
                 saveDelivered(preferences, delivered)
                 preferences.edit().putBoolean(KEY_INITIALIZED, true).apply()
@@ -90,14 +96,32 @@ class KfccNotificationWorker(
             }
 
             val notifications = repository.syncFromServer().getOrThrow()
+            val activeServerIds = notifications.mapTo(mutableSetOf()) { it.id }
+
+            // Remove Android tray notifications whose server records no longer exist
+            // (including notifications deleted or disabled by an administrator).
+            val serverDelivered = preferences
+                .getStringSet(KEY_SERVER_DELIVERED, emptySet())
+                .orEmpty()
+                .toMutableSet()
+            serverDelivered
+                .filter { it !in activeServerIds }
+                .forEach { id ->
+                    NotificationManagerCompat.from(applicationContext).cancel(id.hashCode())
+                    delivered.remove(id)
+                    serverDelivered.remove(id)
+                }
+
             notifications.asReversed()
                 .filter { it.id !in delivered && it.readAt == null }
                 .forEach { notification ->
                     postNotification(notification)
                     delivered.add(notification.id)
+                    serverDelivered.add(notification.id)
                 }
 
             saveDelivered(preferences, delivered)
+            saveServerDelivered(preferences, serverDelivered)
             Result.success()
         }.getOrElse { Result.retry() }
     }
@@ -121,6 +145,7 @@ class KfccNotificationWorker(
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            putExtra(MainActivity.EXTRA_NOTIFICATION_ID, notification.id)
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
@@ -151,10 +176,19 @@ class KfccNotificationWorker(
         preferences.edit().putStringSet(KEY_DELIVERED, trimmed).apply()
     }
 
+    private fun saveServerDelivered(
+        preferences: android.content.SharedPreferences,
+        ids: MutableSet<String>
+    ) {
+        val trimmed = ids.toList().takeLast(MAX_DELIVERED_IDS).toSet()
+        preferences.edit().putStringSet(KEY_SERVER_DELIVERED, trimmed).apply()
+    }
+
     companion object {
         const val CHANNEL_ID = "kfcc_church_notifications"
         private const val PREFS = "kfcc_notification_delivery"
         private const val KEY_DELIVERED = "delivered_ids"
+        private const val KEY_SERVER_DELIVERED = "server_delivered_ids"
         private const val KEY_INITIALIZED = "initialized"
         private const val MAX_DELIVERED_IDS = 200
     }
