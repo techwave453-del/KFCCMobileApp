@@ -39,7 +39,8 @@ class KfccNotificationWorker(
                 return@runCatching Result.success()
             }
 
-            ensureChannel()
+            val churchName = NotificationBrandRepository().getChurchName().ifBlank { "Church" }
+            ensureChannel(churchName)
             val manager = NotificationManagerCompat.from(applicationContext)
             if (!manager.areNotificationsEnabled()) return@runCatching Result.success()
 
@@ -55,16 +56,17 @@ class KfccNotificationWorker(
         }.getOrElse { Result.retry() }
     }
 
-    private fun ensureChannel() {
+            val churchName = NotificationBrandRepository().getChurchName().ifBlank { "Church" }
+            ensureChannel(churchName)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "KFCC Church Notifications",
+                    "$churchName Notifications",
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Announcements and important updates from KFCC."
+                    description = "Announcements and important updates from $churchName."
                 }
             )
         }
