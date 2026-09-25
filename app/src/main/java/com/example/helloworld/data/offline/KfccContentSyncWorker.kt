@@ -17,6 +17,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
+private data class ChurchIdentitySyncRow(
+    val church_name: String = "",
+    val logo_url: String = "",
+    val official_logo: String = ""
+)
+
+@Serializable
 private data class MediaSyncPayload(
     val title: String? = null,
     val description: String? = null,
@@ -37,6 +44,7 @@ class KfccContentSyncWorker(
     override suspend fun doWork(): Result = runCatching {
         processOutbox()
         syncSiteContent()
+        syncChurchIdentity()
         syncMedia()
         syncEvents()
         syncNotifications()
@@ -194,6 +202,19 @@ class KfccContentSyncWorker(
             .select(Columns.list("key", "value"))
             .decodeList<SiteContentRow>()
         db.siteContentDao().upsertAll(rows.map { SiteContentEntity(it.key, it.value) })
+    }
+
+    private suspend fun syncChurchIdentity() {
+        val identity = SupabaseProvider.client.from("church_identity")
+            .select(Columns.list("church_name", "logo_url", "official_logo"))
+            .decodeSingle<ChurchIdentitySyncRow>()
+        db.siteContentDao().upsertAll(
+            listOf(
+                SiteContentEntity("churchName", identity.church_name),
+                SiteContentEntity("logoUrl", identity.logo_url),
+                SiteContentEntity("officialLogo", identity.official_logo)
+            )
+        )
     }
 
     private suspend fun syncMedia() {
