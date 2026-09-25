@@ -43,6 +43,22 @@ class DeviceTokenRepository {
         Log.e(TAG, "FCM device token association failed", it)
     }
 
+    suspend fun unregisterCurrentToken(): Result<Unit> = runCatching {
+        val userId = authenticatedUserId() ?: return@runCatching Unit
+        val token = preferences.fcmToken ?: return@runCatching Unit
+
+        client.from("device_tokens").delete {
+            filter {
+                eq("user_id", userId)
+                eq("token", token)
+            }
+        }
+        Log.i(TAG, "FCM device token removed from Supabase user " + userId)
+        Unit
+    }.onFailure {
+        Log.e(TAG, "FCM device token cleanup failed", it)
+    }
+
     suspend fun registerToken(token: String): Result<Unit> = runCatching {
         require(token.isNotBlank()) { "FCM token is blank" }
         ensureInstallationId()
