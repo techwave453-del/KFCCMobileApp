@@ -2,6 +2,8 @@ package com.example.helloworld.auth
 
 import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.ChatAuthRepository
+import android.util.Log
+import kotlinx.coroutines.delay
 import com.example.helloworld.notifications.DeviceTokenRepository
 
 /**
@@ -20,8 +22,15 @@ class UnifiedAuthRepository(
 ) {
     private suspend fun registerDeviceForPushNotifications() {
         // Push registration must never prevent a successful login.
-        runCatching {
-            DeviceTokenRepository().registerCurrentToken().getOrThrow()
+        val repository = DeviceTokenRepository()
+        val firstAttempt = repository.registerCurrentToken()
+        if (firstAttempt.isSuccess) return
+
+        // The Supabase session imported by admin-login can take a moment to
+        // become visible to the Auth client. Retry once without blocking login.
+        delay(750)
+        repository.registerCurrentToken().onFailure {
+            Log.e(TAG, "Push registration still failed after login", it)
         }
     }
 
@@ -71,5 +80,9 @@ class UnifiedAuthRepository(
 
         registerDeviceForPushNotifications()
         return UnifiedAuthResult.Member(profileUsername)
+    }
+
+    private companion object {
+        const val TAG = "KfccAuth"
     }
 }
