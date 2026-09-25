@@ -251,7 +251,14 @@ class ChatAuthRepository {
         ChatAuthResult(false, e.message ?: "Unable to send password reset email.")
     }
 
-    suspend fun signOut() { auth.signOut() }
+    suspend fun signOut() {
+        // Remove this installation's user-specific token before ending the
+        // Supabase session so another account on the same device cannot
+        // receive notifications intended for the previous account.
+        com.example.helloworld.notifications.DeviceTokenRepository()
+            .unregisterCurrentToken()
+        auth.signOut()
+    }
 
     companion object {
         private const val SUPABASE_FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
