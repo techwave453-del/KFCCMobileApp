@@ -2,14 +2,20 @@ package com.example.helloworld
 
 import android.app.Application
 import com.example.helloworld.data.LocalCache
+import com.example.helloworld.data.bible.BibleOfflineSeeder
 import com.example.helloworld.data.bible.BibleSyncScheduler
 import com.example.helloworld.data.offline.KfccDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 class KfccApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         LocalCache.initialize(this)
         KfccDatabase.getInstance(this)
+        runBlocking(Dispatchers.IO) {
+            BibleOfflineSeeder.seedIfNeeded(this@KfccApplication)
+        }
         BibleSyncScheduler.schedule(this)
     }
 }
