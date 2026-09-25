@@ -6,6 +6,7 @@ import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
 import com.example.helloworld.data.offline.KfccOutboxRepository
 import com.example.helloworld.data.offline.EventEntity
+import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.map
  * Public reads are offline-first through Room. Admin mutations continue to
  * use the authenticated Supabase boundary.
  */
-class EventsRepository(private val adminRepository: AdminRepository? = null) {
+class EventsRepository {
 
     private val context = KfccDataContext.appContext
     private val db = KfccDatabase.getInstance(context)
