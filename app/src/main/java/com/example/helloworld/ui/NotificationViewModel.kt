@@ -7,6 +7,7 @@ import com.example.helloworld.data.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class NotificationViewModel : ViewModel() {
@@ -22,6 +23,11 @@ class NotificationViewModel : ViewModel() {
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            repository.observeNotifications().collectLatest {
+                _notifications.value = it.sortedByDescending(AppNotification::createdAt)
+            }
+        }
         refresh()
     }
 
@@ -30,7 +36,6 @@ class NotificationViewModel : ViewModel() {
             _isLoading.value = true
             _error.value = null
             repository.getNotifications()
-                .onSuccess { _notifications.value = it }
                 .onFailure { _error.value = it.message }
             _isLoading.value = false
         }
