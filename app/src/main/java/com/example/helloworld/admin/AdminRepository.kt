@@ -49,6 +49,17 @@ private data class AdminSessionUser(
     val permissions: List<String> = emptyList()
 )
 
+@Serializable
+private data class NotificationSyncPayload(
+    val id: String,
+    val title: String,
+    val message: String,
+    val type: String,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("user_id") val userId: String? = null
+)
+
+
 class AdminRepository(context: Context) {
     private val appContext = context.applicationContext
     private val offlineDb = KfccDatabase.getInstance(appContext)
@@ -349,7 +360,13 @@ class AdminRepository(context: Context) {
             operationType = "INSERT",
             entityId = id,
             payload = Json.encodeToString(
-                mapOf("id" to id, "title" to title, "message" to message, "type" to type, "created_at" to createdAt)
+                NotificationSyncPayload(
+                    id = id,
+                    title = title,
+                    message = message,
+                    type = type,
+                    createdAt = createdAt
+                )
             )
         )
     }
