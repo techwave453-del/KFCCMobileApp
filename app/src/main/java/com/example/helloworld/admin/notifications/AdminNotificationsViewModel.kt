@@ -25,7 +25,7 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
             _error.value = null
             repository.postAnnouncement(title.trim(), body.trim(), type.trim().ifBlank { "general" })
                 .onSuccess {
-                    _message.value = "Notification queued. It will sync to Supabase when connectivity is available."
+                    _message.value = "Notification sent successfully."
                     onComplete()
                 }
                 .onFailure { _error.value = it.message ?: "Unable to send notification." }
