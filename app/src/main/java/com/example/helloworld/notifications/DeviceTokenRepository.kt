@@ -69,6 +69,8 @@ class DeviceTokenRepository {
                 platform = "android"
             )
         )
+        // Supabase Kotlin may return the affected-row count from upsert.
+        // This helper intentionally exposes Unit to its callers.
     }
 
     @Serializable
