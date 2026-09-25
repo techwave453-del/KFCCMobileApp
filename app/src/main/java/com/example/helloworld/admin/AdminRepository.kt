@@ -190,10 +190,16 @@ class AdminRepository(context: Context) {
 
         // 2. Check if there is an active session in the Supabase SDK.
         val session = client.auth.currentSessionOrNull() ?: return null
-        val user = session.user
-        
+
+        // Sessions imported by admin-login intentionally use user = null.
+        // After an app restart the persisted session can still be in that form,
+        // so retrieve the current Auth user before reading administrator metadata.
+        val user = session.user ?: runCatching {
+            client.auth.retrieveUserForCurrentSession()
+        }.getOrNull() ?: return null
+
         // 3. Extract identity from metadata. Administrators have specific app_metadata.
-        val metadata = user?.appMetadata ?: return null
+        val metadata = user.appMetadata ?: return null
         if (metadata["kfcc_admin"]?.toString()?.trim('"') != "true") return null
 
         val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
