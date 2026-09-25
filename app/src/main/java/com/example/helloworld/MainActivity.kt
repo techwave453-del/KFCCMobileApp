@@ -291,7 +291,10 @@ fun KFCCApp(
                     })
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
                     AppDestinations.PROFILE -> ProfileScreen(innerPadding, adminViewModel = adminViewModel)
-                    AppDestinations.NOTIFICATIONS -> NotificationsScreen(innerPadding)
+                    AppDestinations.NOTIFICATIONS -> NotificationsScreen(
+                        innerPadding = innerPadding,
+                        canViewNotifications = chatSignedIn || adminUser != null
+                    )
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
                     AppDestinations.VERSION -> VersionScreen(innerPadding)
