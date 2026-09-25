@@ -100,9 +100,25 @@ fun KFCCApp(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("KFCC Menu", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { scope.launch { drawerState.close() } }) { Icon(Icons.Default.Close, "Close menu") }
+                Row(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AsyncImage(
+                        model = churchInfo.logoUrl.ifBlank { null },
+                        contentDescription = churchInfo.churchName,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        churchInfo.churchName.ifBlank { "KFCC" },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { scope.launch { drawerState.close() } }) {
+                        Icon(Icons.Default.Close, "Close menu")
+                    }
                 }
                 HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
