@@ -20,7 +20,13 @@ object SupabaseProvider {
             supabaseUrl = SUPABASE_URL,
             supabaseKey = AppConfig.SUPABASE_PUBLISHABLE_KEY
         ) {
-            install(Auth)
+            install(Auth) {
+                // Keep the user's Supabase session across app restarts and
+                // refresh access tokens automatically. A session is ended only
+                // by an explicit sign-out or Supabase session expiry/security event.
+                autoLoadFromStorage = true
+                alwaysAutoRefresh = true
+            }
             install(Postgrest)
             install(Storage)
             install(Realtime) {}
