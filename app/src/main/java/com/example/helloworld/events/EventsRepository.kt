@@ -67,7 +67,7 @@ class EventsRepository {
             display_order = input.display_order
         )
         db.eventDao().upsertAll(listOf(toEventEntity(optimistic)))
-        outbox.enqueue("events", "INSERT", null, json.encodeToString(input))
+        outbox.enqueue("events", "INSERT", localId.toString(), json.encodeToString(input))
         optimistic
     }
 
