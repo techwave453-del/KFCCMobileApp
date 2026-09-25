@@ -30,6 +30,12 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
+        CoroutineScope(Dispatchers.IO).launch {
+            handleIncomingMessage(message)
+        }
+    }
+
+    private suspend fun handleIncomingMessage(message: RemoteMessage) {
         val body = message.notification?.body
             ?: message.data["message"]
             ?: return
