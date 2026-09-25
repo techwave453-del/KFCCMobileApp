@@ -77,8 +77,11 @@ fun KFCCApp(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? MainActivity
 
-    LaunchedEffect(churchInfo.churchName) { title = churchInfo.churchName.ifBlank { "KFCC" } }
+    LaunchedEffect(churchInfo.churchName) {
+        activity?.title = churchInfo.churchName.ifBlank { "KFCC" }
+    }
 
     LaunchedEffect(drawerOpen) {
         if (drawerOpen) drawerState.open() else drawerState.close()
