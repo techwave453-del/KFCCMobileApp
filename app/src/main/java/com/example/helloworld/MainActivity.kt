@@ -64,7 +64,11 @@ class MainActivity : ComponentActivity() {
             val prefsViewModel: PreferencesViewModel = viewModel()
             val isDarkMode by prefsViewModel.isDarkMode.collectAsState()
             KFCCTheme(darkTheme = isDarkMode) {
-                KFCCApp(\n                    openNotifications = openNotifications,\n                    onNotificationOpened = { openNotifications = false }\n                )\n            }
+                KFCCApp(
+                    openNotifications = openNotifications,
+                    onNotificationOpened = { openNotifications = false }
+                )
+            }
         }
     }
 
