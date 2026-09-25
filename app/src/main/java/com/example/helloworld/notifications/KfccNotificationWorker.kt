@@ -14,6 +14,8 @@ import com.example.helloworld.MainActivity
 import com.example.helloworld.R
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
+import io.github.jan.supabase.auth.auth
+import com.example.helloworld.data.SupabaseProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -25,25 +27,42 @@ class KfccNotificationWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         runCatching {
             val repository = NotificationRepository()
-            val notifications = repository.syncFromServer().getOrThrow()
-            if (notifications.isEmpty()) return@runCatching Result.success()
-
             val preferences = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val delivered = preferences.getStringSet(KEY_DELIVERED, emptySet()).orEmpty().toMutableSet()
-            val initialized = preferences.getBoolean(KEY_INITIALIZED, false)
-
-            if (!initialized) {
-                delivered.addAll(notifications.map(AppNotification::id))
-                saveDelivered(preferences, delivered)
-                preferences.edit().putBoolean(KEY_INITIALIZED, true).apply()
-                return@runCatching Result.success()
-            }
+            val mode = inputData.getString(KfccNotificationScheduler.KEY_MODE)
 
             val churchName = NotificationBrandRepository().getChurchName().ifBlank { "Church" }
             ensureChannel(churchName)
+
             val manager = NotificationManagerCompat.from(applicationContext)
             if (!manager.areNotificationsEnabled()) return@runCatching Result.success()
 
+            if (mode == KfccNotificationScheduler.MODE_SIGN_IN) {
+                val defaultNotification = repository.getPublicDefault(onInstall = false).getOrNull()
+                if (defaultNotification != null && defaultNotification.id !in delivered) {
+                    postNotification(defaultNotification)
+                    delivered.add(defaultNotification.id)
+                    saveDelivered(preferences, delivered)
+                }
+                return@runCatching Result.success()
+            }
+
+            val initialized = preferences.getBoolean(KEY_INITIALIZED, false)
+            if (!initialized) {
+                val installDefault = repository.getPublicDefault(onInstall = true).getOrNull()
+                if (installDefault != null && installDefault.id !in delivered) {
+                    postNotification(installDefault)
+                    delivered.add(installDefault.id)
+                }
+                saveDelivered(preferences, delivered)
+                preferences.edit().putBoolean(KEY_INITIALIZED, true).apply()
+            }
+
+            if (SupabaseProvider.client.auth.currentUserOrNull() == null) {
+                return@runCatching Result.success()
+            }
+
+            val notifications = repository.syncFromServer().getOrThrow()
             notifications.asReversed()
                 .filter { it.id !in delivered }
                 .forEach { notification ->
