@@ -68,6 +68,7 @@ object AdminPermissions {
     const val USERS_DELETE = "users.delete"
     const val USERS_PERMISSIONS = "users.permissions"
     const val AUDIT_VIEW = "audit.view"
+    const val NOTIFICATIONS_SEND = "notifications.send"
 }
 
 fun AdminUser.hasPermission(permission: String): Boolean =
