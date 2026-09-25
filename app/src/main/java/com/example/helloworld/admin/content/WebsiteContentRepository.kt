@@ -52,7 +52,9 @@ class WebsiteContentRepository {
 
     suspend fun updateSection(sectionId: Long, heading: String, body: String, media: String, eyebrow: String): Result<Unit> = runCatching {
         val existing = client.from("cms_sections")
-            .select(Columns.list("content"))
+            .select(Columns.list("content")) {
+                filter { eq("id", sectionId) }
+            }
             .decodeSingle<CmsSectionContentRow>()
         val payload = buildJsonObject {
             existing.content.forEach { (key, value) -> put(key, value) }
