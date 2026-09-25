@@ -12,6 +12,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +36,12 @@ fun NotificationsScreen(
     val context = LocalContext.current
     val notificationsEnabled = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         NotificationManagerCompat.from(context).areNotificationsEnabled()
+    LaunchedEffect(notifications) {
+        if (notifications.isNotEmpty() && notifications.any { it.readAt == null }) {
+            viewModel.markAllAsRead()
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
