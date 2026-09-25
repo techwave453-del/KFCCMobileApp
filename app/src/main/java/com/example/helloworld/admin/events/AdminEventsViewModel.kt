@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.helloworld.admin.AdminRepositoryProvider
 import com.example.helloworld.events.Event
 import com.example.helloworld.events.EventInput
 import com.example.helloworld.events.EventsRepository
@@ -15,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AdminEventsViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = EventsRepository(AdminRepositoryProvider.get(application))
+    private val repository = EventsRepository()
     private val _events = MutableStateFlow<List<Event>>(emptyList())
     val events: StateFlow<List<Event>> = _events.asStateFlow()
     private val _loading = MutableStateFlow(false)
