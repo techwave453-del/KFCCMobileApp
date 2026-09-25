@@ -2,7 +2,7 @@ package com.example.helloworld.data
 
 import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
-import com.example.helloworld.data.offline.KfccDatabase
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.Flow
 
