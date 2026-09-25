@@ -22,6 +22,7 @@ class DeviceTokenRepository {
         registerTokenForUser(userId, token)
 
         Log.i(TAG, "FCM device token registered for Supabase user $userId")
+        Unit
     }.onFailure {
         Log.e(TAG, "FCM device token registration failed", it)
     }
@@ -32,6 +33,7 @@ class DeviceTokenRepository {
 
         registerTokenForUser(userId, token)
         Log.i(TAG, "Refreshed FCM device token registered for Supabase user $userId")
+        Unit
     }.onFailure {
         Log.e(TAG, "Refreshed FCM device token registration failed", it)
     }
@@ -69,8 +71,6 @@ class DeviceTokenRepository {
                 platform = "android"
             )
         )
-        // Supabase Kotlin may return the affected-row count from upsert.
-        // This helper intentionally exposes Unit to its callers.
     }
 
     @Serializable
