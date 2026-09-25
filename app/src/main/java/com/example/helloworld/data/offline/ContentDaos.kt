@@ -28,6 +28,8 @@ interface MediaItemDao {
     suspend fun upsertAll(items: List<MediaItemEntity>)
     @Query("DELETE FROM media_items_cache")
     suspend fun clear()
+    @Query("DELETE FROM media_items_cache WHERE id >= 0")
+    suspend fun deleteServerBacked()
     @Query("DELETE FROM media_items_cache WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
@@ -42,6 +44,8 @@ interface EventDao {
     suspend fun upsertAll(items: List<EventEntity>)
     @Query("DELETE FROM events_cache")
     suspend fun clear()
+    @Query("DELETE FROM events_cache WHERE id >= 0")
+    suspend fun deleteServerBacked()
     @Query("DELETE FROM events_cache WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
