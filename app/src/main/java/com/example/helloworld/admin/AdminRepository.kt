@@ -66,6 +66,17 @@ private data class NotificationSyncPayload(
 )
 
 
+@Serializable
+private data class NotificationManagementUpdate(
+    val title: String? = null,
+    val message: String? = null,
+    val type: String? = null,
+    @SerialName("is_enabled") val isEnabled: Boolean? = null,
+    @SerialName("show_on_install") val showOnInstall: Boolean? = null,
+    @SerialName("show_on_sign_in") val showOnSignIn: Boolean? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+)
+
 class AdminRepository(context: Context) {
     private val appContext = context.applicationContext
     private val offlineDb = KfccDatabase.getInstance(appContext)
@@ -368,14 +379,14 @@ class AdminRepository(context: Context) {
         showOnSignIn: Boolean
     ): Result<Unit> = runCatching {
         client.from("app_notifications").update(
-            mapOf(
-                "title" to title.trim(),
-                "message" to message.trim(),
-                "type" to type.trim().ifBlank { "general" },
-                "is_enabled" to isEnabled,
-                "show_on_install" to showOnInstall,
-                "show_on_sign_in" to showOnSignIn,
-                "updated_at" to java.time.Instant.now().toString()
+            NotificationManagementUpdate(
+                title = title.trim(),
+                message = message.trim(),
+                type = type.trim().ifBlank { "general" },
+                isEnabled = isEnabled,
+                showOnInstall = showOnInstall,
+                showOnSignIn = showOnSignIn,
+                updatedAt = java.time.Instant.now().toString()
             )
         ) {
             filter { eq("id", id) }
@@ -429,14 +440,14 @@ class AdminRepository(context: Context) {
 
     suspend fun setInstallDefault(id: String, enabled: Boolean): Result<Unit> = runCatching {
         if (enabled) {
-            client.from("app_notifications").update(mapOf("show_on_install" to false)) {
+            client.from("app_notifications").update(NotificationManagementUpdate(showOnInstall = false)) {
                 filter { eq("show_on_install", true) }
             }
         }
         client.from("app_notifications").update(
-            mapOf(
-                "show_on_install" to enabled,
-                "updated_at" to java.time.Instant.now().toString()
+            NotificationManagementUpdate(
+                showOnInstall = enabled,
+                updatedAt = java.time.Instant.now().toString()
             )
         ) {
             filter { eq("id", id) }
@@ -445,14 +456,14 @@ class AdminRepository(context: Context) {
 
     suspend fun setSignInDefault(id: String, enabled: Boolean): Result<Unit> = runCatching {
         if (enabled) {
-            client.from("app_notifications").update(mapOf("show_on_sign_in" to false)) {
+            client.from("app_notifications").update(NotificationManagementUpdate(showOnSignIn = false)) {
                 filter { eq("show_on_sign_in", true) }
             }
         }
         client.from("app_notifications").update(
-            mapOf(
-                "show_on_sign_in" to enabled,
-                "updated_at" to java.time.Instant.now().toString()
+            NotificationManagementUpdate(
+                showOnSignIn = enabled,
+                updatedAt = java.time.Instant.now().toString()
             )
         ) {
             filter { eq("id", id) }
