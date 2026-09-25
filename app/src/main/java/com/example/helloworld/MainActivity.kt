@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import coil.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -77,6 +78,8 @@ fun KFCCApp(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
 
+    LaunchedEffect(churchInfo.churchName) { title = churchInfo.churchName.ifBlank { "KFCC" } }
+
     LaunchedEffect(drawerOpen) {
         if (drawerOpen) drawerState.open() else drawerState.close()
     }
@@ -136,7 +139,13 @@ fun KFCCApp(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text(churchInfo.churchName.ifBlank { "KFCC" }) },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(model = churchInfo.logoUrl.ifBlank { null }, contentDescription = churchInfo.churchName, modifier = Modifier.size(32.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(churchInfo.churchName.ifBlank { "KFCC" })
+                        }
+                    },
                     navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } }
                 )
             },
