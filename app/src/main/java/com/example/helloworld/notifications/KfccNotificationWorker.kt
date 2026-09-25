@@ -73,6 +73,7 @@ class KfccNotificationWorker(
     private fun postNotification(notification: AppNotification) {
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
