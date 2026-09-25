@@ -18,6 +18,7 @@ import io.github.jan.supabase.auth.auth
 import com.example.helloworld.data.SupabaseProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalTime
 
 class KfccNotificationWorker(
     appContext: Context,
@@ -37,12 +38,45 @@ class KfccNotificationWorker(
             val manager = NotificationManagerCompat.from(applicationContext)
             if (!manager.areNotificationsEnabled()) return@runCatching Result.success()
 
+            if (mode == KfccNotificationScheduler.MODE_SIGN_UP) {
+                val username = inputData.getString(KfccNotificationScheduler.KEY_USERNAME).orEmpty()
+                if (username.isNotBlank()) {
+                    val greeting = when (LocalTime.now().hour) {
+                        in 5..11 -> "Good morning"
+                        in 12..16 -> "Good afternoon"
+                        in 17..20 -> "Good evening"
+                        else -> "Good evening"
+                    }
+                    val signupNotification = AppNotification(
+                        id = "signup-${System.currentTimeMillis()}-${username.hashCode()}",
+                        title = "Welcome to $churchName",
+                        message = "$greeting, $username! Your KFCC account has been created successfully. Please verify your email, then sign in to continue.",
+                        type = "welcome",
+                        createdAt = java.time.Instant.now().toString()
+                    )
+                    postNotification(signupNotification)
+                }
+                return@runCatching Result.success()
+            }
+
             if (mode == KfccNotificationScheduler.MODE_SIGN_IN) {
+                val postedIds = mutableSetOf<String>()
+
                 val defaultNotification = repository.getPublicDefault(onInstall = false).getOrNull()
-                if (defaultNotification != null && defaultNotification.id !in delivered) {
+                if (defaultNotification != null) {
                     postNotification(defaultNotification)
-                    delivered.add(defaultNotification.id)
-                    saveDelivered(preferences, delivered)
+                    postedIds.add(defaultNotification.id)
+                }
+
+                if (SupabaseProvider.client.auth.currentUserOrNull() != null) {
+                    val unread = repository.syncFromServer().getOrThrow()
+                        .filter { it.readAt == null }
+                        .sortedBy { it.createdAt }
+
+                    unread.filter { it.id !in postedIds }.forEach { notification ->
+                        postNotification(notification)
+                        postedIds.add(notification.id)
+                    }
                 }
                 return@runCatching Result.success()
             }
@@ -64,7 +98,7 @@ class KfccNotificationWorker(
 
             val notifications = repository.syncFromServer().getOrThrow()
             notifications.asReversed()
-                .filter { it.id !in delivered }
+                .filter { it.id !in delivered && it.readAt == null }
                 .forEach { notification ->
                     postNotification(notification)
                     delivered.add(notification.id)
