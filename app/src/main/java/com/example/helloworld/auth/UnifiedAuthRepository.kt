@@ -1,37 +1,33 @@
 package com.example.helloworld.auth
 
+import android.util.Log
 import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.ChatAuthRepository
-import android.util.Log
-import kotlinx.coroutines.delay
+import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.notifications.DeviceTokenRepository
+import com.example.helloworld.notifications.KfccNotificationScheduler
+import kotlinx.coroutines.delay
 
 /**
  * Single sign-in coordinator.
- *
- * Registration uses an email only for email verification. After verification,
- * both account types authenticate with username + password:
- * - administrator username -> administrator session
- * - member username -> community session
- *
- * A successful member authentication never opens administration.
  */
 class UnifiedAuthRepository(
     private val adminRepository: AdminRepository,
     private val chatRepository: ChatAuthRepository
 ) {
     private suspend fun registerDeviceForPushNotifications() {
-        // Push registration must never prevent a successful login.
         val repository = DeviceTokenRepository()
         val firstAttempt = repository.registerCurrentToken()
         if (firstAttempt.isSuccess) return
 
-        // The Supabase session imported by admin-login can take a moment to
-        // become visible to the Auth client. Retry once without blocking login.
         delay(750)
         repository.registerCurrentToken().onFailure {
             Log.e(TAG, "Push registration still failed after login", it)
         }
+    }
+
+    private fun scheduleSignInNotification() {
+        KfccNotificationScheduler.deliverSignInDefault(KfccDataContext.appContext)
     }
 
     suspend fun signIn(identifier: String, password: String): UnifiedAuthResult {
@@ -40,27 +36,26 @@ class UnifiedAuthRepository(
             "Enter your email or username and password."
         }
 
-        // 1. If it looks like an email, try direct member sign-in first.
         if (input.contains("@") && input.contains(".")) {
             val result = chatRepository.signIn(input, password)
             if (result.success) {
                 chatRepository.completeProfile()
                 val profile = chatRepository.getProfile().getOrNull()
                 registerDeviceForPushNotifications()
+                scheduleSignInNotification()
                 return UnifiedAuthResult.Member(profile?.username ?: input.substringBefore("@"))
             }
         }
 
         val username = input.removePrefix("@").lowercase()
 
-        // 2. Administrator authentication via Edge Function.
         val admin = adminRepository.login(username, password)
         if (admin.ok && admin.user != null) {
             registerDeviceForPushNotifications()
+            scheduleSignInNotification()
             return UnifiedAuthResult.Administrator(admin.user.username)
         }
 
-        // 3. Member authentication by username via Edge Function.
         val member = chatRepository.signInWithUsername(username, password)
         if (!member.success) {
             throw IllegalArgumentException(
@@ -75,10 +70,10 @@ class UnifiedAuthRepository(
             )
         }
 
-        val profileUsername = chatRepository.getProfile().getOrNull()?.username
-            ?: username
+        val profileUsername = chatRepository.getProfile().getOrNull()?.username ?: username
 
         registerDeviceForPushNotifications()
+        scheduleSignInNotification()
         return UnifiedAuthResult.Member(profileUsername)
     }
 
