@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.admin.AdminRepository
 import com.example.helloworld.data.ChurchInfo
+import com.example.helloworld.data.offline.KfccContentRepository
+import com.example.helloworld.data.offline.KfccDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 class WebsiteContentViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WebsiteContentRepository()
     private val legacyRepository = AdminRepository(application)
+    private val offlineRepository = KfccContentRepository(KfccDatabase.getInstance(application))
     private val _content = MutableStateFlow(ChurchInfo())
     val content: StateFlow<ChurchInfo> = _content.asStateFlow()
     private val _pages = MutableStateFlow<List<CmsPage>>(emptyList())
@@ -37,7 +40,7 @@ class WebsiteContentViewModel(application: Application) : AndroidViewModel(appli
     fun refresh() = viewModelScope.launch {
         _loading.value = true
         _error.value = null
-        legacyRepository.loadSiteContent()
+        runCatching { offlineRepository.getChurchInfo() }
             .onSuccess { _content.value = it }
             .onFailure { _error.value = it.message ?: "Unable to load website content." }
         repository.loadPages()
