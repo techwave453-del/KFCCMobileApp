@@ -46,6 +46,9 @@ interface EventDao {
 
     @Query("DELETE FROM events_cache")
     suspend fun clear()
+
+    @Query("DELETE FROM events_cache WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
 
 @Dao
