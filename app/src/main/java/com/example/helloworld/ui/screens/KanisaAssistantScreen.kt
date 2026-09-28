@@ -20,8 +20,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -329,7 +327,6 @@ private fun AssistantBubble(
     onDelete: () -> Unit = {}
 ) {
     val own = message.role == "user"
-    val clipboard = LocalClipboardManager.current
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (own) Arrangement.End else Arrangement.Start
@@ -338,9 +335,7 @@ private fun AssistantBubble(
             modifier = Modifier
                 .widthIn(max = 320.dp)
                 .combinedClickable(
-                    onClick = {
-                        clipboard.setText(AnnotatedString(message.content))
-                    },
+                    onClick = {},
                     onLongClick = onDelete
                 ),
             shape = RoundedCornerShape(
