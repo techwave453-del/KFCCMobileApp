@@ -457,8 +457,7 @@ private fun ChatBubble(
         }
 
         Column(horizontalAlignment = if (own) Alignment.End else Alignment.Start) {
-            if (!own) {
-                // ... (Username code remains same)
+            if (!own && !isKanisa) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = profile?.username ?: "Member",
