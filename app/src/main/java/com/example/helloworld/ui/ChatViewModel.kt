@@ -303,7 +303,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createGroup(title: String) {
+    fun createGroup(title: String, isAdmin: Boolean) {
+        if (!isAdmin) {
+            _error.value = "Only administrators can create community groups."
+            return
+        }
         viewModelScope.launch {
             _loading.value = true
             chatRepository.createGroup(title)
