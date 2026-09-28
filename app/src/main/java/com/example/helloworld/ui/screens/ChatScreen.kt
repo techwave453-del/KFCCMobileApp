@@ -416,6 +416,7 @@ private fun ChatBubble(
     }
     val profile = message.senderProfile
     val isAdmin = profile?.is_admin_visible == true
+    val isKanisa = message.senderId == ChatViewModel.KANISA_ASSISTANT_ID
     var showMenu by remember { mutableStateOf(false) }
 
     Row(
@@ -428,7 +429,7 @@ private fun ChatBubble(
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = if (isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
+                color = if (isKanisa) MaterialTheme.colorScheme.primaryContainer else if (isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (profile?.avatar_url?.isNotBlank() == true) {
@@ -438,6 +439,8 @@ private fun ChatBubble(
                             modifier = Modifier.fillMaxSize().clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
+                    } else if (isKanisa) {
+                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
                     } else if (isAdmin) {
                         Icon(Icons.Default.Security, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary)
                     } else {
@@ -460,9 +463,14 @@ private fun ChatBubble(
                         text = profile?.username ?: "Member",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isKanisa || isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (isAdmin) {
+                    if (isKanisa) {
+                        Spacer(Modifier.width(4.dp))
+                        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(4.dp)) {
+                            Text("AI ASSISTANT", modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp), style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else if (isAdmin) {
                         Spacer(Modifier.width(4.dp))
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -482,7 +490,7 @@ private fun ChatBubble(
 
             Box {
                 Surface(
-                    color = if (own) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    color = if (isKanisa) MaterialTheme.colorScheme.primaryContainer else if (own) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(
                         topStart = 16.dp, 
                         topEnd = 16.dp, 
@@ -527,7 +535,7 @@ private fun ChatBubble(
                         Text(
                             text = message.message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isKanisa) MaterialTheme.colorScheme.onPrimaryContainer else if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -538,7 +546,7 @@ private fun ChatBubble(
                                     text = "Edited",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 8.sp,
-                                    color = (if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.5f),
+                                    color = (if (isKanisa) MaterialTheme.colorScheme.onPrimaryContainer else if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.5f),
                                     modifier = Modifier.padding(end = 4.dp)
                                 )
                             }
@@ -546,7 +554,7 @@ private fun ChatBubble(
                                 text = if (date != null) timeFormat.format(date) else "",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
-                                color = (if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.7f)
+                                color = (if (isKanisa) MaterialTheme.colorScheme.onPrimaryContainer else if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.7f)
                             )
                         }
                     }
