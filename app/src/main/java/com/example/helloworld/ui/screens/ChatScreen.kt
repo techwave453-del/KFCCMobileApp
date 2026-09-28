@@ -540,7 +540,7 @@ private fun ChatBubble(
                     ),
                     tonalElevation = 1.dp,
                     modifier = Modifier
-                        .widthIn(max = 280.dp)
+                        .widthIn(max = 360.dp)
                         .combinedClickable(
                             onLongClick = { showMenu = true },
                             onClick = {}
