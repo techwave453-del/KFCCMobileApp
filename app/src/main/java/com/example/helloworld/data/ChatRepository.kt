@@ -178,6 +178,21 @@ class ChatRepository {
         }
     }
 
+    suspend fun clearMyMessages(roomId: String, senderId: String): Result<Unit> = runCatching {
+        require(roomId.isNotBlank()) { "Chat room is not available." }
+        require(senderId.isNotBlank()) { "Please sign in again." }
+
+        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
+        client.from("chat_messages").update(
+            mapOf("deleted_at" to now)
+        ) {
+            filter {
+                eq("room_id", roomId)
+                eq("sender_id", senderId)
+            }
+        }
+    }
+
     suspend fun createGroup(title: String): Result<ChatRoom> = runCatching {
         require(title.trim().isNotEmpty()) { "Group name cannot be empty." }
         val session = client.auth.currentSessionOrNull()
