@@ -191,7 +191,7 @@ async function bibleContext(question: string) {
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
     .join(",");
 
-  const { data: candidates: rawCandidates, error: bibleSearchError } = await supabase
+  const { data: rawCandidates, error: bibleSearchError } = await supabase
     .from("bible_verses")
     .select("book_id,chapter,verse,text")
     .eq("translation_id", translation)
