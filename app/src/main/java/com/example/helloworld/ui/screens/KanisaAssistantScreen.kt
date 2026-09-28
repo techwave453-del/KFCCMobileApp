@@ -30,6 +30,7 @@ import com.example.helloworld.ui.KanisaAssistantViewModel
 fun KanisaAssistantScreen(
     innerPadding: PaddingValues,
     onBack: () -> Unit,
+    onOpenBibleReference: (String) -> Unit = {},
     viewModel: KanisaAssistantViewModel = viewModel()
 ) {
     val messages by viewModel.messages.collectAsState()
@@ -108,7 +109,10 @@ fun KanisaAssistantScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(messages, key = { it.id }) { message ->
-                AssistantBubble(message)
+                AssistantBubble(
+                    message = message,
+                    onOpenBibleReference = onOpenBibleReference
+                )
             }
             if (sending) {
                 item {
@@ -215,7 +219,10 @@ private fun Suggestion(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AssistantBubble(message: KanisaAssistantUiMessage) {
+private fun AssistantBubble(
+    message: KanisaAssistantUiMessage,
+    onOpenBibleReference: (String) -> Unit
+) {
     val own = message.role == "user"
     Row(
         Modifier.fillMaxWidth(),
@@ -255,7 +262,7 @@ private fun AssistantBubble(message: KanisaAssistantUiMessage) {
                     Spacer(Modifier.height(8.dp))
                     message.bibleReferences.forEach { reference ->
                         AssistChip(
-                            onClick = { },
+                            onClick = { onOpenBibleReference(reference) },
                             label = { Text(reference) },
                             leadingIcon = {
                                 Icon(Icons.Default.MenuBook, null, Modifier.size(16.dp))
