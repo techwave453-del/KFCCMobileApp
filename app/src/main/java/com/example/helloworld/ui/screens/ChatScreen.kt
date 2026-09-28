@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -491,6 +492,7 @@ private fun ChatBubble(
             Box {
                 Surface(
                     color = if (isKanisa) MaterialTheme.colorScheme.primaryContainer else if (own) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    border = if (isKanisa) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)) else null,
                     shape = RoundedCornerShape(
                         topStart = 16.dp, 
                         topEnd = 16.dp, 
@@ -505,7 +507,41 @@ private fun ChatBubble(
                             onClick = {}
                         )
                 ) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = if (isKanisa) 14.dp else 12.dp, vertical = if (isKanisa) 10.dp else 8.dp)) {
+                        if (isKanisa) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(bottom = 7.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "Kanisa Assistant",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        "AI",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 8.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
                         if (repliedToMessage != null) {
                             Surface(
                                 color = (if (own) Color.White else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
@@ -596,12 +632,79 @@ private fun ChatInput(
     onCancelEdit: () -> Unit = {},
     onCancelReply: () -> Unit = {}
 ) {
+    val mentionText = input.substringAfterLast(" ", missingDelimiterValue = input)
+    val showKanisaSuggestion = enabled &&
+        !isEditing &&
+        mentionText.startsWith("@") &&
+        mentionText.length <= 32
+
+    fun insertKanisaMention() {
+        val beforeMention = input.substringBeforeLast(" ", missingDelimiterValue = "")
+        onInputChange(
+            if (beforeMention.isBlank()) "@Kanisa " else "$beforeMention @Kanisa "
+        )
+    }
+
     Surface(
         tonalElevation = 8.dp,
         shadowElevation = 16.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
+            if (showKanisaSuggestion) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { insertKanisaMention() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(36.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(19.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Kanisa Assistant",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                "Ask about the Bible, church or services",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = "Select Kanisa Assistant",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            if (isEditing) {
             if (isEditing) {
                 Row(
                     Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)).padding(horizontal = 16.dp, vertical = 4.dp),
