@@ -22,7 +22,11 @@ import kotlinx.coroutines.launch
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = ChatAuthRepository()
     private val chatRepository = ChatRepository()
+    private val kanisaAssistantRepository = KanisaAssistantRepository()
     private val context = application.applicationContext
+
+    private val _assistantMessages = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
+    private val assistantMessages: StateFlow<Map<String, List<ChatMessage>>> = _assistantMessages.asStateFlow()
 
     private val _signedIn = MutableStateFlow(authRepository.isSignedIn())
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
@@ -30,11 +34,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _roomId = MutableStateFlow<String?>(null)
     val roomId: StateFlow<String?> = _roomId.asStateFlow()
 
-    val messages: StateFlow<List<ChatMessage>> = roomId
-        .flatMapLatest { id ->
-            if (id != null) chatRepository.getLocalMessages(id, context)
-            else flowOf(emptyList())
-        }
+    val messages: StateFlow<List<ChatMessage>> = combine(
+        roomId.flatMapLatest { id -> if (id != null) chatRepository.getLocalMessages(id, context) else flowOf(emptyList()) },
+        roomId.map { id -> if (id != null) assistantMessages.value[id].orEmpty() else emptyList() }
+    ) { local, assistant -> (local + assistant).sortedBy { it.createdAt } }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val rooms: StateFlow<List<ChatRoom>> = chatRepository.getLocalRooms(context)
@@ -171,13 +174,60 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendMessage(text: String) {
         val id = roomId.value ?: return
-        if (text.isBlank()) return
+        val cleanText = text.trim()
+        if (cleanText.isBlank()) return
 
         viewModelScope.launch {
             val myId = currentUserId() ?: ""
-            chatRepository.saveMessageOffline(id, text, myId, context)
+            chatRepository.saveMessageOffline(id, cleanText, myId, context)
             _replyingTo.value = null
+            if (isDirectedToKanisa(cleanText)) askKanisaInRoom(id, cleanText)
         }
+    }
+
+    private fun isDirectedToKanisa(text: String): Boolean {
+        val normalized = text.lowercase().trim()
+        return normalized.contains("@kanisa") ||
+            Regex("\\bkanisa(?: assistant)?\\b").containsMatchIn(normalized)
+    }
+
+    private fun askKanisaInRoom(roomId: String, originalText: String) {
+        viewModelScope.launch {
+            val prompt = originalText
+                .replace(Regex("@kanisa(?:\\s+assistant)?", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("\\bkanisa(?:\\s+assistant)?\\b", RegexOption.IGNORE_CASE), "")
+                .trim()
+                .ifBlank { "Please respond to my message in this chat." }
+
+            kanisaAssistantRepository.ask(prompt).onSuccess { response ->
+                addKanisaMessage(roomId, response.answer, response.assistant_name.ifBlank { "Kanisa Assistant" })
+            }.onFailure { failure ->
+                addKanisaMessage(roomId, "I’m here, but I couldn't answer that right now. " + failure.message.orEmpty().trim(), "Kanisa Assistant")
+            }
+        }
+    }
+
+    private fun addKanisaMessage(roomId: String, text: String, username: String) {
+        val assistantMessage = ChatMessage(
+            id = "kanisa-" + System.currentTimeMillis(),
+            roomId = roomId,
+            senderId = KANISA_ASSISTANT_ID,
+            message = text,
+            createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).format(java.util.Date()),
+            senderProfile = ChatProfile(
+                user_id = KANISA_ASSISTANT_ID,
+                username = username,
+                display_name = "AI Bible & Church Assistant",
+                is_admin_visible = false
+            )
+        )
+        _assistantMessages.update { current ->
+            current + (roomId to (current[roomId].orEmpty() + assistantMessage).takeLast(50))
+        }
+    }
+
+    companion object {
+        const val KANISA_ASSISTANT_ID = "kanisa-assistant"
     }
 
     fun setReplyingTo(message: ChatMessage?) {
