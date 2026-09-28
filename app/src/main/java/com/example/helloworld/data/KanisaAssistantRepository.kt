@@ -1,5 +1,6 @@
 package com.example.helloworld.data
 
+import io.github.jan.supabase.auth.auth
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
