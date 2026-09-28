@@ -1,5 +1,7 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.ui.KanisaAssistantUiMessage
 import com.example.helloworld.ui.KanisaAssistantViewModel
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun KanisaAssistantScreen(
     innerPadding: PaddingValues,
@@ -37,6 +42,8 @@ fun KanisaAssistantScreen(
     val sending by viewModel.sending.collectAsState()
     val error by viewModel.error.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
+    var showClearDialog by remember { mutableStateOf(false) }
+    var messageToDelete by remember { mutableStateOf<KanisaAssistantUiMessage?>(null) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -87,6 +94,14 @@ fun KanisaAssistantScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (messages.any { it.role == "user" }) {
+                    IconButton(
+                        onClick = { showClearDialog = true },
+                        enabled = !sending
+                    ) {
+                        Icon(Icons.Default.DeleteSweep, "Clear assistant chat")
+                    }
+                }
                 if (sending) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
@@ -111,7 +126,8 @@ fun KanisaAssistantScreen(
             items(messages, key = { it.id }) { message ->
                 AssistantBubble(
                     message = message,
-                    onOpenBibleReference = onOpenBibleReference
+                    onOpenBibleReference = onOpenBibleReference,
+                    onDelete = { if (message.id != 0L) messageToDelete = message }
                 )
             }
             if (sending) {
@@ -211,6 +227,46 @@ fun KanisaAssistantScreen(
             }
         }
     }
+
+    if (messageToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { messageToDelete = null },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
+            title = { Text("Delete message?") },
+            text = { Text("This removes this message from your Kanisa Assistant conversation.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteMessage(messageToDelete!!.id)
+                        messageToDelete = null
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { messageToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+            title = { Text("Clear assistant chat?") },
+            text = { Text("This removes the current conversation from this device. It does not delete church or Bible data.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearMessages()
+                        showClearDialog = false
+                    }
+                ) { Text("Clear", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -221,7 +277,8 @@ private fun Suggestion(label: String, onClick: () -> Unit) {
 @Composable
 private fun AssistantBubble(
     message: KanisaAssistantUiMessage,
-    onOpenBibleReference: (String) -> Unit
+    onOpenBibleReference: (String) -> Unit,
+    onDelete: () -> Unit = {}
 ) {
     val own = message.role == "user"
     Row(
@@ -229,7 +286,12 @@ private fun AssistantBubble(
         horizontalArrangement = if (own) Arrangement.End else Arrangement.Start
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = 320.dp),
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = onDelete
+                ),
             shape = RoundedCornerShape(
                 topStart = 18.dp,
                 topEnd = 18.dp,
