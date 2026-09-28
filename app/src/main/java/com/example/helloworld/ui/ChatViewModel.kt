@@ -36,7 +36,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     val messages: StateFlow<List<ChatMessage>> = combine(
         roomId.flatMapLatest { id -> if (id != null) chatRepository.getLocalMessages(id, context) else flowOf(emptyList()) },
-        roomId.map { id -> if (id != null) assistantMessages.value[id].orEmpty() else emptyList() }
+        combine(roomId, assistantMessages) { id, all -> if (id != null) all[id].orEmpty() else emptyList() }
     ) { local, assistant -> (local + assistant).sortedBy { it.createdAt } }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
