@@ -71,7 +71,8 @@ fun ChatScreen(
                 adminUser,
                 churchInfo.churchName,
                 innerPadding,
-                onOpenAssistant = { showAssistant = true }
+                onOpenAssistant = { showAssistant = true },
+                onOpenBibleReference = onOpenBibleReference
             )
         }
     } else {
@@ -93,7 +94,8 @@ private fun CommunityChat(
     adminUser: AdminUser?, 
     churchName: String,
     innerPadding: PaddingValues,
-    onOpenAssistant: () -> Unit = {}
+    onOpenAssistant: () -> Unit = {},
+    onOpenBibleReference: (String) -> Unit = {}
 ) {
     val messages by viewModel.messages.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -210,7 +212,8 @@ private fun CommunityChat(
                                         input = it.message
                                     },
                                     onDelete = { viewModel.deleteMessage(it.id) },
-                                    onReply = { viewModel.setReplyingTo(it) }
+                                    onReply = { viewModel.setReplyingTo(it) },
+                                    onOpenBibleReference = onOpenBibleReference
                                 )
                             }
                         }
@@ -408,7 +411,8 @@ private fun ChatBubble(
     repliedToMessage: ChatMessage? = null,
     onEdit: (ChatMessage) -> Unit = {},
     onDelete: (ChatMessage) -> Unit = {},
-    onReply: (ChatMessage) -> Unit = {}
+    onReply: (ChatMessage) -> Unit = {},
+    onOpenBibleReference: (String) -> Unit = {}
 ) {
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val date = remember(message.createdAt) {
@@ -603,6 +607,44 @@ private fun ChatBubble(
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isKanisa) MaterialTheme.colorScheme.onPrimaryContainer else if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (isKanisa && message.bibleReferences.isNotEmpty()) {
+                            Spacer(Modifier.height(9.dp))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                thickness = 1.dp
+                            )
+                            Spacer(Modifier.height(7.dp))
+                            Text(
+                                text = "Referenced Scripture",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                message.bibleReferences.distinct().take(6).forEach { reference ->
+                                    TextButton(
+                                        onClick = { onOpenBibleReference(reference) },
+                                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                                        modifier = Modifier.heightIn(min = 28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.MenuBook,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = reference,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
