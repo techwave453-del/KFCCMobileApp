@@ -111,6 +111,7 @@ private fun CommunityChat(
     var showRoomPicker by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
+    var showClearMessages by remember { mutableStateOf(false) }
     
     val listState = rememberLazyListState()
     val currentRoom = rooms.find { it.id == roomId }
@@ -150,7 +151,14 @@ private fun CommunityChat(
                     IconButton(onClick = { showRoomPicker = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.ExpandMore, "Switch Room")
                     }
-                    Spacer(Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { showClearMessages = true },
+                        modifier = Modifier.size(28.dp),
+                        enabled = messages.any { it.senderId == viewModel.currentUserId() }
+                    ) {
+                        Icon(Icons.Default.DeleteSweep, "Clear my messages", modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
                     IconButton(onClick = viewModel::initChat, modifier = Modifier.size(24.dp)) { 
                         Icon(Icons.Default.Refresh, "Refresh", modifier = Modifier.size(18.dp)) 
                     }
@@ -255,6 +263,35 @@ private fun CommunityChat(
         }
     }
     
+    if (showClearMessages) {
+        AlertDialog(
+            onDismissRequest = { showClearMessages = false },
+            icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+            title = { Text("Clear your messages?") },
+            text = {
+                Text(
+                    "This will remove all messages you have sent in this chat from the conversation. " +
+                        "Messages from other members and Kanisa Assistant will remain."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearMessages = false
+                        viewModel.clearMyMessages()
+                    }
+                ) {
+                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearMessages = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (showRoomPicker) {
         AlertDialog(
             onDismissRequest = { showRoomPicker = false },
