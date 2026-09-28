@@ -274,6 +274,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteAssistantMessage(messageId: String) {
+        _assistantMessages.update { current ->
+            current.mapValues { (_, list) -> list.filterNot { it.id == messageId } }
+        }
+    }
+
+    fun clearChatMessages() {
+        val id = roomId.value ?: return
+        val myId = currentUserId() ?: return
+        viewModelScope.launch {
+            chatRepository.clearMyMessages(id, myId)
+                .onSuccess {
+                    _assistantMessages.update { current -> current - id }
+                    loadMessages(id)
+                }
+                .onFailure { _error.value = it.message }
+        }
+    }
+
     fun clearMyMessages() {
         val id = roomId.value ?: return
         val myId = currentUserId() ?: return
