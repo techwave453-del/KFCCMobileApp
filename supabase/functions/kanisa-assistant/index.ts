@@ -50,7 +50,7 @@ async function bibleContext(question: string) {
   const q = normalize(question);
   const explicit = q.match(/\b((?:1|2|3)\s+)?[a-z]+\s+\d{1,3}(?::\d{1,3}(?:[-–]\d{1,3})?)?\b/i);
   const reference = explicit?.[0] ?? "";
-  const translation = "kjv";
+  const translation = /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
   if (reference) {
     const m = reference.match(/^((?:1|2|3)\s+)?(.+?)\s+(\d+)(?::(\d+)(?:[-–](\d+))?)?$/i);
     if (m) {
@@ -92,6 +92,7 @@ function firstValue(obj: any, keys: string[]) {
 }
 
 function localAnswer(context: any, bible: any, message: string, settings: any) {
+  const assistantName = settings?.assistant_name || "Kanisa Assistant";
   const q = normalize(message);
   const churchName =
     firstValue(context.identity, ["church_name", "official_name"]) ||
@@ -101,11 +102,11 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
   const media = Array.isArray(context.media) ? context.media : [];
 
   if (/^(hi|hello|hey|habari|shalom)\\b/.test(q)) {
-    return `Hello! 👋 I’m ${settings?.assistant_name || "Kanisa Assistant"}. I can help you with ${churchName}, church information, events, media and Bible questions.`;
+    return `Hello! 👋 I’m ${assistantName}. I can help you with ${churchName}, church information, service times, events, media and Bible questions.`;
   }
 
   if (/who (are|is) you|what (are|is) you|your name/.test(q)) {
-    return `I’m ${settings?.assistant_name || "Kanisa Assistant"}, the digital assistant for ${churchName}. I can help you find information published in the app and explore Scripture.`;
+    return `I’m ${assistantName}, the digital assistant for ${churchName}. I use the information published in Kanisa and the Bible data available to the app.`;
   }
 
   if (/church name|name of (our|the) church|which church/.test(q)) {
@@ -126,11 +127,24 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
   }
 
   if (/service|worship time|church time|when (do|does) (we|the church) meet/.test(q)) {
+    const raw = firstValue(site, ["services", "service_times", "serviceTimes", "worship_times"]);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) {
+          return `Here are the published service times:\\n\\n${parsed.map((item: any) =>
+            `• **${item.title || "Service"}** — ${item.time || "Time not published"}`
+          ).join("\\n")}`;
+        }
+      } catch {
+        // Fall through to ordinary site-content fields.
+      }
+    }
     const candidates = Object.entries(site).filter(([key, value]) =>
       /service|worship|sunday|saturday|meeting|time/i.test(key) && String(value).trim()
     );
     if (candidates.length) {
-      return candidates.slice(0, 6).map(([key, value]) => `**${key.replace(/[_-]+/g, " ")}:** ${value}`).join("\\n");
+      return candidates.slice(0, 8).map(([key, value]) => `**${key.replace(/[_-]+/g, " ")}:** ${value}`).join("\\n");
     }
     return "I couldn't find published service times in the current church data.";
   }
@@ -151,7 +165,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a more precise result.`;
   }
 
-  return `I’m currently operating in local mode, so I can answer from the church and Bible information available in Kanisa. I don’t have enough published data to give a reliable answer to that question yet. Try asking about the church, events, media, service times, or a specific Bible passage.`;
+  return `I’m currently operating in local mode. I can reliably answer from the church and Bible information available in Kanisa, but I don’t have enough published data for that question yet. Try asking about the church name, service times, events, media, or a specific Bible passage.`;
 }
 
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
@@ -205,13 +219,6 @@ Deno.serve(async (req: Request) => {
   if (!message) return json({ error: "Ask a question to continue." }, 400);
 
   const provider = body.provider || (openAiKey ? "cloud" : "local");
-  if (provider !== "cloud") {
-    return json({
-      error: provider === "local"
-        ? "Local AI is not connected in this build yet."
-        : "Personal API providers are not connected in this build yet."
-    }, 501);
-  }
 
   const [{ data: settings }, context, bible] = await Promise.all([
     supabase.from("ai_assistant_settings").select("enabled,assistant_name,welcome_message,cloud_ai_enabled,bible_enabled,model").eq("id", 1).maybeSingle(),
@@ -219,40 +226,89 @@ Deno.serve(async (req: Request) => {
     bibleContext(message)
   ]);
 
-  if (settings && (!settings.enabled || !settings.cloud_ai_enabled)) {
+  if (settings?.enabled === false) {
     return json({ error: "The Kanisa Assistant is currently disabled." }, 403);
   }
 
-  const prompt = buildPrompt(context, settings?.bible_enabled === false ? { verses: [] } : bible, message, body.conversation || []);
-  const model = settings?.model || defaultModel;
+  const usableBible = settings?.bible_enabled === false ? { verses: [], reference: "" } : bible;
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-      max_output_tokens: 700
-    })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) {
-    console.error("OpenAI error", response.status, payload);
-    return json({ error: "The AI service is temporarily unavailable. Please try again." }, 502);
+  // Local mode is the guaranteed baseline. It uses Supabase church/Bible data and
+  // does not require an external AI provider or API key.
+  if (provider === "local" || !openAiKey || settings?.cloud_ai_enabled === false) {
+    return json({
+      assistant_name: settings?.assistant_name || "Kanisa Assistant",
+      answer: localAnswer(context, usableBible, message, settings),
+      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      provider: "local",
+      model: null
+    });
   }
 
-  const answer = String(payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((part: any) => part.text || "").join("") || "").trim();
-  if (!answer) return json({ error: "The assistant returned an empty response." }, 502);
+  if (provider === "personal") {
+    return json({
+      assistant_name: settings?.assistant_name || "Kanisa Assistant",
+      answer: localAnswer(context, usableBible, message, settings),
+      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      provider: "local",
+      model: null
+    });
+  }
 
-  return json({
-    assistant_name: settings?.assistant_name || "Kanisa Assistant",
-    answer,
-    bible_references: bible.reference ? [bible.reference] : [],
-    provider: "cloud",
-    model
-  });
+  const prompt = buildPrompt(context, usableBible, message, body.conversation || []);
+  const model = settings?.model || defaultModel;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        input: prompt,
+        max_output_tokens: 700
+      })
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      console.error("OpenAI error; falling back to local mode", response.status, payload);
+      return json({
+        assistant_name: settings?.assistant_name || "Kanisa Assistant",
+        answer: localAnswer(context, usableBible, message, settings),
+        bible_references: usableBible.reference ? [usableBible.reference] : [],
+        provider: "local",
+        model: null
+      });
+    }
+
+    const answer = String(payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((part: any) => part.text || "").join("") || "").trim();
+    if (!answer) {
+      return json({
+        assistant_name: settings?.assistant_name || "Kanisa Assistant",
+        answer: localAnswer(context, usableBible, message, settings),
+        bible_references: usableBible.reference ? [usableBible.reference] : [],
+        provider: "local",
+        model: null
+      });
+    }
+
+    return json({
+      assistant_name: settings?.assistant_name || "Kanisa Assistant",
+      answer,
+      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      provider: "cloud",
+      model
+    });
+  } catch (error) {
+    console.error("OpenAI request failed; falling back to local mode", error);
+    return json({
+      assistant_name: settings?.assistant_name || "Kanisa Assistant",
+      answer: localAnswer(context, usableBible, message, settings),
+      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      provider: "local",
+      model: null
+    });
+  }
 });
