@@ -219,7 +219,7 @@ private fun CommunityChat(
                                         editingMessage = it
                                         input = it.message
                                     },
-                                    onDelete = { viewModel.deleteMessage(it.id) },
+                                    onDelete = { if (it.senderId == ChatViewModel.KANISA_ASSISTANT_ID) viewModel.deleteAssistantMessage(it.id) else viewModel.deleteMessage(it.id) },
                                     onReply = { viewModel.setReplyingTo(it) },
                                     onOpenBibleReference = onOpenBibleReference
                                 )
@@ -278,7 +278,7 @@ private fun CommunityChat(
                 TextButton(
                     onClick = {
                         showClearMessages = false
-                        viewModel.clearMyMessages()
+                        viewModel.clearChatMessages()
                     }
                 ) {
                     Text("Clear", color = MaterialTheme.colorScheme.error)
@@ -711,9 +711,10 @@ private fun ChatBubble(
                         onClick = { showMenu = false; onReply(message) },
                         leadingIcon = { Icon(Icons.Default.Reply, null) }
                     )
-                    if (own) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
+                    if (own || isKanisa) {
+                        if (own) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
                             onClick = { showMenu = false; onEdit(message) },
                             leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
@@ -721,7 +722,8 @@ private fun ChatBubble(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             onClick = { showMenu = false; onDelete(message) },
                             leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                        )
+                            )
+                        }
                     }
                 }
             }
