@@ -154,7 +154,7 @@ private fun CommunityChat(
                     IconButton(
                         onClick = { showClearMessages = true },
                         modifier = Modifier.size(28.dp),
-                        enabled = messages.any { it.senderId == viewModel.currentUserId() }
+                        enabled = messages.isNotEmpty()
                     ) {
                         Icon(Icons.Default.DeleteSweep, "Clear my messages", modifier = Modifier.size(18.dp))
                     }
@@ -267,11 +267,10 @@ private fun CommunityChat(
         AlertDialog(
             onDismissRequest = { showClearMessages = false },
             icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-            title = { Text("Clear your messages?") },
+            title = { Text("Clear chat?") },
             text = {
                 Text(
-                    "This will remove all messages you have sent in this chat from the conversation. " +
-                        "Messages from other members and Kanisa Assistant will remain."
+                    "This removes your messages and Kanisa Assistant replies from this chat. Messages from other members will remain."
                 )
             },
             confirmButton = {
