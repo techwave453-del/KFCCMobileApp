@@ -51,9 +51,23 @@ fun ChatScreen(
     val churchInfo by churchViewModel.churchInfo.collectAsState()
     val signedIn by viewModel.signedIn.collectAsState()
     val adminUser by adminViewModel.user.collectAsState()
+    var showAssistant by rememberSaveable { mutableStateOf(false) }
 
     if (signedIn || adminUser != null) {
-        CommunityChat(viewModel, adminUser, churchInfo.churchName, innerPadding)
+        if (showAssistant) {
+            KanisaAssistantScreen(
+                innerPadding = innerPadding,
+                onBack = { showAssistant = false }
+            )
+        } else {
+            CommunityChat(
+                viewModel,
+                adminUser,
+                churchInfo.churchName,
+                innerPadding,
+                onOpenAssistant = { showAssistant = true }
+            )
+        }
     } else {
         UnifiedAuthScreen(
             churchInfo = churchInfo,
@@ -72,7 +86,8 @@ private fun CommunityChat(
     viewModel: ChatViewModel, 
     adminUser: AdminUser?, 
     churchName: String,
-    innerPadding: PaddingValues
+    innerPadding: PaddingValues,
+    onOpenAssistant: () -> Unit = {}
 ) {
     val messages by viewModel.messages.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -121,6 +136,9 @@ private fun CommunityChat(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = onOpenAssistant, modifier = Modifier.size(30.dp)) {
+                        Icon(Icons.Default.AutoAwesome, "Open Kanisa Assistant", modifier = Modifier.size(18.dp))
+                    }
                     IconButton(onClick = { showRoomPicker = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.ExpandMore, "Switch Room")
                     }
