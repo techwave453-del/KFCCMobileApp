@@ -18,6 +18,8 @@ type Body = {
   message?: string;
   provider?: "cloud" | "personal" | "local";
   conversation?: Array<{ role: "user" | "assistant"; content: string }>;
+  room_id?: string;
+  reply_to_message_id?: string;
 };
 
 function json(data: unknown, status = 200) {
@@ -234,6 +236,77 @@ async function bibleContext(question: string) {
 
   return { translation, reference: "", references, verses };
 }
+function verifiedUserId(req: Request): string | null {
+  const header = req.headers.get("Authorization") || "";
+  const token = header.replace(/^Bearer\\s+/i, "").trim();
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+    const claims = JSON.parse(atob(padded));
+    return typeof claims.sub === "string" && claims.sub ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistRoomMessage(
+  req: Request,
+  body: Body,
+  answer: string,
+  bibleReferences: string[]
+): Promise<string | null> {
+  const roomId = String(body.room_id || "").trim();
+  if (!roomId) return null;
+
+  const userId = verifiedUserId(req);
+  if (!userId) return null;
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("chat_room_members")
+    .select("room_id")
+    .eq("room_id", roomId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    console.error("Kanisa room persistence: user is not a room member", membershipError);
+    return null;
+  }
+
+  let replyToId: string | null = null;
+  const requestedReplyId = String(body.reply_to_message_id || "").trim();
+  if (requestedReplyId) {
+    const { data: replyTarget } = await supabase
+      .from("chat_messages")
+      .select("id,room_id")
+      .eq("id", requestedReplyId)
+      .eq("room_id", roomId)
+      .maybeSingle();
+    if (replyTarget) replyToId = replyTarget.id;
+  }
+
+  const messageId = crypto.randomUUID();
+  const { error } = await supabase.from("kanisa_room_messages").insert({
+    id: messageId,
+    room_id: roomId,
+    user_id: userId,
+    message: answer.trim().slice(0, 4000),
+    bible_references: bibleReferences.slice(0, 12),
+    reply_to_message_id: replyToId
+  });
+
+  if (error) {
+    console.error("Kanisa room persistence failed", error);
+    return null;
+  }
+
+  return messageId;
+}
+
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
     const value = obj?.[key];
@@ -467,34 +540,44 @@ Deno.serve(async (req: Request) => {
     ? { verses: [], reference: "", references: [] }
     : bible;
 
+  const finalize = async (
+    answer: string,
+    providerName: string,
+    modelName: string | null
+  ) => {
+    const references = usableBible.references?.length
+      ? usableBible.references
+      : usableBible.reference
+        ? [usableBible.reference]
+        : [];
+    const roomMessageId = await persistRoomMessage(req, body, answer, references);
+
+    return json({
+      assistant_name: settings?.assistant_name || "Kanisa Assistant",
+      answer,
+      bible_references: references,
+      provider: providerName,
+      model: modelName,
+      room_message_id: roomMessageId
+    });
+  };
+
   // Local mode is the guaranteed baseline. It uses Supabase church/Bible data and
   // does not require an external AI provider or API key.
   if (provider === "local" || !openAiKey || settings?.cloud_ai_enabled === false) {
-    return json({
-      assistant_name: settings?.assistant_name || "Kanisa Assistant",
-      answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-      provider: "local",
-      model: null
-    });
+    return await finalize(
+      localAnswer(context, usableBible, message, settings),
+      "local",
+      null
+    );
   }
 
   if (provider === "personal") {
-    return json({
-      assistant_name: settings?.assistant_name || "Kanisa Assistant",
-      answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-      provider: "local",
-      model: null
-    });
+    return await finalize(
+      localAnswer(context, usableBible, message, settings),
+      "local",
+      null
+    );
   }
 
   const prompt = buildPrompt(context, usableBible, message, body.conversation || []);
@@ -517,57 +600,29 @@ Deno.serve(async (req: Request) => {
     const payload = await response.json();
     if (!response.ok) {
       console.error("OpenAI error; falling back to local mode", response.status, payload);
-      return json({
-        assistant_name: settings?.assistant_name || "Kanisa Assistant",
-        answer: localAnswer(context, usableBible, message, settings),
-        bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-        provider: "local",
-        model: null
-      });
+      return await finalize(
+        localAnswer(context, usableBible, message, settings),
+        "local",
+        null
+      );
     }
 
     const answer = String(payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((part: any) => part.text || "").join("") || "").trim();
     if (!answer) {
-      return json({
-        assistant_name: settings?.assistant_name || "Kanisa Assistant",
-        answer: localAnswer(context, usableBible, message, settings),
-        bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-        provider: "local",
-        model: null
-      });
+      return await finalize(
+        localAnswer(context, usableBible, message, settings),
+        "local",
+        null
+      );
     }
 
-    return json({
-      assistant_name: settings?.assistant_name || "Kanisa Assistant",
-      answer,
-      bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-      provider: "cloud",
-      model
-    });
+    return await finalize(answer, "cloud", model);
   } catch (error) {
     console.error("OpenAI request failed; falling back to local mode", error);
-    return json({
-      assistant_name: settings?.assistant_name || "Kanisa Assistant",
-      answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.references?.length
-        ? usableBible.references
-        : usableBible.reference
-          ? [usableBible.reference]
-          : [],
-      provider: "local",
-      model: null
-    });
+    return await finalize(
+      localAnswer(context, usableBible, message, settings),
+      "local",
+      null
+    );
   }
 });
