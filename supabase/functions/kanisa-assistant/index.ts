@@ -48,13 +48,17 @@ async function churchContext() {
 
 async function bibleContext(question: string) {
   const q = normalize(question);
-  const explicit = q.match(/\b((?:1|2|3)\s+)?[a-z]+\s+\d{1,3}(?::\d{1,3}(?:[-–]\d{1,3})?)?\b/i);
-  const reference = explicit?.[0] ?? "";
+  // Accept common Bible-reference variations:
+  // "1 Tim 4:12", "1 Tim 4;12", "1st Tim 4;12", "1 Timothy 4:12",
+  // and similar numbered-book forms.
+  const explicit = q.match(/\b((?:(?:1|2|3)(?:st|nd|rd)?\s+)?[a-z]+(?:\s+[a-z]+)?\s+\d{1,3}\s*[:;,]\s*\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\b/i);
+  const reference = explicit?.[0]?.replace(/\s+/g, " ").trim() ?? "";
   const translation = /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
   if (reference) {
-    const m = reference.match(/^((?:1|2|3)\s+)?(.+?)\s+(\d+)(?::(\d+)(?:[-–](\d+))?)?$/i);
+    const m = reference.match(/^((?:1|2|3)(?:st|nd|rd)?\s+)?(.+?)\s+(\d+)(?:\s*[:;,]\s*(\d+)(?:\s*[-–]\s*(\d+))?)?$/i);
     if (m) {
-      const bookName = (m[1] || "") + m[2];
+      const ordinalPrefix = (m[1] || "").replace(/(st|nd|rd)$/i, "");
+      const bookName = (ordinalPrefix ? ordinalPrefix + " " : "") + m[2];
       const chapter = Number(m[3]);
       const verseStart = m[4] ? Number(m[4]) : null;
       const verseEnd = m[5] ? Number(m[5]) : verseStart;
