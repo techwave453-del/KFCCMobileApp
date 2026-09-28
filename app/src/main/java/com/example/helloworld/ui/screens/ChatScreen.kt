@@ -731,6 +731,56 @@ private fun ChatBubble(
 }
 
 @Composable
+private fun KanisaChatText(
+    text: String,
+    color: Color
+) {
+    val normalized = text
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\t", "\t")
+        .trim()
+
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        normalized.split("\n").forEach { rawLine ->
+            val line = rawLine.trim()
+            when {
+                line.isBlank() -> Spacer(Modifier.height(2.dp))
+                line.startsWith("- ") || line.startsWith("• ") -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text("•", color = color, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            line.drop(2).trim(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = color
+                        )
+                    }
+                }
+                line.startsWith("**") && line.endsWith("**") && line.length > 4 -> {
+                    Text(
+                        line.removePrefix("**").removeSuffix("**"),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                }
+                else -> {
+                    Text(
+                        line,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = color
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ChatInput(
     input: String,
     onInputChange: (String) -> Unit,
