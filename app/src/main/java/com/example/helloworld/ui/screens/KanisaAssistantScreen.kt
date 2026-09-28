@@ -20,12 +20,15 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.ui.KanisaAssistantUiMessage
 import com.example.helloworld.ui.KanisaAssistantViewModel
@@ -270,6 +273,51 @@ fun KanisaAssistantScreen(
 }
 
 @Composable
+private fun KanisaAssistantText(
+    text: String,
+    color: Color
+) {
+    val normalized = text
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\t", "\t")
+        .trim()
+
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        normalized.split("\n").forEach { rawLine ->
+            val line = rawLine.trim()
+            when {
+                line.isBlank() -> Spacer(Modifier.height(2.dp))
+                line.startsWith("- ") || line.startsWith("• ") -> {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("•", color = color, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            line.drop(2).trim(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = color
+                        )
+                    }
+                }
+                line.startsWith("**") && line.endsWith("**") && line.length > 4 -> {
+                    Text(
+                        line.removePrefix("**").removeSuffix("**"),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                }
+                else -> Text(
+                    line,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = color
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun Suggestion(label: String, onClick: () -> Unit) {
     AssistChip(onClick = onClick, label = { Text(label, fontSize = 11.sp) })
 }
@@ -281,6 +329,7 @@ private fun AssistantBubble(
     onDelete: () -> Unit = {}
 ) {
     val own = message.role == "user"
+    val clipboard = LocalClipboardManager.current
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (own) Arrangement.End else Arrangement.Start
@@ -289,7 +338,9 @@ private fun AssistantBubble(
             modifier = Modifier
                 .widthIn(max = 320.dp)
                 .combinedClickable(
-                    onClick = {},
+                    onClick = {
+                        clipboard.setText(AnnotatedString(message.content))
+                    },
                     onLongClick = onDelete
                 ),
             shape = RoundedCornerShape(
@@ -315,9 +366,8 @@ private fun AssistantBubble(
                     }
                     Spacer(Modifier.height(5.dp))
                 }
-                Text(
-                    message.content,
-                    style = MaterialTheme.typography.bodyMedium,
+                KanisaAssistantText(
+                    text = message.content,
                     color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (message.bibleReferences.isNotEmpty()) {
