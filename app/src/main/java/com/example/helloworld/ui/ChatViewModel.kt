@@ -200,20 +200,31 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 .ifBlank { "Please respond to my message in this chat." }
 
             kanisaAssistantRepository.ask(prompt).onSuccess { response ->
-                addKanisaMessage(roomId, response.answer, response.assistant_name.ifBlank { "Kanisa Assistant" })
+                addKanisaMessage(
+                    roomId = roomId,
+                    text = response.answer.normalizeKanisaLineBreaks(),
+                    username = response.assistant_name.ifBlank { "Kanisa Assistant" },
+                    bibleReferences = response.bible_references
+                )
             }.onFailure { failure ->
                 addKanisaMessage(roomId, "I’m here, but I couldn't answer that right now. " + failure.message.orEmpty().trim(), "Kanisa Assistant")
             }
         }
     }
 
-    private fun addKanisaMessage(roomId: String, text: String, username: String) {
+    private fun addKanisaMessage(
+        roomId: String,
+        text: String,
+        username: String,
+        bibleReferences: List<String> = emptyList()
+    ) {
         val assistantMessage = ChatMessage(
             id = "kanisa-" + System.currentTimeMillis(),
             roomId = roomId,
             senderId = KANISA_ASSISTANT_ID,
             message = text,
             createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).format(java.util.Date()),
+            bibleReferences = bibleReferences.distinct().take(6),
             senderProfile = ChatProfile(
                 user_id = KANISA_ASSISTANT_ID,
                 username = username,
@@ -225,6 +236,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             current + (roomId to (current[roomId].orEmpty() + assistantMessage).takeLast(50))
         }
     }
+
+    private fun String.normalizeKanisaLineBreaks(): String =
+        replace("\\r\\n", "\n")
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
 
     companion object {
         const val KANISA_ASSISTANT_ID = "kanisa-assistant"
