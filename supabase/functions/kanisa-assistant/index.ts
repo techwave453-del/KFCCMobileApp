@@ -83,6 +83,77 @@ async function bibleContext(question: string) {
   return { translation, reference: "", verses: verses ?? [] };
 }
 
+function firstValue(obj: any, keys: string[]) {
+  for (const key of keys) {
+    const value = obj?.[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
+function localAnswer(context: any, bible: any, message: string, settings: any) {
+  const q = normalize(message);
+  const churchName =
+    firstValue(context.identity, ["church_name", "official_name"]) ||
+    "the church";
+  const site = context.site_content || {};
+  const events = Array.isArray(context.events) ? context.events : [];
+  const media = Array.isArray(context.media) ? context.media : [];
+
+  if (/^(hi|hello|hey|habari|shalom)\\b/.test(q)) {
+    return `Hello! 👋 I’m ${settings?.assistant_name || "Kanisa Assistant"}. I can help you with ${churchName}, church information, events, media and Bible questions.`;
+  }
+
+  if (/who (are|is) you|what (are|is) you|your name/.test(q)) {
+    return `I’m ${settings?.assistant_name || "Kanisa Assistant"}, the digital assistant for ${churchName}. I can help you find information published in the app and explore Scripture.`;
+  }
+
+  if (/church name|name of (our|the) church|which church/.test(q)) {
+    return `The church name currently published in Kanisa is **${churchName}**.`;
+  }
+
+  if (/event|upcoming|what('s| is) happening|calendar/.test(q)) {
+    if (!events.length) return "There are no published upcoming events in the church database right now.";
+    const lines = events.slice(0, 8).map((event: any) => {
+      const date = event.start_at ? new Date(event.start_at).toLocaleString("en-KE", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }) : "Date not published";
+      const location = event.location || event.address ? ` — ${event.location || event.address}` : "";
+      return `• **${event.title}** — ${date}${location}`;
+    });
+    return `Here are the published events I can find:\\n\\n${lines.join("\\n")}`;
+  }
+
+  if (/service|worship time|church time|when (do|does) (we|the church) meet/.test(q)) {
+    const candidates = Object.entries(site).filter(([key, value]) =>
+      /service|worship|sunday|saturday|meeting|time/i.test(key) && String(value).trim()
+    );
+    if (candidates.length) {
+      return candidates.slice(0, 6).map(([key, value]) => `**${key.replace(/[_-]+/g, " ")}:** ${value}`).join("\\n");
+    }
+    return "I couldn't find published service times in the current church data.";
+  }
+
+  if (/media|video|sermon|livestream|live stream/.test(q)) {
+    if (!media.length) return "There are no published media items available right now.";
+    const lines = media.slice(0, 8).map((item: any) => `• **${item.title}**${item.type ? ` — ${item.type}` : ""}`);
+    return `Here are some published media items:\\n\\n${lines.join("\\n")}`;
+  }
+
+  if (bible?.verses?.length) {
+    const verses = bible.verses.slice(0, 5);
+    const reference = bible.reference || "";
+    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
+    if (reference) {
+      return `Here is the Scripture I found for **${reference}**:\\n\\n${scripture}\\n\\nI’m using the Bible text available in the Kanisa database. I can also explain the passage if you want.`;
+    }
+    return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a more precise result.`;
+  }
+
+  return `I’m currently operating in local mode, so I can answer from the church and Bible information available in Kanisa. I don’t have enough published data to give a reliable answer to that question yet. Try asking about the church, events, media, service times, or a specific Bible passage.`;
+}
+
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
@@ -118,7 +189,7 @@ Return only the answer text. When Bible references are relevant, include them na
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
-  if (!openAiKey) return json({ error: "Cloud AI is not configured yet. Add OPENAI_API_KEY to the Supabase function secrets." }, 503);
+
 
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -133,7 +204,7 @@ Deno.serve(async (req: Request) => {
   const message = String(body.message || "").trim().slice(0, 2000);
   if (!message) return json({ error: "Ask a question to continue." }, 400);
 
-  const provider = body.provider || "cloud";
+  const provider = body.provider || (openAiKey ? "cloud" : "local");
   if (provider !== "cloud") {
     return json({
       error: provider === "local"
