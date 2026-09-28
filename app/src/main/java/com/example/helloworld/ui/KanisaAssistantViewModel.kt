@@ -77,7 +77,13 @@ class KanisaAssistantViewModel : ViewModel() {
     }
 
     fun clearMessages() {
-        _messages.value = emptyList()
+        _messages.value = listOf(
+            KanisaAssistantUiMessage(
+                0L,
+                "assistant",
+                "Hello! 👋 I’m Kanisa Assistant. I can help with church information, services, events and Bible questions."
+            )
+        )
         _error.value = null
     }
 
