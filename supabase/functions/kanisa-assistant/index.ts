@@ -138,6 +138,7 @@ async function bibleContext(question: string) {
     return {
       translation,
       reference: canonicalReference,
+      references: [canonicalReference],
       verses: verses ?? []
     };
   }
@@ -156,7 +157,7 @@ async function bibleContext(question: string) {
     .filter(x => x.length >= 3 && !stopWords.has(x))
     .slice(0, 5);
 
-  if (!terms.length) return { translation, reference: "", verses: [] };
+  if (!terms.length) return { translation, reference: "", references: [], verses: [] };
 
   const filters = terms
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
@@ -169,7 +170,15 @@ async function bibleContext(question: string) {
     .or(filters)
     .limit(8);
 
-  return { translation, reference: "", verses: verses ?? [] };
+  const bookNames = new Map((books || []).map((book: any) => [book.id, book.name]));
+  const references = [...new Set(
+    (verses ?? []).map((verse: any) => {
+      const name = bookNames.get(verse.book_id);
+      return name ? `${name} ${verse.chapter}:${verse.verse}` : "";
+    }).filter(Boolean)
+  )].slice(0, 6);
+
+  return { translation, reference: "", references, verses: verses ?? [] };
 }
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
@@ -396,7 +405,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: "The Kanisa Assistant is currently disabled." }, 403);
   }
 
-  const usableBible = settings?.bible_enabled === false ? { verses: [], reference: "" } : bible;
+  const usableBible = settings?.bible_enabled === false
+    ? { verses: [], reference: "", references: [] }
+    : bible;
 
   // Local mode is the guaranteed baseline. It uses Supabase church/Bible data and
   // does not require an external AI provider or API key.
@@ -404,7 +415,11 @@ Deno.serve(async (req: Request) => {
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
       provider: "local",
       model: null
     });
@@ -414,7 +429,11 @@ Deno.serve(async (req: Request) => {
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
       provider: "local",
       model: null
     });
@@ -443,7 +462,11 @@ Deno.serve(async (req: Request) => {
       return json({
         assistant_name: settings?.assistant_name || "Kanisa Assistant",
         answer: localAnswer(context, usableBible, message, settings),
-        bible_references: usableBible.reference ? [usableBible.reference] : [],
+        bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
         provider: "local",
         model: null
       });
@@ -454,7 +477,11 @@ Deno.serve(async (req: Request) => {
       return json({
         assistant_name: settings?.assistant_name || "Kanisa Assistant",
         answer: localAnswer(context, usableBible, message, settings),
-        bible_references: usableBible.reference ? [usableBible.reference] : [],
+        bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
         provider: "local",
         model: null
       });
@@ -463,7 +490,11 @@ Deno.serve(async (req: Request) => {
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer,
-      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
       provider: "cloud",
       model
     });
@@ -472,7 +503,11 @@ Deno.serve(async (req: Request) => {
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer: localAnswer(context, usableBible, message, settings),
-      bible_references: usableBible.reference ? [usableBible.reference] : [],
+      bible_references: usableBible.references?.length
+        ? usableBible.references
+        : usableBible.reference
+          ? [usableBible.reference]
+          : [],
       provider: "local",
       model: null
     });
