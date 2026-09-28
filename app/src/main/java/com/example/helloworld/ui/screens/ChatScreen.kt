@@ -704,7 +704,6 @@ private fun ChatInput(
             }
 
             if (isEditing) {
-            if (isEditing) {
                 Row(
                     Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)).padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
