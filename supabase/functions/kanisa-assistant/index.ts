@@ -436,12 +436,14 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
 
 
+  // Supabase is configured with verify_jwt=true for this function. The Edge gateway
+  // validates the bearer token before this handler runs. Do not call auth.getUser()
+  // again with the client service-role key here: that duplicate validation can reject
+  // otherwise-valid ES256 sessions and turn a healthy request into a 401.
   const authHeader = req.headers.get("Authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) return json({ error: "Authentication required." }, 401);
-
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) return json({ error: "Your session is not valid. Please sign in again." }, 401);
+  if (!/^Bearer\s+\S+/i.test(authHeader)) {
+    return json({ error: "Authentication required." }, 401);
+  }
 
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: "Invalid request body." }, 400); }
