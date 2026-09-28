@@ -37,7 +37,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val messages: StateFlow<List<ChatMessage>> = combine(
         roomId.flatMapLatest { id -> if (id != null) chatRepository.getLocalMessages(id, context) else flowOf(emptyList()) },
         combine(roomId, assistantMessages) { id, all -> if (id != null) all[id].orEmpty() else emptyList() }
-    ) { local, assistant -> (local + assistant).sortedBy { it.createdAt } }
+    ) { local, assistant ->
+        (local + assistant).sortedWith(
+            compareBy<ChatMessage> { message ->
+                try {
+                    java.time.Instant.parse(message.createdAt).toEpochMilli()
+                } catch (_: Exception) {
+                    Long.MAX_VALUE
+                }
+            }.thenBy { it.id }
+        )
+    }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val rooms: StateFlow<List<ChatRoom>> = chatRepository.getLocalRooms(context)
