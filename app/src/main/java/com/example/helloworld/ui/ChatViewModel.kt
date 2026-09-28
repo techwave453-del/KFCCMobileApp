@@ -38,7 +38,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         roomId.flatMapLatest { id -> if (id != null) chatRepository.getLocalMessages(id, context) else flowOf(emptyList()) },
         combine(roomId, assistantMessages) { id, all -> if (id != null) all[id].orEmpty() else emptyList() }
     ) { local, assistant ->
-        (local + assistant).sortedWith(
+        (local + assistant)
+            .distinctBy { it.id }
+            .sortedWith(
             compareBy<ChatMessage> { message ->
                 try {
                     java.time.Instant.parse(message.createdAt).toEpochMilli()
@@ -66,6 +68,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val replyingTo: StateFlow<ChatMessage?> = _replyingTo.asStateFlow()
 
     private var observeJob: Job? = null
+    private var kanisaObserveJob: Job? = null
     private var sessionInitialized = false
 
     class Factory(private val application: Application) : ViewModelProvider.Factory {
@@ -94,6 +97,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         _signedIn.value = false
                         _roomId.value = null
                         observeJob?.cancel()
+                        kanisaObserveJob?.cancel()
                     }
                     is SessionStatus.Initializing,
                     is SessionStatus.RefreshFailure -> {
@@ -136,6 +140,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     _roomId.value = id
                     loadMessages(id)
                     observeMessages(id)
+                    observeKanisaMessages(id)
                 }
                 .onFailure { _error.value = it.message }
             loadRooms()
@@ -156,12 +161,36 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _roomId.value = id
         loadMessages(id)
         observeMessages(id)
+        observeKanisaMessages(id)
     }
 
     private fun loadMessages(roomId: String) {
         viewModelScope.launch {
             chatRepository.getMessages(roomId)
                 .onSuccess { chatRepository.syncMessagesToLocal(roomId, it, context) }
+                .onFailure { _error.value = it.message }
+            chatRepository.getKanisaRoomMessages(roomId)
+                .onSuccess { stored ->
+                    _assistantMessages.update { current ->
+                        current + (roomId to stored.map { row ->
+                            ChatMessage(
+                                id = row.id,
+                                roomId = row.roomId,
+                                senderId = KANISA_ASSISTANT_ID,
+                                message = row.message,
+                                createdAt = row.createdAt,
+                                replyToId = row.replyToMessageId,
+                                bibleReferences = row.bibleReferences.distinct().take(6),
+                                senderProfile = ChatProfile(
+                                    user_id = KANISA_ASSISTANT_ID,
+                                    username = "Kanisa Assistant",
+                                    display_name = "AI Bible & Church Assistant",
+                                    is_admin_visible = false
+                                )
+                            )
+                        }.takeLast(50))
+                    }
+                }
                 .onFailure { _error.value = it.message }
         }
     }
@@ -189,9 +218,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             val myId = currentUserId() ?: ""
-            chatRepository.saveMessageOffline(id, cleanText, myId, context)
+            val localMessageId = chatRepository.saveMessageOffline(id, cleanText, myId, context)
             _replyingTo.value = null
-            if (isDirectedToKanisa(cleanText)) askKanisaInRoom(id, cleanText)
+            if (isDirectedToKanisa(cleanText)) {
+                askKanisaInRoom(id, cleanText, localMessageId)
+            }
         }
     }
 
@@ -201,7 +232,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             Regex("\\bkanisa(?: assistant)?\\b").containsMatchIn(normalized)
     }
 
-    private fun askKanisaInRoom(roomId: String, originalText: String) {
+    private fun askKanisaInRoom(
+        roomId: String,
+        originalText: String,
+        replyToMessageId: String
+    ) {
         viewModelScope.launch {
             val prompt = originalText
                 .replace(Regex("@kanisa(?:\\s+assistant)?", RegexOption.IGNORE_CASE), "")
@@ -209,31 +244,46 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 .trim()
                 .ifBlank { "Please respond to my message in this chat." }
 
-            kanisaAssistantRepository.ask(prompt).onSuccess { response ->
+            kanisaAssistantRepository.ask(
+                message = prompt,
+                roomId = roomId,
+                replyToMessageId = replyToMessageId
+            ).onSuccess { response ->
                 addKanisaMessage(
                     roomId = roomId,
+                    messageId = response.room_message_id ?: ("kanisa-" + System.currentTimeMillis()),
                     text = response.answer.normalizeKanisaLineBreaks(),
                     username = response.assistant_name.ifBlank { "Kanisa Assistant" },
-                    bibleReferences = response.bible_references
+                    bibleReferences = response.bible_references,
+                    replyToMessageId = replyToMessageId
                 )
             }.onFailure { failure ->
-                addKanisaMessage(roomId, "I’m here, but I couldn't answer that right now. " + failure.message.orEmpty().trim(), "Kanisa Assistant")
+                addKanisaMessage(
+                    roomId = roomId,
+                    messageId = "kanisa-" + System.currentTimeMillis(),
+                    text = "I’m here, but I couldn't answer that right now. " + failure.message.orEmpty().trim(),
+                    username = "Kanisa Assistant",
+                    replyToMessageId = replyToMessageId
+                )
             }
         }
     }
 
     private fun addKanisaMessage(
         roomId: String,
+        messageId: String,
         text: String,
         username: String,
-        bibleReferences: List<String> = emptyList()
+        bibleReferences: List<String> = emptyList(),
+        replyToMessageId: String? = null
     ) {
         val assistantMessage = ChatMessage(
-            id = "kanisa-" + System.currentTimeMillis(),
+            id = messageId,
             roomId = roomId,
             senderId = KANISA_ASSISTANT_ID,
             message = text,
             createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).format(java.util.Date()),
+            replyToId = replyToMessageId,
             bibleReferences = bibleReferences.distinct().take(6),
             senderProfile = ChatProfile(
                 user_id = KANISA_ASSISTANT_ID,
@@ -251,6 +301,36 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         replace("\\r\\n", "\n")
             .replace("\\n", "\n")
             .replace("\\t", "\t")
+
+    private fun observeKanisaMessages(roomId: String) {
+        kanisaObserveJob?.cancel()
+        kanisaObserveJob = viewModelScope.launch {
+            chatRepository.observeKanisaMessages(roomId).collect {
+                chatRepository.getKanisaRoomMessages(roomId)
+                    .onSuccess { stored ->
+                        _assistantMessages.update { current ->
+                            current + (roomId to stored.map { row ->
+                                ChatMessage(
+                                    id = row.id,
+                                    roomId = row.roomId,
+                                    senderId = KANISA_ASSISTANT_ID,
+                                    message = row.message,
+                                    createdAt = row.createdAt,
+                                    replyToId = row.replyToMessageId,
+                                    bibleReferences = row.bibleReferences.distinct().take(6),
+                                    senderProfile = ChatProfile(
+                                        user_id = KANISA_ASSISTANT_ID,
+                                        username = "Kanisa Assistant",
+                                        display_name = "AI Bible & Church Assistant",
+                                        is_admin_visible = false
+                                    )
+                                )
+                            }.takeLast(50))
+                        }
+                    }
+            }
+        }
+    }
 
     companion object {
         const val KANISA_ASSISTANT_ID = "kanisa-assistant"
@@ -275,8 +355,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteAssistantMessage(messageId: String) {
-        _assistantMessages.update { current ->
-            current.mapValues { (_, list) -> list.filterNot { it.id == messageId } }
+        viewModelScope.launch {
+            chatRepository.deleteKanisaRoomMessage(messageId)
+                .onSuccess {
+                    _assistantMessages.update { current ->
+                        current.mapValues { (_, list) -> list.filterNot { it.id == messageId } }
+                    }
+                }
+                .onFailure { _error.value = it.message ?: "Unable to delete the assistant message." }
         }
     }
 
@@ -327,6 +413,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             _roomId.value = null
             sessionInitialized = false
             observeJob?.cancel()
+            kanisaObserveJob?.cancel()
         }
     }
 
