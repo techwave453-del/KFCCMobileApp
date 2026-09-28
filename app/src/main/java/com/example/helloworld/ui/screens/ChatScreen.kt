@@ -346,7 +346,7 @@ private fun CommunityChat(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.createGroup(newGroupName)
+                        viewModel.createGroup(newGroupName, isAdmin = adminUser != null)
                         newGroupName = ""
                         showCreateGroup = false
                     },
