@@ -50,6 +50,18 @@ data class ChatRoom(
     val title: String,
 )
 
+@Serializable
+data class KanisaRoomMessage(
+    val id: String,
+    @SerialName("room_id") val roomId: String,
+    @SerialName("user_id") val userId: String,
+    val message: String,
+    @SerialName("bible_references") val bibleReferences: List<String> = emptyList(),
+    @SerialName("reply_to_message_id") val replyToMessageId: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null
+)
+
 class ChatRepository {
     private val client get() = SupabaseProvider.client
 
@@ -122,7 +134,12 @@ class ChatRepository {
         }
     }
 
-    suspend fun sendMessage(roomId: String, message: String, replyToId: String? = null): Result<Unit> = runCatching {
+    suspend fun sendMessage(
+        roomId: String,
+        message: String,
+        replyToId: String? = null,
+        messageId: String? = null
+    ): Result<Unit> = runCatching {
         val text = message.trim()
         require(text.isNotEmpty()) { "Write a message first." }
         require(text.length <= 1000) { "Message is too long." }
@@ -148,6 +165,9 @@ class ChatRepository {
             "sender_id" to senderId,
             "message" to text,
         )
+        if (!messageId.isNullOrBlank()) {
+            data["id"] = messageId
+        }
         if (replyToId != null) {
             data["reply_to_id"] = replyToId
         }
@@ -190,6 +210,38 @@ class ChatRepository {
                 eq("room_id", roomId)
                 eq("sender_id", senderId)
             }
+        }
+    }
+
+    suspend fun getKanisaRoomMessages(roomId: String): Result<List<KanisaRoomMessage>> = runCatching {
+        client.from("kanisa_room_messages")
+            .select {
+                filter {
+                    eq("room_id", roomId)
+                    isNull("deleted_at")
+                }
+                order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                limit(50)
+            }
+            .decodeList()
+    }
+
+    fun observeKanisaMessages(roomId: String): Flow<PostgresAction> {
+        val channelId = "kanisa_" + roomId + "_" + UUID.randomUUID()
+        val channel = client.realtime.channel(channelId)
+        return channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "kanisa_room_messages"
+            filter = "room_id=eq." + roomId
+        }.onStart {
+            channel.subscribe()
+        }.onCompletion {
+            client.realtime.removeChannel(channel)
+        }
+    }
+
+    suspend fun deleteKanisaRoomMessage(messageId: String): Result<Unit> = runCatching {
+        client.from("kanisa_room_messages").delete {
+            filter { eq("id", messageId) }
         }
     }
 
@@ -243,7 +295,12 @@ class ChatRepository {
         })
     }
 
-    suspend fun saveMessageOffline(roomId: String, messageText: String, senderId: String, context: Context) {
+    suspend fun saveMessageOffline(
+        roomId: String,
+        messageText: String,
+        senderId: String,
+        context: Context
+    ): String {
         val database = AppLocalDatabase.getDatabase(context)
         val tempId = UUID.randomUUID().toString()
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
@@ -267,5 +324,6 @@ class ChatRepository {
             .setConstraints(constraints)
             .build()
         WorkManager.getInstance(context).enqueue(syncRequest)
+        return tempId
     }
 }
