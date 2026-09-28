@@ -18,6 +18,7 @@ data class KanisaAssistantUiMessage(
 
 class KanisaAssistantViewModel : ViewModel() {
     private val repository = KanisaAssistantRepository()
+
     private val _messages = MutableStateFlow(
         listOf(
             KanisaAssistantUiMessage(
@@ -37,12 +38,11 @@ class KanisaAssistantViewModel : ViewModel() {
 
     private var nextId = 1L
 
-    fun ask(text: String) {
+    fun ask(text: String, onComplete: (Boolean) -> Unit = {}) {
         val clean = text.trim().take(2000)
         if (clean.isBlank() || _sending.value) return
 
-        val userMessage = KanisaAssistantUiMessage(nextId++, "user", clean)
-        _messages.value = _messages.value + userMessage
+        _messages.value = _messages.value + KanisaAssistantUiMessage(nextId++, "user", clean)
         _sending.value = true
         _error.value = null
 
@@ -60,13 +60,18 @@ class KanisaAssistantViewModel : ViewModel() {
                         response.answer,
                         response.bible_references
                     )
+                    onComplete(true)
                 }
                 .onFailure {
                     _error.value = it.message ?: "Unable to reach Kanisa Assistant."
+                    onComplete(false)
                 }
+
             _sending.value = false
         }
     }
 
-    fun clearError() { _error.value = null }
+    fun clearError() {
+        _error.value = null
+    }
 }
