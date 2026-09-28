@@ -28,7 +28,9 @@ data class KanisaAssistantMessage(
 data class KanisaAssistantRequest(
     val message: String,
     val provider: String = "cloud",
-    val conversation: List<KanisaAssistantMessage> = emptyList()
+    val conversation: List<KanisaAssistantMessage> = emptyList(),
+    val room_id: String? = null,
+    val reply_to_message_id: String? = null
 )
 
 @Serializable
@@ -48,6 +50,7 @@ data class KanisaAssistantResponse(
     val bible_references: List<String> = emptyList(),
     val provider: String = "cloud",
     val model: String? = null,
+    val room_message_id: String? = null,
     val error: String? = null
 )
 
@@ -111,7 +114,9 @@ class KanisaAssistantRepository {
 
     suspend fun ask(
         message: String,
-        conversation: List<KanisaAssistantMessage> = emptyList()
+        conversation: List<KanisaAssistantMessage> = emptyList(),
+        roomId: String? = null,
+        replyToMessageId: String? = null
     ): Result<KanisaAssistantResponse> = runCatching {
         val token = SupabaseProvider.client.auth.currentAccessTokenOrNull()
             ?: error("Please sign in to use Kanisa Assistant.")
@@ -120,7 +125,14 @@ class KanisaAssistantRepository {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
-            setBody(KanisaAssistantRequest(message = message, conversation = conversation))
+            setBody(
+                KanisaAssistantRequest(
+                    message = message,
+                    conversation = conversation,
+                    room_id = roomId,
+                    reply_to_message_id = replyToMessageId
+                )
+            )
         }
 
         if (response.status.value !in 200..299) {
