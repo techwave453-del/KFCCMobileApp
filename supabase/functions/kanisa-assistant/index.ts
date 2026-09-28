@@ -236,7 +236,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
     if (reference) {
       const translationName = bible.translation === "web" ? "WEB" : "KJV";
-      return `Here is ${translationName} Scripture for ${reference}:\\n\\n${scripture}\\n\\nI’m using the Bible text available in the Kanisa database.`;
+      return `Here is ${translationName} Scripture for ${reference}:\\n\\n${scripture}`;
     }
     return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a precise result.`;
   }
