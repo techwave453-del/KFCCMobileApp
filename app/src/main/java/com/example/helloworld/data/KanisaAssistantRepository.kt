@@ -32,7 +32,6 @@ data class KanisaAssistantRequest(
 )
 
 @Serializable
-@Serializable
 data class StoredKanisaAssistantMessage(
     val id: Long,
     val user_id: String,
