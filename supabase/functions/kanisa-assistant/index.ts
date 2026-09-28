@@ -143,19 +143,47 @@ async function bibleContext(question: string) {
     };
   }
 
-  // If no exact reference was found, retain keyword Bible search as a fallback.
+  // Topic/concept search: retrieve Bible text from Supabase first, then let the
+  // response layer explain only what was actually retrieved. We expand concepts
+  // lexically rather than hard-coding Scripture references.
   const stopWords = new Set([
     "what", "does", "about", "tell", "show", "give", "with", "from",
     "this", "that", "bible", "verse", "verses", "says", "say", "please",
     "can", "you", "mean", "means", "explain", "explanation", "according",
-    "teach", "teaches", "teaching", "scripture", "passage", "chapter"
+    "teach", "teaches", "teaching", "scripture", "passage", "chapter",
+    "the", "are", "is", "of", "on", "for", "to", "in", "how", "why"
   ]);
 
-  const terms = q
+  const rawTerms = q
     .replace(/[^a-z0-9\s'-]/gi, " ")
     .split(/\s+/)
-    .filter(x => x.length >= 3 && !stopWords.has(x))
-    .slice(0, 5);
+    .filter(x => x.length >= 3 && !stopWords.has(x));
+
+  const conceptExpansions: Record<string, string[]> = {
+    prayer: ["prayer", "pray", "praying", "prayed", "supplication", "intercession"],
+    faith: ["faith", "believe", "believeth", "believed", "believing", "trust"],
+    love: ["love", "loveth", "loved", "charity"],
+    forgiveness: ["forgive", "forgiven", "forgiveness", "forgiving", "mercy"],
+    hope: ["hope", "hopeth", "hoped", "trust"],
+    peace: ["peace", "peaceable", "reconcile", "reconciliation"],
+    wisdom: ["wisdom", "wise", "understanding", "knowledge"],
+    obedience: ["obey", "obeyed", "obedience", "keep", "commandments"],
+    salvation: ["save", "saved", "salvation", "redeemed", "redemption"],
+    temptation: ["tempt", "tempted", "temptation", "sin"],
+    fasting: ["fast", "fasted", "fasting"],
+    worship: ["worship", "worshipped", "praise", "praises", "praising"],
+    anxiety: ["anxiety", "careful", "worry", "worrying", "trouble"],
+    fear: ["fear", "afraid", "fearing"],
+    strength: ["strength", "strong", "strengthen"],
+    healing: ["heal", "healed", "healing", "sick", "sickness"],
+    patience: ["patience", "patient", "wait", "waiting", "longsuffering"],
+    humility: ["humble", "humility", "meek", "meekness"],
+    repentance: ["repent", "repented", "repentance", "turn", "confess"]
+  };
+
+  const terms = [...new Set(rawTerms.flatMap(term =>
+    conceptExpansions[term] || [term]
+  ))].slice(0, 12);
 
   if (!terms.length) return { translation, reference: "", references: [], verses: [] };
 
@@ -163,22 +191,48 @@ async function bibleContext(question: string) {
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
     .join(",");
 
-  const { data: verses } = await supabase
+  const { data: candidates: rawCandidates, error: bibleSearchError } = await supabase
     .from("bible_verses")
     .select("book_id,chapter,verse,text")
     .eq("translation_id", translation)
     .or(filters)
-    .limit(8);
+    .limit(80);
 
+  if (bibleSearchError) {
+    console.error("Bible topic search error", bibleSearchError);
+  }
+
+  const candidatesWithScore = (rawCandidates ?? []).map((verse: any) => {
+    const text = String(verse.text || "").toLowerCase();
+    let score = 0;
+    for (const term of terms) {
+      const occurrences = text.split(term.toLowerCase()).length - 1;
+      if (occurrences > 0) score += Math.min(occurrences, 3);
+    }
+
+    // Prefer passages that contain the concept directly rather than incidental
+    // uses of "pray" as the expression "I pray thee".
+    if (/\bprayer\b|\bpraying\b|\bsupplication\b|\bintercession\b/.test(text)) score += 4;
+    if (/\bi pray thee\b/.test(text)) score -= 3;
+
+    return { verse, score };
+  }).sort((a: any, b: any) =>
+    b.score - a.score ||
+    Number(a.verse.book_id) - Number(b.verse.book_id) ||
+    Number(a.verse.chapter) - Number(b.verse.chapter) ||
+    Number(a.verse.verse) - Number(b.verse.verse)
+  );
+
+  const verses = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
   const bookNames = new Map((books || []).map((book: any) => [book.id, book.name]));
   const references = [...new Set(
-    (verses ?? []).map((verse: any) => {
+    verses.map((verse: any) => {
       const name = bookNames.get(verse.book_id);
       return name ? `${name} ${verse.chapter}:${verse.verse}` : "";
     }).filter(Boolean)
-  )].slice(0, 6);
+  )].slice(0, 12);
 
-  return { translation, reference: "", references, verses: verses ?? [] };
+  return { translation, reference: "", references, verses };
 }
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
@@ -355,6 +409,8 @@ STRICT SOURCE RULES:
 - Do not invent service times, events, leaders, contact details, ministries, giving instructions, locations, or announcements.
 - If a church fact is missing or ambiguous, say that the current published church data does not provide a reliable answer.
 - Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference.
+- For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
+- When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
 - Distinguish Scripture from explanation or interpretation.
 - You may answer general Christian questions, but do not present personal theological interpretation as an official church doctrine unless the supplied church context says so.
 - Be warm, concise and useful. Do not claim to be a pastor or human.
