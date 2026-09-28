@@ -17,7 +17,7 @@ class SyncMessagesWorker(
             val pendingInserts = dao.getPendingInserts()
             for (pending in pendingInserts) {
                 val repository = ChatRepository()
-                val netResult = repository.sendMessage(pending.roomId, pending.message)
+                val netResult = repository.sendMessage(pending.roomId, pending.message, messageId = pending.id)
                 if (netResult.isSuccess) {
                     // Delete the temporary pending record and let Room insert the official one loaded from server
                     dao.deleteMessageById(pending.id)
