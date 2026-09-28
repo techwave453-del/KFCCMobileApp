@@ -39,7 +39,8 @@ data class ChatMessage(
     @SerialName("edited_at") val editedAt: String? = null,
     @SerialName("deleted_at") val deletedAt: String? = null,
     @SerialName("reply_to_id") val replyToId: String? = null,
-    @SerialName("chat_profiles") val senderProfile: ChatProfile? = null
+    @SerialName("chat_profiles") val senderProfile: ChatProfile? = null,
+    @kotlinx.serialization.Transient val bibleReferences: List<String> = emptyList()
 )
 
 @Serializable
