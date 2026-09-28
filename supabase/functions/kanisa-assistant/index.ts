@@ -50,9 +50,6 @@ async function bibleContext(question: string) {
   const q = normalize(question);
   const translation = /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
-  // Resolve references against the actual Bible book table instead of trying to
-  // interpret arbitrary words as a book name. This prevents phrases such as
-  // "what does Genesis 1:1 say" from being parsed as "does Genesis".
   const { data: books } = await supabase
     .from("bible_books")
     .select("id,name,abbreviation")
@@ -61,85 +58,82 @@ async function bibleContext(question: string) {
   const escapeRegex = (value: string) =>
     value.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
 
-  const aliasesFor = (book: any) => {
-    const aliases = new Set<string>();
-    const add = (value: unknown) => {
-      const raw = String(value || "").toLowerCase().trim();
-      if (!raw) return;
-      aliases.add(raw);
-      aliases.add(raw.replace(/^(1|2|3)\s+(?=\w)/, "$1st "));
-      aliases.add(raw.replace(/^(1|2|3)\s+(?=\w)/, "$1nd "));
-      aliases.add(raw.replace(/^(1|2|3)\s+(?=\w)/, "$1rd "));
-      aliases.add(raw.replace(/^(1|2|3)\s+(?=\w)/, "$1"));
-    };
-    add(book.name);
-    add(book.abbreviation);
+  const addAlias = (set: Set<string>, value: unknown) => {
+    const raw = String(value || "")
+      .toLowerCase()
+      .replace(/\./g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!raw) return;
+    set.add(raw);
 
-    // The database currently stores full names as abbreviations, but users
-    // commonly type short forms such as "Tim", "Cor", "Thess", etc.
-    const short = String(book.name || "").toLowerCase().trim();
-    const numbered = short.match(/^(1|2|3)\s+(.+)$/);
-    const prefix = numbered ? numbered[1] + " " : "";
-    const words = (numbered ? numbered[2] : short).split(/\s+/).filter(Boolean);
-    if (words.length) {
-      const first = words[0];
-      const firstThree = first.slice(0, 3);
-      add(prefix + first);
-      add(prefix + firstThree);
-      if (numbered) {
-        add(numbered[1] + "st " + first);
-        add(numbered[1] + "nd " + first);
-        add(numbered[1] + "rd " + first);
-        add(numbered[1] + "st " + firstThree);
-        add(numbered[1] + "nd " + firstThree);
-        add(numbered[1] + "rd " + firstThree);
-      }
+    const numbered = raw.match(/^(1|2|3)\s+(.+)$/);
+    if (numbered) {
+      const n = numbered[1];
+      const name = numbered[2];
+      const first = name.split(/\s+/)[0];
+      const short = first.slice(0, 3);
+      set.add(`${n} ${name}`);
+      set.add(`${n} ${first}`);
+      set.add(`${n} ${short}`);
+      set.add(`${n}st ${name}`);
+      set.add(`${n}nd ${name}`);
+      set.add(`${n}rd ${name}`);
+      set.add(`${n}st ${first}`);
+      set.add(`${n}nd ${first}`);
+      set.add(`${n}rd ${first}`);
+      set.add(`${n}st ${short}`);
+      set.add(`${n}nd ${short}`);
+      set.add(`${n}rd ${short}`);
+
+      // Common Roman-numeral forms: I Corinthians, II Timothy, III John.
+      const roman = n === "1" ? "i" : n === "2" ? "ii" : "iii";
+      set.add(`${roman} ${name}`);
+      set.add(`${roman} ${first}`);
+      set.add(`${roman} ${short}`);
     }
-    return [...aliases].sort((a, b) => b.length - a.length);
   };
 
   const candidates = (books || [])
-    .flatMap((book: any) =>
-      aliasesFor(book).map(alias => ({ book, alias }))
-    )
+    .flatMap((book: any) => {
+      const aliases = new Set<string>();
+      addAlias(aliases, book.name);
+      addAlias(aliases, book.abbreviation);
+      return [...aliases].map(alias => ({ book, alias }));
+    })
     .sort((a, b) => b.alias.length - a.alias.length);
 
-  let matched: { book: any; alias: string; chapter: number; verseStart: number; verseEnd: number } | null = null;
-
+  // Match a real Bible book followed by chapter:verse. The book name must come
+  // from bible_books, so question words such as "does", "say", or "mean" can
+  // never accidentally become part of the book name.
   for (const candidate of candidates) {
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
-      escapeRegex(candidate.alias).replace(/(?:1|2|3)st\\s+|(?:1|2|3)nd\\s+|(?:1|2|3)rd\\s+/gi, "(?:1|2|3)(?:st|nd|rd)?\\s+") +
-      "\\s+(\\d{1,3})\\s*[:;,]\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      escapeRegex(candidate.alias) +
+      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*[:;,]\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
       "i"
     );
     const match = q.match(pattern);
     if (!match) continue;
-    matched = {
-      book: candidate.book,
-      alias: candidate.alias,
-      chapter: Number(match[1]),
-      verseStart: Number(match[2]),
-      verseEnd: match[3] ? Number(match[3]) : Number(match[2])
-    };
-    break;
-  }
 
-  if (matched) {
+    const chapter = Number(match[1]);
+    const verseStart = Number(match[2]);
+    const verseEnd = match[3] ? Number(match[3]) : verseStart;
+
     const { data: verses } = await supabase
       .from("bible_verses")
       .select("book_id,chapter,verse,text")
       .eq("translation_id", translation)
-      .eq("book_id", matched.book.id)
-      .eq("chapter", matched.chapter)
-      .gte("verse", matched.verseStart)
-      .lte("verse", matched.verseEnd)
+      .eq("book_id", candidate.book.id)
+      .eq("chapter", chapter)
+      .gte("verse", verseStart)
+      .lte("verse", verseEnd)
       .order("verse")
       .limit(30);
 
     const canonicalReference =
-      `${matched.book.name} ${matched.chapter}:${matched.verseStart}` +
-      (matched.verseEnd !== matched.verseStart ? `-${matched.verseEnd}` : "");
+      `${candidate.book.name} ${chapter}:${verseStart}` +
+      (verseEnd !== verseStart ? `-${verseEnd}` : "");
 
     return {
       translation,
@@ -148,12 +142,14 @@ async function bibleContext(question: string) {
     };
   }
 
+  // If no exact reference was found, retain keyword Bible search as a fallback.
   const stopWords = new Set([
     "what", "does", "about", "tell", "show", "give", "with", "from",
     "this", "that", "bible", "verse", "verses", "says", "say", "please",
     "can", "you", "mean", "means", "explain", "explanation", "according",
-    "teach", "teaches", "teaching", "scripture", "passage"
+    "teach", "teaches", "teaching", "scripture", "passage", "chapter"
   ]);
+
   const terms = q
     .replace(/[^a-z0-9\s'-]/gi, " ")
     .split(/\s+/)
@@ -165,6 +161,7 @@ async function bibleContext(question: string) {
   const filters = terms
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
     .join(",");
+
   const { data: verses } = await supabase
     .from("bible_verses")
     .select("book_id,chapter,verse,text")
