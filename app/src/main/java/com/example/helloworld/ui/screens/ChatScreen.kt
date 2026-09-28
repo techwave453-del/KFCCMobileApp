@@ -45,7 +45,8 @@ fun ChatScreen(
     innerPadding: PaddingValues,
     viewModel: ChatViewModel = viewModel(),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
-    onAdminLoginSuccess: () -> Unit = {}
+    onAdminLoginSuccess: () -> Unit = {},
+    onOpenBibleReference: (String) -> Unit = {}
 ) {
     val churchViewModel: ChurchViewModel = viewModel()
     val churchInfo by churchViewModel.churchInfo.collectAsState()
@@ -57,7 +58,11 @@ fun ChatScreen(
         if (showAssistant) {
             KanisaAssistantScreen(
                 innerPadding = innerPadding,
-                onBack = { showAssistant = false }
+                onBack = { showAssistant = false },
+                onOpenBibleReference = { reference ->
+                    showAssistant = false
+                    onOpenBibleReference(reference)
+                }
             )
         } else {
             CommunityChat(
