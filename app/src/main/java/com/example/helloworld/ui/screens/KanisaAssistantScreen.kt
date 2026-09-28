@@ -1,24 +1,25 @@
 package com.example.helloworld.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,9 +42,23 @@ fun KanisaAssistantScreen(
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 
-    Column(Modifier.fillMaxSize()) {
+    fun send() {
+        val draft = input.trim()
+        if (draft.isBlank() || sending) return
+        viewModel.ask(draft) { success ->
+            if (success) input = ""
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = innerPadding.calculateBottomPadding())
+    ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(top = innerPadding.calculateTopPadding()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = innerPadding.calculateTopPadding()),
             tonalElevation = 2.dp
         ) {
             Row(
@@ -54,7 +69,7 @@ fun KanisaAssistantScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                 }
                 Surface(
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(42.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
@@ -71,6 +86,9 @@ fun KanisaAssistantScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (sending) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
             }
         }
 
@@ -86,7 +104,7 @@ fun KanisaAssistantScreen(
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             state = listState,
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(messages, key = { it.id }) { message ->
@@ -94,54 +112,100 @@ fun KanisaAssistantScreen(
             }
             if (sending) {
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Kanisa Assistant is thinking…", style = MaterialTheme.typography.labelMedium)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Kanisa Assistant is thinking…",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Surface(tonalElevation = 6.dp, shadowElevation = 12.dp) {
+        error?.let { message ->
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    Modifier.padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        message,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    TextButton(onClick = viewModel::clearError) { Text("Dismiss") }
+                }
+            }
+        }
+
+        Surface(
+            tonalElevation = 6.dp,
+            shadowElevation = 12.dp,
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
+        ) {
             Row(
-                Modifier.fillMaxWidth().imePadding().padding(12.dp),
+                Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 OutlinedTextField(
                     value = input,
-                    onValueChange = { if (it.length <= 2000) input = it },
+                    onValueChange = {
+                        if (it.length <= 2000) {
+                            input = it
+                            if (error != null) viewModel.clearError()
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Ask about the church or Bible…", fontSize = 14.sp) },
                     maxLines = 5,
+                    enabled = !sending,
                     shape = RoundedCornerShape(20.dp),
-                    enabled = !sending
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { send() }),
+                    supportingText = {
+                        if (input.length > 1800) {
+                            Text(input.length.toString() + "/2000", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 )
                 Spacer(Modifier.width(8.dp))
                 FloatingActionButton(
-                    onClick = { viewModel.ask(input); input = "" },
+                    onClick = { send() },
                     modifier = Modifier.size(48.dp),
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = if (input.isNotBlank() && !sending) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    contentColor = if (input.isNotBlank() && !sending) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 ) {
                     if (sending) {
                         CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                        Icon(Icons.AutoMirrored.Filled.Send, "Send message")
                     }
                 }
             }
         }
-    }
-
-    error?.let {
-        AlertDialog(
-            onDismissRequest = viewModel::clearError,
-            title = { Text("Kanisa Assistant") },
-            text = { Text(it) },
-            confirmButton = {
-                TextButton(onClick = viewModel::clearError) { Text("OK") }
-            }
-        )
     }
 }
 
@@ -160,7 +224,8 @@ private fun AssistantBubble(message: KanisaAssistantUiMessage) {
         Surface(
             modifier = Modifier.widthIn(max = 320.dp),
             shape = RoundedCornerShape(
-                topStart = 18.dp, topEnd = 18.dp,
+                topStart = 18.dp,
+                topEnd = 18.dp,
                 bottomStart = if (own) 18.dp else 5.dp,
                 bottomEnd = if (own) 5.dp else 18.dp
             ),
@@ -170,7 +235,12 @@ private fun AssistantBubble(message: KanisaAssistantUiMessage) {
             Column(Modifier.padding(13.dp)) {
                 if (!own) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            null,
+                            Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.width(5.dp))
                         Text("Kanisa Assistant", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
@@ -185,9 +255,11 @@ private fun AssistantBubble(message: KanisaAssistantUiMessage) {
                     Spacer(Modifier.height(8.dp))
                     message.bibleReferences.forEach { reference ->
                         AssistChip(
-                            onClick = { /* Bible navigation will be wired to the Bible screen next. */ },
+                            onClick = { },
                             label = { Text(reference) },
-                            leadingIcon = { Icon(Icons.Default.MenuBook, null, Modifier.size(16.dp)) }
+                            leadingIcon = {
+                                Icon(Icons.Default.MenuBook, null, Modifier.size(16.dp))
+                            }
                         )
                     }
                 }
