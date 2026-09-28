@@ -542,26 +542,57 @@ private fun ChatBubble(
                             }
                         }
                         if (repliedToMessage != null) {
+                            val repliedIsKanisa = repliedToMessage.senderId == ChatViewModel.KANISA_ASSISTANT_ID
+                            val replyAccent = if (own) Color.White else MaterialTheme.colorScheme.primary
+                            val replyContainer = if (repliedIsKanisa) {
+                                if (own) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+                            } else {
+                                replyAccent.copy(alpha = 0.1f)
+                            }
                             Surface(
-                                color = (if (own) Color.White else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.padding(bottom = 6.dp).fillMaxWidth()
+                                color = replyContainer,
+                                border = if (repliedIsKanisa) BorderStroke(1.dp, replyAccent.copy(alpha = 0.24f)) else null,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.padding(bottom = 7.dp).fillMaxWidth()
                             ) {
-                                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                                    Box(Modifier.width(2.dp).fillMaxHeight().background(if (own) Color.White else MaterialTheme.colorScheme.primary))
+                                Row(Modifier.padding(horizontal = 9.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier.width(3.dp).heightIn(min = 30.dp).clip(RoundedCornerShape(3.dp))
+                                            .background(replyAccent.copy(alpha = if (repliedIsKanisa) 0.95f else 0.7f))
+                                    )
                                     Spacer(Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = repliedToMessage.senderProfile?.username ?: "Member",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (own) Color.White else MaterialTheme.colorScheme.primary
-                                        )
+                                    if (repliedIsKanisa) {
+                                        Surface(
+                                            modifier = Modifier.size(24.dp),
+                                            shape = CircleShape,
+                                            color = if (own) Color.White.copy(alpha = 0.14f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.AutoAwesome, null, Modifier.size(13.dp), tint = replyAccent)
+                                            }
+                                        }
+                                        Spacer(Modifier.width(7.dp))
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = if (repliedIsKanisa) "Kanisa Assistant" else repliedToMessage.senderProfile?.username ?: "Member",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = replyAccent
+                                            )
+                                            if (repliedIsKanisa) {
+                                                Spacer(Modifier.width(5.dp))
+                                                Surface(color = replyAccent.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) {
+                                                    Text("AI", Modifier.padding(horizontal = 5.dp, vertical = 1.dp), style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, fontWeight = FontWeight.Black, color = replyAccent)
+                                                }
+                                            }
+                                        }
                                         Text(
                                             text = repliedToMessage.message,
                                             style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            color = (if (own) Color.White else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.8f)
+                                            maxLines = if (repliedIsKanisa) 2 else 1,
+                                            color = if (own) Color.White.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
                                         )
                                     }
                                 }
@@ -717,27 +748,44 @@ private fun ChatInput(
                 }
             }
             if (replyingTo != null) {
-                Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)).padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                val replyingToKanisa = replyingTo.senderId == ChatViewModel.KANISA_ASSISTANT_ID
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (replyingToKanisa) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = if (replyingToKanisa) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)) else null
                 ) {
-                    Icon(Icons.Default.Reply, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = "Replying to ${replyingTo.senderProfile?.username ?: "Member"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (replyingToKanisa) Icons.Default.AutoAwesome else Icons.Default.Reply,
+                            null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary
                         )
-                        Text(
-                            text = replyingTo.message,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (replyingToKanisa) "Replying to Kanisa Assistant" else "Replying to ${replyingTo.senderProfile?.username ?: "Member"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (replyingToKanisa) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (replyingToKanisa) {
+                                    Spacer(Modifier.width(5.dp))
+                                    Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) {
+                                        Text("AI", Modifier.padding(horizontal = 5.dp, vertical = 1.dp), style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                            Text(
+                                text = replyingTo.message,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = if (replyingToKanisa) 2 else 1,
+                                color = if (replyingToKanisa) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.76f) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                        }
                     }
                 }
             }
