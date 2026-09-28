@@ -72,7 +72,8 @@ async function bibleContext(question: string) {
     }
   }
 
-  const terms = q.split(/\s+/).filter(x => x.length >= 4).slice(0, 5);
+  const stopWords = new Set(["what", "does", "about", "tell", "show", "give", "with", "from", "this", "that", "bible", "verse", "verses", "says", "say", "please", "can", "you"]);
+  const terms = q.split(/\s+/).filter(x => x.length >= 4 && !stopWords.has(x)).slice(0, 5);
   if (!terms.length) return { translation, reference: "", verses: [] };
   const filters = terms.map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`).join(",");
   const { data: verses } = await supabase.from("bible_verses")
@@ -100,17 +101,84 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
   const site = context.site_content || {};
   const events = Array.isArray(context.events) ? context.events : [];
   const media = Array.isArray(context.media) ? context.media : [];
+  const pages = Array.isArray(context.pages) ? context.pages : [];
+
+  const page = (slug: string) => pages.find((item: any) => item.slug === slug);
+  const pageText = (slug: string) => {
+    const item = page(slug);
+    if (!item) return "";
+    const sections = Array.isArray(item.cms_sections) ? item.cms_sections : [];
+    return sections
+      .sort((a: any, b: any) => Number(a.position || 0) - Number(b.position || 0))
+      .map((section: any) => {
+        const content = section.content;
+        if (typeof content === "string") return content;
+        try { return JSON.stringify(content); } catch { return ""; }
+      })
+      .filter(Boolean)
+      .join("\n");
+  };
 
   if (/^(hi|hello|hey|habari|shalom)\\b/.test(q)) {
-    return `Hello! 👋 I’m ${assistantName}. I can help you with ${churchName}, church information, service times, events, media and Bible questions.`;
+    return `Hello! 👋 I’m ${assistantName}. I can help you with ${churchName}, service times, events, media, giving, contact information and Bible questions.`;
   }
 
   if (/who (are|is) you|what (are|is) you|your name/.test(q)) {
-    return `I’m ${assistantName}, the digital assistant for ${churchName}. I use the information published in Kanisa and the Bible data available to the app.`;
+    return `I’m ${assistantName}, the digital assistant for ${churchName}. I use information published in Kanisa and the Bible data available to the app.`;
   }
 
   if (/church name|name of (our|the) church|which church/.test(q)) {
-    return `The church name currently published in Kanisa is **${churchName}**.`;
+    return `The church name currently published in Kanisa is ${churchName}.`;
+  }
+
+  if (/about (the )?church|who (are|is) (we|the church)|what is the church about|mission|vision/.test(q)) {
+    const about = firstValue(site, ["aboutText", "about", "church_description"]) || pageText("about");
+    return about
+      ? `Here is the published information about ${churchName}:\\n\\n${about}`
+      : `I couldn't find published information about ${churchName} in the current church data.`;
+  }
+
+  if (/contact|phone|telephone|call|email|e-mail|reach (the )?church/.test(q)) {
+    const phone = firstValue(site, ["phone", "contactPhone", "contact_phone"]);
+    const email = firstValue(site, ["email", "contactEmail", "contact_email"]);
+    const address = firstValue(site, ["address", "contactAddress", "location", "churchAddress"]);
+    const lines = [
+      phone ? `Phone: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+      address ? `Address: ${address}` : ""
+    ].filter(Boolean);
+    return lines.length
+      ? `Here is the published church contact information:\\n\\n${lines.join("\\n")}`
+      : `I couldn't find published contact details in the current church data.`;
+  }
+
+  if (/give|giving|offering|tithe|tithes|donat|contribut/.test(q)) {
+    const give = pageText("give");
+    const givingKeys = Object.entries(site).filter(([key, value]) =>
+      /give|giving|offering|tithe|donat|mpesa|paybill|account|bank/i.test(key) && String(value).trim()
+    );
+    if (give) return `Here is the published giving information:\\n\\n${give}`;
+    if (givingKeys.length) {
+      return `Here is the published giving information:\\n\\n${givingKeys.slice(0, 12).map(([key, value]) =>
+        `${key.replace(/[_-]+/g, " ")}: ${value}`
+      ).join("\\n")}`;
+    }
+    return "I couldn't find published giving instructions in the current church data. Please check the Giving section in Kanisa.";
+  }
+
+  if (/visit|where (is|are)|location|address|directions|find (the )?church/.test(q)) {
+    const visit = pageText("visit-us");
+    const address = firstValue(site, ["address", "contactAddress", "location", "churchAddress"]);
+    if (visit) return `Here is the published visitor information:\\n\\n${visit}`;
+    if (address) return `The published church location is: ${address}`;
+    return "I couldn't find a published church address or location in the current church data.";
+  }
+
+  if (/youth|young people|teen|teenager|young adult/.test(q)) {
+    const youth = pageText("youth");
+    return youth
+      ? `Here is the published youth information:\\n\\n${youth}`
+      : "I couldn't find published youth-ministry information in the current church data.";
   }
 
   if (/event|upcoming|what('s| is) happening|calendar/.test(q)) {
@@ -121,7 +189,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
         timeStyle: "short"
       }) : "Date not published";
       const location = event.location || event.address ? ` — ${event.location || event.address}` : "";
-      return `• **${event.title}** — ${date}${location}`;
+      return `• ${event.title || "Untitled event"} — ${date}${location}`;
     });
     return `Here are the published events I can find:\\n\\n${lines.join("\\n")}`;
   }
@@ -133,7 +201,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length) {
           return `Here are the published service times:\\n\\n${parsed.map((item: any) =>
-            `• **${item.title || "Service"}** — ${item.time || "Time not published"}`
+            `• ${item.title || "Service"} — ${item.time || "Time not published"}`
           ).join("\\n")}`;
         }
       } catch {
@@ -144,30 +212,41 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       /service|worship|sunday|saturday|meeting|time/i.test(key) && String(value).trim()
     );
     if (candidates.length) {
-      return candidates.slice(0, 8).map(([key, value]) => `**${key.replace(/[_-]+/g, " ")}:** ${value}`).join("\\n");
+      return candidates.slice(0, 8).map(([key, value]) => `${key.replace(/[_-]+/g, " ")}: ${value}`).join("\\n");
     }
     return "I couldn't find published service times in the current church data.";
   }
 
   if (/media|video|sermon|livestream|live stream/.test(q)) {
     if (!media.length) return "There are no published media items available right now.";
-    const lines = media.slice(0, 8).map((item: any) => `• **${item.title}**${item.type ? ` — ${item.type}` : ""}`);
+    const lines = media.slice(0, 8).map((item: any) =>
+      `• ${item.title || "Untitled media"}${item.type ? ` — ${item.type}` : ""}`
+    );
     return `Here are some published media items:\\n\\n${lines.join("\\n")}`;
   }
 
-  if (bible?.verses?.length) {
-    const verses = bible.verses.slice(0, 5);
-    const reference = bible.reference || "";
-    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
-    if (reference) {
-      return `Here is the Scripture I found for **${reference}**:\\n\\n${scripture}\\n\\nI’m using the Bible text available in the Kanisa database. I can also explain the passage if you want.`;
-    }
-    return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a more precise result.`;
+  if (/kiswahili|swahili|kikamba|kamba bible|kitui bible/.test(q)) {
+    const requested = /kikamba|kamba|kitui/.test(q) ? "Kikamba" : "Kiswahili";
+    return `${requested} Bible data is not currently enabled in the assistant's Bible database. The currently enabled translations are KJV and WEB. I won't pretend to quote a translation that isn't available.`;
   }
 
-  return `I’m currently operating in local mode. I can reliably answer from the church and Bible information available in Kanisa, but I don’t have enough published data for that question yet. Try asking about the church name, service times, events, media, or a specific Bible passage.`;
-}
+  if (bible?.verses?.length) {
+    const verses = bible.verses.slice(0, 8);
+    const reference = bible.reference || "";
+    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
+    if (reference) {
+      const translationName = bible.translation === "web" ? "WEB" : "KJV";
+      return `Here is ${translationName} Scripture for ${reference}:\\n\\n${scripture}\\n\\nI’m using the Bible text available in the Kanisa database.`;
+    }
+    return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a precise result.`;
+  }
 
+  if (/help|what can you do|how can you help/.test(q)) {
+    return `I can help with ${churchName}, service times, events, media, giving, contact and visitor information, youth information, and Bible passages available in Kanisa. Ask me a specific question and I’ll use the published data available to me.`;
+  }
+
+  return `I’m currently operating in local mode. I can answer from the church and Bible information available in Kanisa, but I don’t have enough published data for that question yet. Try asking about service times, events, giving, contact details, media, or a specific Bible passage.`;
+}
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
