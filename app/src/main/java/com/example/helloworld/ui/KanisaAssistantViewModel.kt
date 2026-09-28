@@ -57,8 +57,8 @@ class KanisaAssistantViewModel : ViewModel() {
                     _messages.value = _messages.value + KanisaAssistantUiMessage(
                         nextId++,
                         "assistant",
-                        response.answer,
-                        response.bible_references
+                        response.answer.normalizeAssistantText(),
+                        response.bible_references.distinct().take(6)
                     )
                     onComplete(true)
                 }
@@ -70,6 +70,23 @@ class KanisaAssistantViewModel : ViewModel() {
             _sending.value = false
         }
     }
+
+    fun deleteMessage(id: Long) {
+        if (id == 0L) return
+        _messages.value = _messages.value.filterNot { it.id == id }
+    }
+
+    fun clearMessages() {
+        _messages.value = emptyList()
+        _error.value = null
+    }
+
+    private fun String.normalizeAssistantText(): String =
+        replace("\\r\\n", "\n")
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
+            .replace(Regex("\\n{3,}"), "\n\n")
+            .trim()
 
     fun clearError() {
         _error.value = null
