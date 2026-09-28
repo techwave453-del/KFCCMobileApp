@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -459,6 +460,7 @@ private fun ChatBubble(
     val isAdmin = profile?.is_admin_visible == true
     val isKanisa = message.senderId == ChatViewModel.KANISA_ASSISTANT_ID
     var showMenu by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -638,11 +640,18 @@ private fun ChatBubble(
                                 }
                             }
                         }
-                        Text(
-                            text = message.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isKanisa) MaterialTheme.colorScheme.onPrimaryContainer else if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (isKanisa) {
+                            KanisaChatText(
+                                text = message.message,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            Text(
+                                text = message.message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (isKanisa && message.bibleReferences.isNotEmpty()) {
                             Spacer(Modifier.height(9.dp))
                             HorizontalDivider(
@@ -709,6 +718,14 @@ private fun ChatBubble(
                         text = { Text("Reply") },
                         onClick = { showMenu = false; onReply(message) },
                         leadingIcon = { Icon(Icons.Default.Reply, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copy") },
+                        onClick = {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(message.message))
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                     )
                     if (own || isKanisa) {
                         if (own) {
