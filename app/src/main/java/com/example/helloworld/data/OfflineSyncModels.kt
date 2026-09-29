@@ -50,6 +50,12 @@ interface ChatDao {
 
     @Query("DELETE FROM local_chat_messages WHERE id = :oldId")
     suspend fun deleteMessageById(oldId: String)
+
+    @Query("DELETE FROM local_chat_messages WHERE roomId = :roomId AND senderId = :senderId")
+    suspend fun deleteMessagesForRoomAndSender(roomId: String, senderId: String)
+
+    @Query("DELETE FROM local_chat_messages WHERE roomId = :roomId AND syncStatus = 'SYNCED'")
+    suspend fun deleteSyncedMessagesForRoom(roomId: String)
 }
 
 @Database(entities = [LocalChatRoomEntity::class, LocalChatMessageEntity::class], version = 1, exportSchema = false)
