@@ -61,10 +61,18 @@ fun KanisaAssistantScreen(
         }
     }
 
+    val imeVisible = WindowInsets.isImeVisible
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = innerPadding.calculateBottomPadding())
+            .padding(
+                bottom = if (imeVisible) {
+                    0.dp
+                } else {
+                    innerPadding.calculateBottomPadding()
+                }
+            )
     ) {
         Surface(
             modifier = Modifier
@@ -182,7 +190,12 @@ fun KanisaAssistantScreen(
         Surface(
             tonalElevation = 6.dp,
             shadowElevation = 12.dp,
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
+            // The parent owns the navigation-bar inset when the IME is hidden.
+            // When the IME is visible, remove that parent inset and let imePadding()
+            // place the typing area directly against the keyboard.
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(10.dp),
