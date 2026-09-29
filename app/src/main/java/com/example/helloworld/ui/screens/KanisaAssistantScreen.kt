@@ -145,7 +145,9 @@ fun KanisaAssistantScreen(
                 AssistantBubble(
                     message = message,
                     onOpenBibleReference = onOpenBibleReference,
-                    onDelete = { if (message.id != 0L) messageToDelete = message }
+                    onDelete = { if (message.id != 0L) messageToDelete = message },
+                    showFollowUps = !sending && message.role == "assistant" && message.id == messages.lastOrNull()?.id,
+                    onFollowUp = { prompt -> viewModel.ask(prompt) }
                 )
             }
             if (sending) {
@@ -346,7 +348,9 @@ private fun Suggestion(label: String, onClick: () -> Unit) {
 private fun AssistantBubble(
     message: KanisaAssistantUiMessage,
     onOpenBibleReference: (String) -> Unit,
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    showFollowUps: Boolean = false,
+    onFollowUp: (String) -> Unit = {}
 ) {
     val own = message.role == "user"
     Row(
@@ -396,7 +400,10 @@ private fun AssistantBubble(
                         )
                         Spacer(Modifier.height(8.dp))
                     }
-                } else if (message.bibleReferences.isNotEmpty()) {
+                    if (showFollowUps) {
+                        KanisaAssistantFollowUps(onFollowUp = onFollowUp)
+                    }
+                } else if (message.bibleReferences.isNotEmpty())
                     Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
                     Spacer(Modifier.height(7.dp))
@@ -418,6 +425,41 @@ private fun AssistantBubble(
             }
         }
     }
+}
+
+@Composable
+private fun KanisaAssistantFollowUps(
+    onFollowUp: (String) -> Unit
+) {
+    Text(
+        "Continue studying",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 5.dp)
+    )
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        AssistChip(
+            onClick = { onFollowUp("Explain the Scripture you just shared in simple terms.") },
+            label = { Text("Explain this") }
+        )
+        AssistChip(
+            onClick = { onFollowUp("Show me more relevant Bible Scriptures about this topic. Use the Bible context available to you and give the references and exact supplied text.") },
+            label = { Text("More Scriptures") }
+        )
+        AssistChip(
+            onClick = { onFollowUp("Explain your previous answer in Kiswahili. Keep any Scripture quotation faithful to the supplied Bible text and clearly identify the reference.") },
+            label = { Text("In Kiswahili") }
+        )
+        AssistChip(
+            onClick = { onFollowUp("Give me a short Christian prayer related to what we just discussed.") },
+            label = { Text("Pray about it") }
+        )
+    }
+    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
