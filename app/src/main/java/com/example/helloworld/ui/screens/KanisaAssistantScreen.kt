@@ -403,7 +403,7 @@ private fun AssistantBubble(
                     if (showFollowUps) {
                         KanisaAssistantFollowUps(onFollowUp = onFollowUp)
                     }
-                } else if (message.bibleReferences.isNotEmpty())
+                } else if (message.bibleReferences.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
                     Spacer(Modifier.height(7.dp))
