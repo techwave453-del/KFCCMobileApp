@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.BorderStroke
+import com.example.helloworld.data.KanisaAssistantBibleQuote
 import com.example.helloworld.ui.KanisaAssistantUiMessage
 import com.example.helloworld.ui.KanisaAssistantViewModel
 
@@ -384,38 +386,65 @@ private fun AssistantBubble(
                     text = message.content,
                     color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (message.bibleReferences.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                    )
-                    Spacer(Modifier.height(7.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.MenuBook,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                if (message.bibleQuotes.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    message.bibleQuotes.take(6).forEach { quote ->
+                        KanisaAssistantScriptureCard(
+                            quote = quote,
+                            onClick = { onOpenBibleReference(quote.reference) }
                         )
-                        Spacer(Modifier.width(5.dp))
-                        Text(
-                            "Referenced Scripture",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Spacer(Modifier.height(8.dp))
                     }
+                } else if (message.bibleReferences.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                    Spacer(Modifier.height(7.dp))
+                    Text(
+                        "Referenced Scripture",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(Modifier.height(5.dp))
                     message.bibleReferences.forEach { reference ->
                         AssistChip(
                             onClick = { onOpenBibleReference(reference) },
                             label = { Text(reference) },
-                            leadingIcon = {
-                                Icon(Icons.Default.MenuBook, null, Modifier.size(16.dp))
-                            }
+                            leadingIcon = { Icon(Icons.Default.MenuBook, null, Modifier.size(16.dp)) }
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KanisaAssistantScriptureCard(
+    quote: KanisaAssistantBibleQuote,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.MenuBook, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(6.dp))
+                Text("SCRIPTURE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.weight(1f))
+                Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.height(7.dp))
+            Text("“${quote.text.trim()}”", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(quote.reference, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(6.dp))
+                Text(quote.translation, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
