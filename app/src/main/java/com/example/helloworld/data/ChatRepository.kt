@@ -218,7 +218,7 @@ class ChatRepository {
             .select {
                 filter {
                     eq("room_id", roomId)
-                    isNull("deleted_at")
+                    exact("deleted_at", null)
                 }
                 order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 limit(50)
