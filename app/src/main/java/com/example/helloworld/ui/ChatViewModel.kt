@@ -322,6 +322,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                                     createdAt = row.createdAt,
                                     replyToId = row.replyToMessageId,
                                     bibleReferences = row.bibleReferences.distinct().take(6),
+                                    bibleQuotes = row.bibleQuotes.take(6),
                                     senderProfile = ChatProfile(
                                         user_id = KANISA_ASSISTANT_ID,
                                         username = "Kanisa Assistant",
