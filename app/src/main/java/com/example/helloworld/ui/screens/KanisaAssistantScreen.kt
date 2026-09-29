@@ -393,13 +393,15 @@ private fun AssistantBubble(
                 )
                 if (message.bibleQuotes.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
-                    message.bibleQuotes.take(6).forEach { quote ->
-                        KanisaAssistantScriptureCard(
-                            quote = quote,
-                            onClick = { onOpenBibleReference(quote.reference) }
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
+                    groupAssistantScriptureQuotes(message.bibleQuotes)
+                        .take(6)
+                        .forEach { quote ->
+                            KanisaAssistantScriptureCard(
+                                quote = quote,
+                                onClick = { onOpenBibleReference(quote.reference) }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                     if (showFollowUps) {
                         KanisaAssistantFollowUps(onFollowUp = onFollowUp)
                     }
@@ -460,6 +462,88 @@ private fun KanisaAssistantFollowUps(
         )
     }
     Spacer(Modifier.height(4.dp))
+}
+
+private fun groupAssistantScriptureQuotes(
+    quotes: List<KanisaAssistantBibleQuote>
+): List<KanisaAssistantBibleQuote> {
+    if (quotes.size < 2) return quotes
+
+    val result = mutableListOf<KanisaAssistantBibleQuote>()
+    var current = quotes.first()
+
+    fun parseReference(reference: String): Triple<String, Int, Int>? {
+        val match = Regex(
+            """^(.+?) (\\d+):(\\d+)(?:[-–](\\d+))?$"""
+        ).find(reference.trim()) ?: return null
+
+        val book = match.groupValues[1]
+        val chapter = match.groupValues[2].toIntOrNull() ?: return null
+        val startVerse = match.groupValues[3].toIntOrNull() ?: return null
+        val endVerse = match.groupValues[4].toIntOrNull() ?: startVerse
+        return Triple(book, chapter, endVerse)
+    }
+
+    fun startVerse(reference: String): Int? =
+        parseReference(reference)?.let { Triple(it.first, it.second, it.third) }
+            ?.third
+
+    fun canMerge(first: KanisaAssistantBibleQuote, second: KanisaAssistantBibleQuote): Boolean {
+        if (first.translation != second.translation) return false
+
+        val firstMatch = Regex(
+            """^(.+?) (\\d+):(\\d+)(?:[-–](\\d+))?$"""
+        ).find(first.reference.trim()) ?: return false
+        val secondMatch = Regex(
+            """^(.+?) (\\d+):(\\d+)(?:[-–](\\d+))?$"""
+        ).find(second.reference.trim()) ?: return false
+
+        val firstBook = firstMatch.groupValues[1]
+        val firstChapter = firstMatch.groupValues[2].toIntOrNull() ?: return false
+        val firstEnd = firstMatch.groupValues[4].toIntOrNull()
+            ?: firstMatch.groupValues[3].toIntOrNull()
+            ?: return false
+
+        val secondBook = secondMatch.groupValues[1]
+        val secondChapter = secondMatch.groupValues[2].toIntOrNull() ?: return false
+        val secondStart = secondMatch.groupValues[3].toIntOrNull() ?: return false
+
+        return firstBook.equals(secondBook, ignoreCase = true) &&
+            firstChapter == secondChapter &&
+            secondStart == firstEnd + 1
+    }
+
+    fun merge(first: KanisaAssistantBibleQuote, second: KanisaAssistantBibleQuote): KanisaAssistantBibleQuote {
+        val firstMatch = Regex(
+            """^(.+?) (\\d+):(\\d+)(?:[-–](\\d+))?$"""
+        ).find(first.reference.trim())
+        val secondMatch = Regex(
+            """^(.+?) (\\d+):(\\d+)(?:[-–](\\d+))?$"""
+        ).find(second.reference.trim())
+
+        if (firstMatch == null || secondMatch == null) return first
+
+        val book = firstMatch.groupValues[1]
+        val chapter = firstMatch.groupValues[2]
+        val start = firstMatch.groupValues[3]
+        val end = secondMatch.groupValues[4].ifBlank { secondMatch.groupValues[3] }
+
+        return first.copy(
+            reference = "$book $chapter:$start-$end",
+            text = first.text.trim() + " " + second.text.trim()
+        )
+    }
+
+    quotes.drop(1).forEach { next ->
+        if (canMerge(current, next)) {
+            current = merge(current, next)
+        } else {
+            result += current
+            current = next
+        }
+    }
+    result += current
+    return result
 }
 
 @Composable
