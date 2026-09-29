@@ -52,8 +52,8 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const q = normalize(question);
   const lastAssistant = [...history].reverse().find(item => item.role === "assistant")?.content || "";
   const contextualFollowUp =
-    /\\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\\b/i.test(q) ||
-    /\\b(explain|expand|elaborate|more scriptures|another verse|another passage)\\b/i.test(q);
+    /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
+    /\b(explain|expand|elaborate|more scriptures|another verse|another passage)\b/i.test(q);
   const bibleSearchQuestion = contextualFollowUp && lastAssistant
     ? q + " " + lastAssistant
     : q;
@@ -119,7 +119,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*[:;,]\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "\s*(?:chapter\s*)?(\\d{1,3})\s*[:;,]\s*(\\d{1,3})(?:\s*[-–]\s*(\\d{1,3}))?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
@@ -261,7 +261,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
 }
 function verifiedUserId(req: Request): string | null {
   const header = req.headers.get("Authorization") || "";
-  const token = header.replace(/^Bearer\\s+/i, "").trim();
+  const token = header.replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
 
   try {
@@ -367,7 +367,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       .join("\n");
   };
 
-  if (/^(hi|hello|hey|habari|shalom)\\b/.test(q)) {
+  if (/^(hi|hello|hey|habari|shalom)\b/.test(q)) {
     return `Hello! 👋 I’m ${assistantName}. I can help you with ${churchName}, service times, events, media, giving, contact information and Bible questions.`;
   }
 
@@ -486,8 +486,8 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
 
     if (reference) {
       const contextualFollowUp =
-        /\\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\\b/i.test(q) ||
-        /\\b(explain|expand|elaborate|meaning|application)\\b/i.test(q);
+        /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
+        /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
 
       if (contextualFollowUp) {
         return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\nIn simple terms: This passage is the biblical text returned for your question. Read it in its surrounding chapter context, and use the wording of the passage itself as the starting point for understanding its message.\\n\\nPractical reflection: Consider how the teaching in this passage relates to your current situation, while keeping personal application distinct from the exact words of Scripture.`;
