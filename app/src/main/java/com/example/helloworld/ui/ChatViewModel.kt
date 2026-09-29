@@ -181,6 +181,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                                 createdAt = row.createdAt,
                                 replyToId = row.replyToMessageId,
                                 bibleReferences = row.bibleReferences.distinct().take(6),
+                                bibleQuotes = row.bibleQuotes.take(6),
                                 senderProfile = ChatProfile(
                                     user_id = KANISA_ASSISTANT_ID,
                                     username = "Kanisa Assistant",
@@ -255,6 +256,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     text = response.answer.normalizeKanisaLineBreaks(),
                     username = response.assistant_name.ifBlank { "Kanisa Assistant" },
                     bibleReferences = response.bible_references,
+                    bibleQuotes = response.bible_quotes.map { quote -> KanisaBibleQuote(quote.reference, quote.text, quote.translation) },
                     replyToMessageId = replyToMessageId
                 )
             }.onFailure { failure ->
@@ -275,6 +277,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         text: String,
         username: String,
         bibleReferences: List<String> = emptyList(),
+        bibleQuotes: List<KanisaBibleQuote> = emptyList(),
         replyToMessageId: String? = null
     ) {
         val assistantMessage = ChatMessage(
@@ -285,6 +288,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).format(java.util.Date()),
             replyToId = replyToMessageId,
             bibleReferences = bibleReferences.distinct().take(6),
+            bibleQuotes = bibleQuotes.take(6),
             senderProfile = ChatProfile(
                 user_id = KANISA_ASSISTANT_ID,
                 username = username,
