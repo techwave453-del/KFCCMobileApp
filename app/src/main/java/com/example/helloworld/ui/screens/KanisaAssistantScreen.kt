@@ -3,6 +3,7 @@ package com.example.helloworld.ui.screens
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,7 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.ui.KanisaAssistantUiMessage
 import com.example.helloworld.ui.KanisaAssistantViewModel
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun KanisaAssistantScreen(
     innerPadding: PaddingValues,
