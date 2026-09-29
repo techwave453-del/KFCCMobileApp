@@ -231,13 +231,20 @@ private fun CommunityChat(
             }
         }
 
-        // Interaction Area - Flush with Keyboard
-        val imeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+        // Interaction Area - stay directly above the IME without stacking
+        // the Scaffold/navigation-bar bottom inset on top of the keyboard inset.
+        val imeVisible = WindowInsets.isImeVisible
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(
+                    bottom = if (imeVisible) {
+                        0.dp
+                    } else {
+                        innerPadding.calculateBottomPadding()
+                    }
+                )
                 .imePadding()
-                .padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())
         ) {
             ChatInput(
                 input = input,
