@@ -189,16 +189,17 @@ class ChatRepository {
         }
     }
 
-    suspend fun deleteMessage(messageId: String): Result<Unit> = runCatching {
+    suspend fun deleteMessage(messageId: String, context: Context): Result<Unit> = runCatching {
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
         client.from("chat_messages").update(
             mapOf("deleted_at" to now)
         ) {
             filter { eq("id", messageId) }
         }
+        AppLocalDatabase.getDatabase(context).chatDao().deleteMessageById(messageId)
     }
 
-    suspend fun clearMyMessages(roomId: String, senderId: String): Result<Unit> = runCatching {
+    suspend fun clearMyMessages(roomId: String, senderId: String, context: Context): Result<Unit> = runCatching {
         require(roomId.isNotBlank()) { "Chat room is not available." }
         require(senderId.isNotBlank()) { "Please sign in again." }
 
@@ -211,6 +212,9 @@ class ChatRepository {
                 eq("sender_id", senderId)
             }
         }
+
+        AppLocalDatabase.getDatabase(context).chatDao()
+            .deleteMessagesForRoomAndSender(roomId, senderId)
     }
 
     suspend fun getKanisaRoomMessages(roomId: String): Result<List<KanisaRoomMessage>> = runCatching {
@@ -242,6 +246,18 @@ class ChatRepository {
     suspend fun deleteKanisaRoomMessage(messageId: String): Result<Unit> = runCatching {
         client.from("kanisa_room_messages").delete {
             filter { eq("id", messageId) }
+        }
+    }
+
+    suspend fun clearMyKanisaRoomMessages(roomId: String, userId: String): Result<Unit> = runCatching {
+        require(roomId.isNotBlank()) { "Chat room is not available." }
+        require(userId.isNotBlank()) { "Please sign in again." }
+
+        client.from("kanisa_room_messages").delete {
+            filter {
+                eq("room_id", roomId)
+                eq("user_id", userId)
+            }
         }
     }
 
@@ -282,7 +298,12 @@ class ChatRepository {
 
     suspend fun syncMessagesToLocal(roomId: String, messagesList: List<ChatMessage>, context: Context) {
         val database = AppLocalDatabase.getDatabase(context)
-        database.chatDao().insertMessages(messagesList.map {
+        val dao = database.chatDao()
+        // Remote results already exclude soft-deleted messages. Remove the old synced
+        // cache for this room before inserting the current server snapshot, while
+        // preserving pending offline messages.
+        dao.deleteSyncedMessagesForRoom(roomId)
+        dao.insertMessages(messagesList.map {
             LocalChatMessageEntity(
                 id = it.id,
                 roomId = it.roomId,
