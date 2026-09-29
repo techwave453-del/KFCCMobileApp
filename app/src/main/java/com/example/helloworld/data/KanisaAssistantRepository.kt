@@ -50,10 +50,18 @@ private data class SaveKanisaAssistantMessage(
 )
 
 @Serializable
+data class KanisaAssistantBibleQuote(
+    val reference: String,
+    val text: String,
+    val translation: String = "KJV"
+)
+
+@Serializable
 data class KanisaAssistantResponse(
     val assistant_name: String = "Kanisa Assistant",
     val answer: String,
     val bible_references: List<String> = emptyList(),
+    val bible_quotes: List<KanisaAssistantBibleQuote> = emptyList(),
     val provider: String = "cloud",
     val model: String? = null,
     val room_message_id: String? = null,
