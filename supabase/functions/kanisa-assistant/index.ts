@@ -257,7 +257,8 @@ async function persistRoomMessage(
   req: Request,
   body: Body,
   answer: string,
-  bibleReferences: string[]
+  bibleReferences: string[],
+  bibleQuotes: Array<{ reference: string; text: string; translation: string }>
 ): Promise<string | null> {
   const roomId = String(body.room_id || "").trim();
   if (!roomId) return null;
@@ -296,6 +297,7 @@ async function persistRoomMessage(
     user_id: userId,
     message: answer.trim().slice(0, 4000),
     bible_references: bibleReferences.slice(0, 12),
+    bible_quotes: bibleQuotes.slice(0, 12),
     reply_to_message_id: replyToId
   });
 
@@ -481,10 +483,12 @@ STRICT SOURCE RULES:
 - Church facts must come only from the supplied Supabase church context.
 - Do not invent service times, events, leaders, contact details, ministries, giving instructions, locations, or announcements.
 - If a church fact is missing or ambiguous, say that the current published church data does not provide a reliable answer.
-- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference.
+- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote.
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
 - When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
 - Distinguish Scripture from explanation or interpretation.
+- When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage. Do not put all references in a separate list.
+- Never paraphrase a supplied Scripture passage while presenting it as a quotation.
 - You may answer general Christian questions, but do not present personal theological interpretation as an official church doctrine unless the supplied church context says so.
 - Be warm, concise and useful. Do not claim to be a pastor or human.
 - If the user asks for something private about another member, refuse to expose it.
@@ -550,12 +554,14 @@ Deno.serve(async (req: Request) => {
       : usableBible.reference
         ? [usableBible.reference]
         : [];
-    const roomMessageId = await persistRoomMessage(req, body, answer, references);
+    const bibleQuotes = (usableBible?.verses || []).slice(0, 12).map((verse: any) => { const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name; return name && verse.text ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: usableBible.translation === "web" ? "WEB" : "KJV" } : null; }).filter(Boolean);
+    const roomMessageId = await persistRoomMessage(req, body, answer, references, bibleQuotes);
 
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer,
       bible_references: references,
+      bible_quotes: bibleQuotes,
       provider: providerName,
       model: modelName,
       room_message_id: roomMessageId
