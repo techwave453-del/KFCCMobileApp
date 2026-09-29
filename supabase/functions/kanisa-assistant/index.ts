@@ -554,14 +554,23 @@ Deno.serve(async (req: Request) => {
       : usableBible.reference
         ? [usableBible.reference]
         : [];
-    const bibleQuotes = (usableBible?.verses || []).slice(0, 12).map((verse: any) => { const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name; return name && verse.text ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: usableBible.translation === "web" ? "WEB" : "KJV" } : null; }).filter(Boolean);
-    const roomMessageId = await persistRoomMessage(req, body, answer, references, bibleQuotes);
+    const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
+      const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
+      return name && verse.text
+        ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: usableBible.translation === "web" ? "WEB" : "KJV" }
+        : null;
+    }).filter(Boolean);
+    const bibleQuotes = allBibleQuotes
+      .filter((quote: any) => answer.includes(quote.reference) || answer.includes(quote.reference.replace("-", "–")))
+      .slice(0, 6);
+    const selectedBibleQuotes = bibleQuotes.length ? bibleQuotes : allBibleQuotes.slice(0, 3);
+    const roomMessageId = await persistRoomMessage(req, body, answer, references, selectedBibleQuotes);
 
     return json({
       assistant_name: settings?.assistant_name || "Kanisa Assistant",
       answer,
       bible_references: references,
-      bible_quotes: bibleQuotes,
+      bible_quotes: selectedBibleQuotes,
       provider: providerName,
       model: modelName,
       room_message_id: roomMessageId
