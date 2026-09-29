@@ -2,6 +2,7 @@ package com.example.helloworld.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.helloworld.data.KanisaAssistantBibleQuote
 import com.example.helloworld.data.KanisaAssistantMessage
 import com.example.helloworld.data.KanisaAssistantRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,8 @@ data class KanisaAssistantUiMessage(
     val id: Long,
     val role: String,
     val content: String,
-    val bibleReferences: List<String> = emptyList()
+    val bibleReferences: List<String> = emptyList(),
+    val bibleQuotes: List<KanisaAssistantBibleQuote> = emptyList()
 )
 
 class KanisaAssistantViewModel : ViewModel() {
@@ -51,7 +53,8 @@ class KanisaAssistantViewModel : ViewModel() {
                             id = row.id,
                             role = row.role,
                             content = row.content,
-                            bibleReferences = row.bible_references
+                            bibleReferences = row.bible_references,
+                            bibleQuotes = row.bible_quotes
                         )
                     }
                     _messages.value = listOf(
@@ -94,14 +97,16 @@ class KanisaAssistantViewModel : ViewModel() {
                 .onSuccess { response ->
                     val answer = response.answer.normalizeAssistantText()
                     val references = response.bible_references.distinct().take(6)
+                    val quotes = response.bible_quotes.distinctBy { it.reference }.take(6)
                     val assistantId = nextId++
                     _messages.value = _messages.value + KanisaAssistantUiMessage(
                         assistantId,
                         "assistant",
                         answer,
-                        references
+                        references,
+                        quotes
                     )
-                    repository.saveMessage("assistant", answer, references)
+                    repository.saveMessage("assistant", answer, references, quotes)
                         .onFailure { _error.value = "The reply was received, but could not be saved." }
                     onComplete(true)
                 }
