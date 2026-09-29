@@ -349,7 +349,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
-            chatRepository.deleteMessage(messageId)
+            chatRepository.deleteMessage(messageId, context)
+                .onSuccess {
+                    // The Room cache is updated by the repository so the message
+                    // disappears immediately instead of waiting for a realtime event.
+                }
                 .onFailure { _error.value = it.message }
         }
     }
@@ -370,12 +374,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val id = roomId.value ?: return
         val myId = currentUserId() ?: return
         viewModelScope.launch {
-            chatRepository.clearMyMessages(id, myId)
-                .onSuccess {
-                    _assistantMessages.update { current -> current - id }
-                    loadMessages(id)
-                }
-                .onFailure { _error.value = it.message }
+            val normalResult = chatRepository.clearMyMessages(id, myId, context)
+            val kanisaResult = chatRepository.clearMyKanisaRoomMessages(id, myId)
+
+            if (normalResult.isSuccess && kanisaResult.isSuccess) {
+                _assistantMessages.update { current -> current - id }
+                loadMessages(id)
+            } else {
+                _error.value = normalResult.exceptionOrNull()?.message
+                    ?: kanisaResult.exceptionOrNull()?.message
+                    ?: "Unable to clear your messages."
+            }
         }
     }
 
@@ -383,9 +392,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val id = roomId.value ?: return
         val myId = currentUserId() ?: return
         viewModelScope.launch {
-            chatRepository.clearMyMessages(id, myId)
-                .onSuccess { loadMessages(id) }
-                .onFailure { _error.value = it.message }
+            val normalResult = chatRepository.clearMyMessages(id, myId, context)
+            val kanisaResult = chatRepository.clearMyKanisaRoomMessages(id, myId)
+
+            if (normalResult.isSuccess && kanisaResult.isSuccess) {
+                _assistantMessages.update { current -> current - id }
+                loadMessages(id)
+            } else {
+                _error.value = normalResult.exceptionOrNull()?.message
+                    ?: kanisaResult.exceptionOrNull()?.message
+                    ?: "Unable to clear your messages."
+            }
         }
     }
 
