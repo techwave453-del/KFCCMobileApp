@@ -158,6 +158,11 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const explicitBibleRequest =
     /\bbible\b|\bscripture\b|\bverse\b|\bverses\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b/i.test(q);
 
+  const contextualBibleRequest =
+    contextualFollowUp &&
+    lastAssistant &&
+    /\b[A-Za-z]{2,}(?:\s+[A-Za-z]{2,})?\s+\d{1,3}:\d{1,3}/.test(lastAssistant);
+
   if (!explicitBibleRequest && !contextualBibleRequest) {
     return {
       books: books || [],
