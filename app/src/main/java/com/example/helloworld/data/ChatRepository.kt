@@ -30,6 +30,13 @@ import java.util.UUID
 private data class ChatRepoJwtPayload(val sub: String)
 
 @Serializable
+data class KanisaBibleQuote(
+    val reference: String,
+    val text: String,
+    val translation: String = "KJV"
+)
+
+@Serializable
 data class ChatMessage(
     val id: String,
     @SerialName("room_id") val roomId: String,
@@ -40,7 +47,8 @@ data class ChatMessage(
     @SerialName("deleted_at") val deletedAt: String? = null,
     @SerialName("reply_to_id") val replyToId: String? = null,
     @SerialName("chat_profiles") val senderProfile: ChatProfile? = null,
-    @kotlinx.serialization.Transient val bibleReferences: List<String> = emptyList()
+    @kotlinx.serialization.Transient val bibleReferences: List<String> = emptyList(),
+    @kotlinx.serialization.Transient val bibleQuotes: List<KanisaBibleQuote> = emptyList()
 )
 
 @Serializable
@@ -57,6 +65,7 @@ data class KanisaRoomMessage(
     @SerialName("user_id") val userId: String,
     val message: String,
     @SerialName("bible_references") val bibleReferences: List<String> = emptyList(),
+    @SerialName("bible_quotes") val bibleQuotes: List<KanisaBibleQuote> = emptyList(),
     @SerialName("reply_to_message_id") val replyToMessageId: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("deleted_at") val deletedAt: String? = null
