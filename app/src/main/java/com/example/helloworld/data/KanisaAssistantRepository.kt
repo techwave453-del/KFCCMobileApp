@@ -2,8 +2,6 @@ package com.example.helloworld.data
 
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonArray
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -41,6 +39,14 @@ data class StoredKanisaAssistantMessage(
     val content: String,
     val bible_references: List<String> = emptyList(),
     val created_at: String
+)
+
+@Serializable
+private data class SaveKanisaAssistantMessage(
+    val user_id: String,
+    val role: String,
+    val content: String,
+    val bible_references: List<String>
 )
 
 @Serializable
@@ -82,11 +88,11 @@ class KanisaAssistantRepository {
         require(content.isNotBlank()) { "Message cannot be empty." }
 
         SupabaseProvider.client.from("kanisa_assistant_messages").insert(
-            mapOf(
-                "user_id" to userId,
-                "role" to role,
-                "content" to content.trim(),
-                "bible_references" to JsonArray(bibleReferences.map { kotlinx.serialization.json.JsonPrimitive(it) })
+            SaveKanisaAssistantMessage(
+                user_id = userId,
+                role = role,
+                content = content.trim(),
+                bible_references = bibleReferences
             )
         )
     }
