@@ -660,40 +660,54 @@ private fun ChatBubble(
                                 color = if (own) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (isKanisa && message.bibleReferences.isNotEmpty()) {
-                            Spacer(Modifier.height(9.dp))
+                        if (isKanisa && (message.bibleQuotes.isNotEmpty() || message.bibleReferences.isNotEmpty())) {
+                            Spacer(Modifier.height(12.dp))
                             HorizontalDivider(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                 thickness = 1.dp
                             )
-                            Spacer(Modifier.height(7.dp))
-                            Text(
-                                text = "Referenced Scripture",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                message.bibleReferences.distinct().take(6).forEach { reference ->
-                                    TextButton(
-                                        onClick = { onOpenBibleReference(reference) },
-                                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                                        modifier = Modifier.heightIn(min = 28.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.MenuBook,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(15.dp),
-                                            tint = MaterialTheme.colorScheme.primary
+                            Spacer(Modifier.height(10.dp))
+
+                            val quotes = message.bibleQuotes.take(6)
+                            if (quotes.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                    quotes.forEach { quote ->
+                                        KanisaScriptureCard(
+                                            reference = quote.reference,
+                                            text = quote.text,
+                                            translation = quote.translation,
+                                            onClick = { onOpenBibleReference(quote.reference) }
                                         )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = reference,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "Referenced Scripture",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    message.bibleReferences.distinct().take(6).forEach { reference ->
+                                        TextButton(
+                                            onClick = { onOpenBibleReference(reference) },
+                                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.MenuBook,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(15.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = reference,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -750,6 +764,76 @@ private fun ChatBubble(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KanisaScriptureCard(
+    reference: String,
+    text: String,
+    translation: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = 14.dp,
+                vertical = 12.dp
+            )
+        ) {
+            Text(
+                text = "SCRIPTURE",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.6.sp
+            )
+
+            Text(
+                text = "“$text”",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 7.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = reference,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = translation,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Open $reference",
+                    modifier = Modifier.size(17.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
