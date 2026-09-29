@@ -48,8 +48,15 @@ async function churchContext() {
   };
 }
 
-async function bibleContext(question: string) {
+async function bibleContext(question: string, history: Array<{ role: "user" | "assistant"; content: string }> = []) {
   const q = normalize(question);
+  const lastAssistant = [...history].reverse().find(item => item.role === "assistant")?.content || "";
+  const contextualFollowUp =
+    /\\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\\b/i.test(q) ||
+    /\\b(explain|expand|elaborate|more scriptures|another verse|another passage)\\b/i.test(q);
+  const bibleSearchQuestion = contextualFollowUp && lastAssistant
+    ? q + " " + lastAssistant
+    : q;
   const translation = /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
   const { data: books } = await supabase
@@ -115,7 +122,7 @@ async function bibleContext(question: string) {
       "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*[:;,]\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
       "i"
     );
-    const match = q.match(pattern);
+    const match = bibleSearchQuestion.match(pattern);
     if (!match) continue;
 
     const chapter = Number(match[1]);
@@ -151,7 +158,7 @@ async function bibleContext(question: string) {
   const explicitBibleRequest =
     /\bbible\b|\bscripture\b|\bverse\b|\bverses\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b/i.test(q);
 
-  if (!explicitBibleRequest) {
+  if (!explicitBibleRequest && !contextualBibleRequest) {
     return {
       books: books || [],
       translation,
@@ -549,7 +556,7 @@ Deno.serve(async (req: Request) => {
   const [{ data: settings }, context, bible] = await Promise.all([
     supabase.from("ai_assistant_settings").select("enabled,assistant_name,welcome_message,cloud_ai_enabled,bible_enabled,model").eq("id", 1).maybeSingle(),
     churchContext(),
-    bibleContext(message)
+    bibleContext(message, body.conversation || [])
   ]);
 
   if (settings?.enabled === false) {
