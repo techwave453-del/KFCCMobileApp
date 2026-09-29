@@ -187,7 +187,7 @@ async function bibleContext(question: string) {
     conceptExpansions[term] || [term]
   ))].slice(0, 12);
 
-  if (!terms.length) return { translation, reference: "", references: [], verses: [] };
+  if (!terms.length) return { books: books || [], translation, reference: "", references: [], verses: [] };
 
   const filters = terms
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
@@ -234,7 +234,7 @@ async function bibleContext(question: string) {
     }).filter(Boolean)
   )].slice(0, 12);
 
-  return { translation, reference: "", references, verses };
+  return { books: books || [], translation, reference: "", references, verses };
 }
 function verifiedUserId(req: Request): string | null {
   const header = req.headers.get("Authorization") || "";
