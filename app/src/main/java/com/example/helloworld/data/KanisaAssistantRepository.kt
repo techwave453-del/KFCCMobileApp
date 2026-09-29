@@ -38,6 +38,7 @@ data class StoredKanisaAssistantMessage(
     val role: String,
     val content: String,
     val bible_references: List<String> = emptyList(),
+    val bible_quotes: List<KanisaAssistantBibleQuote> = emptyList(),
     val created_at: String
 )
 
@@ -46,7 +47,8 @@ private data class SaveKanisaAssistantMessage(
     val user_id: String,
     val role: String,
     val content: String,
-    val bible_references: List<String>
+    val bible_references: List<String>,
+    val bible_quotes: List<KanisaAssistantBibleQuote>
 )
 
 @Serializable
@@ -89,7 +91,8 @@ class KanisaAssistantRepository {
     suspend fun saveMessage(
         role: String,
         content: String,
-        bibleReferences: List<String> = emptyList()
+        bibleReferences: List<String> = emptyList(),
+        bibleQuotes: List<KanisaAssistantBibleQuote> = emptyList()
     ): Result<Unit> = runCatching {
         val userId = currentUserId() ?: error("Please sign in to use Kanisa Assistant.")
         require(role == "user" || role == "assistant") { "Invalid assistant message role." }
@@ -100,7 +103,8 @@ class KanisaAssistantRepository {
                 user_id = userId,
                 role = role,
                 content = content.trim(),
-                bible_references = bibleReferences
+                bible_references = bibleReferences,
+                bible_quotes = bibleQuotes
             )
         )
     }
