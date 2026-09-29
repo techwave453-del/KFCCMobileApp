@@ -145,6 +145,22 @@ async function bibleContext(question: string) {
     };
   }
 
+  // Only perform topic/concept Bible retrieval when the user actually asks
+  // for Bible/Scripture material. Otherwise ordinary church questions such as
+  // "what are the service times?" must not silently inject Bible context.
+  const explicitBibleRequest =
+    /\\bbible\\b|\\bscripture\\b|\\bverse\\b|\\bverses\\b|\\bpassage\\b|\\baccording to (the )?bible\\b|\\bwhat does (the )?bible say\\b|\\bwhat do (the )?scriptures say\\b|\\bshow me (a )?(bible )?verse\\b|\\bmore scriptures\\b|\\bscriptures? about\\b/i.test(q);
+
+  if (!explicitBibleRequest) {
+    return {
+      books: books || [],
+      translation,
+      reference: "",
+      references: [],
+      verses: []
+    };
+  }
+
   // Topic/concept search: retrieve Bible text from Supabase first, then let the
   // response layer explain only what was actually retrieved. We expand concepts
   // lexically rather than hard-coding Scripture references.
@@ -563,7 +579,9 @@ Deno.serve(async (req: Request) => {
     const bibleQuotes = allBibleQuotes
       .filter((quote: any) => answer.includes(quote.reference) || answer.includes(quote.reference.replace("-", "–")))
       .slice(0, 6);
-    const selectedBibleQuotes = bibleQuotes.length ? bibleQuotes : allBibleQuotes.slice(0, 3);
+    // Never attach Bible cards merely because Bible context was available.
+    // A Scripture card is shown only when the answer itself cites that passage.
+    const selectedBibleQuotes = bibleQuotes;
     const roomMessageId = await persistRoomMessage(req, body, answer, references, selectedBibleQuotes);
 
     return json({
