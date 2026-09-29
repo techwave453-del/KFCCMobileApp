@@ -479,14 +479,29 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
   }
 
   if (bible?.verses?.length) {
-    const verses = bible.verses.slice(0, 8);
+    const verses = bible.verses.slice(0, 6);
     const reference = bible.reference || "";
-    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
+    const translationName = bible.translation === "web" ? "WEB" : "KJV";
+    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
+
     if (reference) {
-      const translationName = bible.translation === "web" ? "WEB" : "KJV";
-      return `Here is ${translationName} Scripture for ${reference}:\\n\\n${scripture}`;
+      const contextualFollowUp =
+        /\\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\\b/i.test(q) ||
+        /\\b(explain|expand|elaborate|meaning|application)\\b/i.test(q);
+
+      if (contextualFollowUp) {
+        return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\nIn simple terms: This passage is the biblical text returned for your question. Read it in its surrounding chapter context, and use the wording of the passage itself as the starting point for understanding its message.\\n\\nPractical reflection: Consider how the teaching in this passage relates to your current situation, while keeping personal application distinct from the exact words of Scripture.`;
+      }
+
+      return `Answer from Scripture: ${reference}.\\n\\n${translationName} Scripture:\\n${scripture}\\n\\nMeaning: The passage above is the biblical text returned from Kanisa's Bible database. Its meaning should be understood from the passage and its surrounding context rather than from an invented quotation or reference.`;
     }
-    return `I found these relevant Bible passages in the Kanisa database:\\n\\n${verses.map((v: any) => `• ${v.text}`).join("\\n")}\\n\\nAsk me for a specific reference, such as John 3:16, for a precise result.`;
+
+    const references = verses.map((v: any) => {
+      const name = (bible.books || []).find((book: any) => book.id === v.book_id)?.name;
+      return name ? `${name} ${v.chapter}:${v.verse}` : "";
+    }).filter(Boolean);
+
+    return `Answer from Scripture: I found relevant passages in the Kanisa Bible database.\\n\\nScripture:\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\nMeaning: These passages are relevant to the topic you asked about. Read them in context; the Assistant will not invent additional quotations beyond the supplied Bible text.`;
   }
 
   if (/help|what can you do|how can you help/.test(q)) {
@@ -509,9 +524,15 @@ STRICT SOURCE RULES:
 - Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote.
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
 - When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
-- Distinguish Scripture from explanation or interpretation.
+- Distinguish Scripture from explanation, interpretation, and practical application.
+- For a Bible question that has relevant BIBLE CONTEXT, use this natural order when useful: brief answer/explanation -> Scripture -> meaning -> practical application.
+- Keep the structure conversational rather than turning every response into a rigid template. Do not add headings when the question only needs a short answer.
+- If the user asks for a specific passage, prioritize that passage instead of adding unrelated verses.
+- If the user asks a contextual follow-up such as "explain this", "what does that mean?", "how do I apply this?", or "more scriptures", use the previous conversation plus the supplied BIBLE CONTEXT to stay on the same subject.
 - When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage. Do not put all references in a separate list.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
+- Keep exact Scripture quotations clearly identifiable as Scripture and do not mix commentary into the quotation.
+- Practical application should be framed as a thoughtful application, not as a claim that the church officially teaches that exact advice unless the church context says so.
 - You may answer general Christian questions, but do not present personal theological interpretation as an official church doctrine unless the supplied church context says so.
 - Be warm, concise and useful. Do not claim to be a pastor or human.
 - If the user asks for something private about another member, refuse to expose it.
