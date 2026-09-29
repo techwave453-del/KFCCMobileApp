@@ -149,7 +149,7 @@ async function bibleContext(question: string) {
   // for Bible/Scripture material. Otherwise ordinary church questions such as
   // "what are the service times?" must not silently inject Bible context.
   const explicitBibleRequest =
-    /\\bbible\\b|\\bscripture\\b|\\bverse\\b|\\bverses\\b|\\bpassage\\b|\\baccording to (the )?bible\\b|\\bwhat does (the )?bible say\\b|\\bwhat do (the )?scriptures say\\b|\\bshow me (a )?(bible )?verse\\b|\\bmore scriptures\\b|\\bscriptures? about\\b/i.test(q);
+    /\bbible\b|\bscripture\b|\bverse\b|\bverses\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b/i.test(q);
 
   if (!explicitBibleRequest) {
     return {
