@@ -142,15 +142,19 @@ class ChatAuthRepository {
                 // Do not let Auth storage initialization race with the
                 // externally authenticated username session.
                 auth.awaitInitialization()
-                auth.importSession(
-                    UserSession(
-                        accessToken = session.accessToken,
-                        refreshToken = session.refreshToken,
-                        expiresIn = session.expiresIn.toLong(),
-                        tokenType = session.tokenType,
-                        user = null
-                    )
+                val importedSession = UserSession(
+                    accessToken = session.accessToken,
+                    refreshToken = session.refreshToken,
+                    expiresIn = session.expiresIn.toLong(),
+                    tokenType = session.tokenType,
+                    user = null
                 )
+                auth.importSession(importedSession)
+                // Share externally imported member sessions with the centralized
+                // recovery layer. Chat and Kanisa Assistant can otherwise see a
+                // signed-in UI while the Auth plugin temporarily has no in-memory
+                // session after a lifecycle/storage transition.
+                SupabaseProvider.rememberImportedSession(importedSession)
                 ChatAuthResult(true)
             }
         } catch (error: Exception) {
