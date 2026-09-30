@@ -2,6 +2,7 @@ package com.example.helloworld.data
 
 import com.example.helloworld.config.AppConfig
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
@@ -14,6 +15,38 @@ import io.github.jan.supabase.storage.Storage
  */
 object SupabaseProvider {
     private const val SUPABASE_URL = "https://uhzfjuquhqxhqtppispq.supabase.co"
+
+    @Volatile
+    private var lastImportedSession: UserSession? = null
+
+    /**
+     * Ensures the shared Auth client has a usable session.
+     * This is deliberately centralized because Chat, Kanisa Assistant and
+     * administrator features all depend on the same Supabase Auth session.
+     */
+    suspend fun ensureSession(): Boolean {
+        client.auth.awaitInitialization()
+        if (client.auth.currentSessionOrNull() != null) return true
+
+        runCatching {
+            client.auth.loadFromStorage(autoRefresh = true)
+        }
+        if (client.auth.currentSessionOrNull() != null) return true
+
+        val cached = lastImportedSession ?: return false
+        return runCatching {
+            client.auth.importSession(cached)
+            client.auth.currentSessionOrNull() != null
+        }.getOrDefault(false)
+    }
+
+    fun rememberImportedSession(session: UserSession) {
+        lastImportedSession = session
+    }
+
+    fun clearRememberedSession() {
+        lastImportedSession = null
+    }
 
     val client by lazy {
         createSupabaseClient(
