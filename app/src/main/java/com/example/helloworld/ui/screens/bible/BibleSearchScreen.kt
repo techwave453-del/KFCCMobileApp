@@ -32,6 +32,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +49,9 @@ fun BibleSearchScreen(
     onOpenChapter: (String, Int) -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
+    val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<BibleSearchResult>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
@@ -60,14 +65,14 @@ fun BibleSearchScreen(
         }
         delay(250)
         searching = true
-        results = runCatching { repository.search("kjv", q) }.getOrDefault(emptyList())
+        results = runCatching { repository.search(translationId, q) }.getOrDefault(emptyList())
         searching = false
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Search Scripture", fontWeight = FontWeight.Bold) },
+                title = { Text("Search Scripture • ${translationId.uppercase()}", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
