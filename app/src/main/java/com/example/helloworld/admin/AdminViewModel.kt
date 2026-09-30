@@ -67,7 +67,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             val result = repository.login(username, password)
             if (result.ok) {
                 // Never trust role/permissions from the login response alone.
-                // /api/admin/me is the authoritative post-login authorization state.
+                // restoreSession() reconstructs authorization from the authenticated Supabase session.
                 val authoritativeUser = repository.restoreSession()
                 if (authoritativeUser != null && authoritativeUser.is_active) {
                     _user.value = authoritativeUser
