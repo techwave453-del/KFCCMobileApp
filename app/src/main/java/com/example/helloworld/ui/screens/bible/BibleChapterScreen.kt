@@ -140,21 +140,18 @@ fun BibleChapterScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (chapter == null) {
-                ChapterNotLoaded(
-                    bookName = book?.name ?: bookId,
-                    chapterNumber = chapterNumber,
-                    onBack = onBack
-                )
-            } else {
-                val loadedChapter = chapter
+            chapter?.let { loadedChapter ->
                 BibleReader(
                     chapter = loadedChapter,
                     onVerseClick = { verse ->
                         selectedVerse = verse
                     }
                 )
-            }
+            } ?: ChapterNotLoaded(
+                bookName = book?.name ?: bookId,
+                chapterNumber = chapterNumber,
+                onBack = onBack
+            )
 
             selectedVerse?.let { verse ->
                 VerseActionsPanel(
