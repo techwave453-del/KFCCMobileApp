@@ -159,9 +159,12 @@ class AdminRepository(context: Context) {
                     error("Administrator authentication succeeded, but the Supabase session could not be installed.")
                 }
 
-                runCatching {
-                    client.auth.retrieveUserForCurrentSession(updateSession = true)
-                }
+                // Do not retrieve/update the Auth user here. The Auth session has
+                // just been imported and other ViewModels may react to the
+                // Authenticated event at the same time. A user retrieval here would
+                // introduce a second session operation and can race refresh-token
+                // rotation. restoreSession() remains the single recovery path that
+                // needs the Auth user object.
                 authenticatedAdmin = adminUser
 
                 AdminLoginResponse(ok = true, user = adminUser)
