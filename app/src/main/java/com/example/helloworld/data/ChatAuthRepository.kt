@@ -293,6 +293,7 @@ class ChatAuthRepository {
         // receive notifications intended for the previous account.
         com.example.helloworld.notifications.DeviceTokenRepository()
             .unregisterCurrentToken()
+        SupabaseProvider.clearRememberedSession()
         auth.signOut()
     }
 
