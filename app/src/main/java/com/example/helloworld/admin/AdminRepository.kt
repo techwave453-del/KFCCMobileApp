@@ -129,6 +129,12 @@ class AdminRepository(context: Context) {
                     permissions = session.user.permissions
                 )
 
+                // Auth storage initialization can otherwise finish after this
+                // external login and overwrite the newly imported session with the
+                // empty stored state. Wait until the shared Auth plugin has completed
+                // initialization before installing the administrator session.
+                client.auth.awaitInitialization()
+
                 client.auth.importSession(
                     UserSession(
                         accessToken = session.accessToken,
