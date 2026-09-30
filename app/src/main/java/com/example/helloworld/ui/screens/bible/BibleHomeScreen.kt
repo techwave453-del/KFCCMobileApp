@@ -35,6 +35,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +44,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleBook
 import com.example.helloworld.data.bible.KfccBibleRepository
 import com.example.helloworld.data.bible.Testament
+import android.content.Context
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,11 +62,16 @@ fun BibleHomeScreen(
     onOpenChapter: (String, Int) -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
+    val savedBook = prefs.getString("continue_book", "GEN") ?: "GEN"
+    val savedChapter = prefs.getInt("continue_chapter", 1)
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
         value = runCatching { repository.getBooks("kjv") }.getOrDefault(emptyList())
     }
 
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
+    var showTranslationMenu by remember { mutableStateOf(false) }
 
     selectedBook?.let { book ->
         BibleChapterPickerDialog(
