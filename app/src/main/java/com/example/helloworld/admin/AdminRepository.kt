@@ -564,14 +564,8 @@ class AdminRepository(context: Context) {
         private const val SUPABASE_FUNCTIONS_URL =
             "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
 
-        private const val ADMIN_API_BASE_URL =
-            "https://kingdomfellowshipchristianchurch.onrender.com"
-    }}
-
-@Serializable
-private data class AdminErrorResponse(
-    val error: String? = null
-)
+    }
+}
 
 @Serializable
 private data class AdminErrorResponse(
