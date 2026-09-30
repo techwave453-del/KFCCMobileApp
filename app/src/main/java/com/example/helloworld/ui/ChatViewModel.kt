@@ -127,13 +127,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            // If signed in but user info is missing (common for imported admin sessions),
-            // proactively fetch user details from Supabase Auth.
-            if (authRepository.isSignedIn()) {
-                try {
-                    SupabaseProvider.client.auth.retrieveUserForCurrentSession()
-                } catch (_: Exception) {}
-            }
+            // Do not retrieve the Auth user here. Imported administrator sessions
+            // already have a valid JWT, and ChatAuthRepository can resolve the user
+            // ID from the session/JWT. Keeping chat startup free of user/session
+            // refresh operations prevents concurrent refresh-token rotation with
+            // AdminViewModel during administrator sign-in.
 
             chatRepository.joinCommunity()
                 .onSuccess { id ->
