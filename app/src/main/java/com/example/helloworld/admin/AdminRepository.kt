@@ -88,6 +88,12 @@ class AdminRepository(context: Context) {
     @Volatile
     private var authenticatedAdmin: AdminUser? = null
 
+    // Keep the last administrator session in process memory as a recovery source.
+    // Android can temporarily lose the Auth plugin's in-memory session during
+    // lifecycle/storage transitions even though the administrator is still signed in.
+    @Volatile
+    private var lastImportedSession: UserSession? = null
+
     private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -135,15 +141,15 @@ class AdminRepository(context: Context) {
                 // initialization before installing the administrator session.
                 client.auth.awaitInitialization()
 
-                client.auth.importSession(
-                    UserSession(
-                        accessToken = session.accessToken,
-                        refreshToken = session.refreshToken,
-                        expiresIn = session.expiresIn.toLong(),
-                        tokenType = session.tokenType,
-                        user = null
-                    )
+                val importedSession = UserSession(
+                    accessToken = session.accessToken,
+                    refreshToken = session.refreshToken,
+                    expiresIn = session.expiresIn.toLong(),
+                    tokenType = session.tokenType,
+                    user = null
                 )
+                client.auth.importSession(importedSession)
+                lastImportedSession = importedSession
 
                 // importSession() is the supported way to install a session
                 // returned by an external login flow. Verify that the shared
@@ -175,6 +181,31 @@ class AdminRepository(context: Context) {
                 error = e.message ?: "Unable to sign in as administrator."
             )
         }
+    }
+
+    suspend fun ensureAdminSession(): Boolean {
+        client.auth.awaitInitialization()
+
+        if (client.auth.currentSessionOrNull() != null) {
+            return true
+        }
+
+        // First try the SDK's persisted session. This is the normal recovery path.
+        runCatching {
+            client.auth.loadFromStorage(autoRefresh = true)
+        }
+
+        if (client.auth.currentSessionOrNull() != null) {
+            return true
+        }
+
+        // If Android cleared the in-memory Auth state while this process is still
+        // alive, reinstall the session returned by the last successful admin login.
+        val cached = lastImportedSession ?: return false
+        return runCatching {
+            client.auth.importSession(cached)
+            client.auth.currentSessionOrNull() != null
+        }.getOrDefault(false)
     }
 
     suspend fun restoreSession(): AdminUser? {
