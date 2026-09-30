@@ -168,7 +168,8 @@ class ChatAuthRepository {
                     ?: error("Username sign-in succeeded, but the Supabase session is unavailable.")
 
                 // Cache the fully established session for lifecycle recovery.
-                SupabaseProvider.rememberImportedSession(activeSession)                ChatAuthResult(true)
+                SupabaseProvider.rememberImportedSession(activeSession)
+                ChatAuthResult(true)
             }
         } catch (error: Exception) {
             ChatAuthResult(false, error.message ?: "Unable to sign in.")
