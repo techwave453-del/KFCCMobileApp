@@ -63,7 +63,7 @@ class UnifiedAuthRepository(
             )
         }
 
-        val profile = chatRepository.completeProfile()
+        val profile = chatRepository.completeProfile(username = username)
         if (!profile.success) {
             throw IllegalArgumentException(
                 profile.message ?: "Unable to complete your profile."
