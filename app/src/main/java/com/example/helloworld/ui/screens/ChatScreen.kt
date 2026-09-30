@@ -39,6 +39,7 @@ import com.example.helloworld.admin.AdminUser
 import com.example.helloworld.admin.AdminViewModel
 import com.example.helloworld.data.ChatMessage
 import com.example.helloworld.ui.ChatViewModel
+import com.example.helloworld.ui.components.CopyableErrorMessage
 import com.example.helloworld.ui.ChurchViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -371,7 +372,7 @@ private fun CommunityChat(
         AlertDialog(
             onDismissRequest = viewModel::clearError,
             title = { Text("Chat Connection") },
-            text = { Text(it) },
+            text = { CopyableErrorMessage(message = it, technicalDetails = it, title = "Chat connection error") },
             confirmButton = { TextButton(onClick = viewModel::clearError) { Text("OK") } }
         )
     }
