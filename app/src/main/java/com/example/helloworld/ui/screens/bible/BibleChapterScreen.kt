@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import android.content.Intent
 import com.example.helloworld.data.bible.BibleChapter
 import com.example.helloworld.data.bible.BibleBook
 import com.example.helloworld.data.bible.BibleVerse
@@ -61,6 +65,11 @@ fun BibleChapterScreen(
     onBack: () -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
+    LaunchedEffect(bookId, chapterNumber) {
+        prefs.edit().putString("continue_book", bookId).putInt("continue_chapter", chapterNumber).apply()
+    }
 
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
         value = runCatching { repository.getBooks("kjv") }.getOrDefault(emptyList())
@@ -111,7 +120,7 @@ fun BibleChapterScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = { shareText(context, "${book?.name ?: bookId} $chapterNumber — King James Version") }) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share chapter"
@@ -567,8 +576,15 @@ private fun BibleReader(
                                     contentDescription = null
                                 )
                             },
-                            label = "Bookmark",
-                            modifier = Modifier.weight(1f)
+                            label = if (isBookmarked(verse)) "Bookmarked" else "Bookmark",
+                            modifier = Modifier.weight(1f),
+                            onClick = { onBookmark(verse) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isBookmarked(verse)) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    contentDescription = null
+                                )
+                            }
                         )
 
                         VerseAction(
@@ -579,7 +595,8 @@ private fun BibleReader(
                                 )
                             },
                             label = "Share",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            onClick = { onShare(verse) }
                         )
                     }
                 }
@@ -594,7 +611,7 @@ private fun BibleReader(
         modifier: Modifier = Modifier
     ) {
         Surface(
-            modifier = modifier,
+            modifier = modifier.clickable(onClick = onClick),
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface
         ) {
@@ -654,3 +671,21 @@ private fun BibleReader(
             )
         }
     }
+
+
+private fun bookmarkKey(bookId: String, chapter: Int, verse: Int) = "bookmark:$bookId:$chapter:$verse"
+
+private fun isBookmarked(prefs: android.content.SharedPreferences, bookId: String, chapter: Int, verse: Int): Boolean =
+    prefs.getBoolean(bookmarkKey(bookId, chapter, verse), false)
+
+private fun toggleBookmark(prefs: android.content.SharedPreferences, bookId: String, chapter: Int, verse: Int) {
+    val key = bookmarkKey(bookId, chapter, verse)
+    prefs.edit().putBoolean(key, !prefs.getBoolean(key, false)).apply()
+}
+
+private fun shareText(context: android.content.Context, text: String) {
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }, "Share Scripture"))
+}
