@@ -196,7 +196,7 @@ private fun AdminDashboardScreen(
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(modules) { module ->
                 val allowed = user.hasPermission(module.permission) &&
-                    (module.title != "Church Identity" || user.hasPermission(AdminPermissions.IDENTITY_EDIT))
+                    (module.title != "Church Identity" || user.canEditChurchIdentity())
                 val action = when (module.title) {
                     "Account Credentials" -> if (allowed) onCredentials else null
                     "Church Identity" -> if (allowed) onIdentity else null
