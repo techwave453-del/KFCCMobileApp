@@ -34,25 +34,6 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 
 @Serializable
-private data class AdminSessionResponse(
-    @SerialName("access_token") val accessToken: String,
-    @SerialName("refresh_token") val refreshToken: String,
-    @SerialName("expires_in") val expiresIn: Int,
-    @SerialName("token_type") val tokenType: String = "bearer",
-    val user: AdminSessionUser
-)
-
-@Serializable
-private data class AdminSessionUser(
-    val id: String,
-    val username: String,
-    val email: String? = null,
-    val role: String,
-    val is_active: Boolean,
-    val permissions: List<String> = emptyList()
-)
-
-@Serializable
 private data class NotificationSyncPayload(
     val id: String,
     val title: String,
