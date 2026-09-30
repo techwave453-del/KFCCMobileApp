@@ -236,6 +236,28 @@ class AdminRepository(context: Context) {
         content
     }
 
+    suspend fun saveServices(services: List<com.example.helloworld.data.ChurchService>): Result<Unit> = runCatching {
+        val value = Json.encodeToString(services)
+        offlineDb.siteContentDao().upsertAll(listOf(SiteContentEntity("services", value)))
+        outbox.enqueue(
+            entityType = "site_content",
+            operationType = "UPSERT",
+            entityId = "services",
+            payload = Json.encodeToString(mapOf("key" to "services", "value" to value))
+        )
+    }
+
+    suspend fun saveGivingUrl(givingUrl: String): Result<Unit> = runCatching {
+        val value = givingUrl.trim()
+        offlineDb.siteContentDao().upsertAll(listOf(SiteContentEntity("givingUrl", value)))
+        outbox.enqueue(
+            entityType = "site_content",
+            operationType = "UPSERT",
+            entityId = "givingUrl",
+            payload = Json.encodeToString(mapOf("key" to "givingUrl", "value" to value))
+        )
+    }
+
     private fun decodeChurchInfo(rows: List<SiteContentRow>): ChurchInfo? {
         val values = rows.associate { it.key to it.value }
         if (values.isEmpty()) return null
