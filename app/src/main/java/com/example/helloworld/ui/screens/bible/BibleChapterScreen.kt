@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Share
@@ -159,9 +160,10 @@ fun BibleChapterScreen(
                     verse = verse,
                     bookName = book?.name ?: bookId,
                     chapterNumber = chapterNumber,
-                    onDismiss = {
-                        selectedVerse = null
-                    }
+                    onDismiss = { selectedVerse = null },
+                    onBookmark = { toggleBookmark(prefs, bookId, chapterNumber, it.number) },
+                    isBookmarked = { isBookmarked(prefs, bookId, chapterNumber, it.number) },
+                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + it.text) }
                 )
             }
         }
@@ -477,7 +479,10 @@ private fun BibleReader(
         verse: BibleVerse,
         bookName: String,
         chapterNumber: Int,
-        onDismiss: () -> Unit
+        onDismiss: () -> Unit,
+        onBookmark: (BibleVerse) -> Unit,
+        isBookmarked: (BibleVerse) -> Boolean,
+        onShare: (BibleVerse) -> Unit
     ) {
         Box(
             modifier = Modifier
@@ -572,19 +577,13 @@ private fun BibleReader(
                         VerseAction(
                             icon = {
                                 Icon(
-                                    imageVector = Icons.Default.BookmarkBorder,
+                                    imageVector = if (isBookmarked(verse)) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                     contentDescription = null
                                 )
                             },
                             label = if (isBookmarked(verse)) "Bookmarked" else "Bookmark",
                             modifier = Modifier.weight(1f),
-                            onClick = { onBookmark(verse) },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isBookmarked(verse)) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                    contentDescription = null
-                                )
-                            }
+                            onClick = { onBookmark(verse) }
                         )
 
                         VerseAction(
@@ -608,7 +607,8 @@ private fun BibleReader(
     private fun VerseAction(
         icon: @Composable () -> Unit,
         label: String,
-        modifier: Modifier = Modifier
+        modifier: Modifier = Modifier,
+        onClick: () -> Unit
     ) {
         Surface(
             modifier = modifier.clickable(onClick = onClick),
