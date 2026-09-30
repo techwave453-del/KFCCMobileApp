@@ -279,7 +279,8 @@ class ChatRepository {
                 val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
                 Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
             } catch (_: Exception) { null }
-        }
+        } ?: error("Chat session is not available. Please sign in again.")
+
         client.from("chat_rooms").insert(
             mapOf(
                 "title" to title.trim(),
