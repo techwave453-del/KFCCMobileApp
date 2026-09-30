@@ -61,14 +61,17 @@ class KfccNotificationWorker(
 
             if (mode == KfccNotificationScheduler.MODE_SIGN_IN) {
                 if (SupabaseProvider.client.auth.currentUserOrNull() != null) {
-                    // The signed-in user's read state is authoritative. This prevents
-                    // a sign-in default from being shown again after the user has viewed it.
-                    val unread = repository.syncFromServer().getOrThrow()
-                        .filter { it.readAt == null }
-                        .sortedBy { it.createdAt }
-
-                    unread.forEach { notification ->
-                        postNotification(notification)
+                    // Sign-in delivery is intentionally limited to the notification
+                    // selected by the administrator as the sign-in default. Its
+                    // per-user read state prevents the same default from being
+                    // repeatedly shown after it has been viewed.
+                    val signInDefault = repository.getPublicDefault(onInstall = false).getOrNull()
+                    if (signInDefault != null) {
+                        val resolved = repository.syncFromServer().getOrThrow()
+                            .firstOrNull { it.id == signInDefault.id }
+                        if (resolved?.readAt == null) {
+                            postNotification(resolved ?: signInDefault)
+                        }
                     }
                 }
                 return@runCatching Result.success()
