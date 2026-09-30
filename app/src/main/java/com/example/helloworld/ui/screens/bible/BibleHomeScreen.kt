@@ -59,7 +59,8 @@ import android.content.Context
 @Composable
 fun BibleHomeScreen(
     onBack: () -> Unit,
-    onOpenChapter: (String, Int) -> Unit
+    onOpenChapter: (String, Int) -> Unit,
+    onOpenSearch: () -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
@@ -110,11 +111,7 @@ fun BibleHomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            // Search will be connected in the next step.
-                        }
-                    ) {
+                    IconButton(onClick = onOpenSearch) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search Scripture"
