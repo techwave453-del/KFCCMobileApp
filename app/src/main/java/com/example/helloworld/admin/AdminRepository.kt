@@ -150,6 +150,7 @@ class AdminRepository(context: Context) {
                 )
                 client.auth.importSession(importedSession)
                 lastImportedSession = importedSession
+                SupabaseProvider.rememberImportedSession(importedSession)
 
                 // importSession() is the supported way to install a session
                 // returned by an external login flow. Verify that the shared
@@ -251,6 +252,7 @@ class AdminRepository(context: Context) {
     suspend fun logout() {
         authenticatedAdmin = null
         lastImportedSession = null
+        SupabaseProvider.clearRememberedSession()
         try {
             client.auth.signOut()
         } catch (_: Exception) {
