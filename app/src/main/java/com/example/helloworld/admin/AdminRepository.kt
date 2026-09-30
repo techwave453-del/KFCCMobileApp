@@ -275,6 +275,12 @@ class AdminRepository(context: Context) {
                 // instance when the AdminShell is entered after unified sign-in.
                 authenticatedAdmin = adminUser
 
+                // Associate this installation's FCM token with the authenticated
+                // Supabase user so administrator-targeted notifications can be
+                // delivered on this device.
+                com.example.helloworld.notifications.DeviceTokenRepository()
+                    .registerCurrentToken()
+
                 AdminLoginResponse(
                     ok = true,
                     user = adminUser
@@ -289,6 +295,10 @@ class AdminRepository(context: Context) {
     }
 
     suspend fun logout() {
+        // Remove the installation's user-specific push token before ending the
+        // session so the next account cannot inherit administrator notifications.
+        com.example.helloworld.notifications.DeviceTokenRepository()
+            .unregisterCurrentToken()
         authenticatedAdmin = null
         try {
             client.auth.signOut()
