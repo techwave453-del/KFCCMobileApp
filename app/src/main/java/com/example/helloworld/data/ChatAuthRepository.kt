@@ -8,6 +8,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.storage.UploadData
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.http.ContentType
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -181,8 +183,9 @@ class ChatAuthRepository {
         }
         val path = "$userId/avatar.$extension"
         val bucket = SupabaseProvider.client.storage["profile-avatars"]
-        bucket.upload(path, bytes, upsert = true) {
-            this.contentType = normalizedType
+        bucket.upload(path, UploadData(ByteReadChannel(bytes), bytes.size.toLong())) {
+            upsert = true
+            contentType = ContentType.parse(normalizedType)
         }
         bucket.publicUrl(path)
     }
