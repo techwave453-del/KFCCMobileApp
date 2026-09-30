@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.ui.NotificationViewModel
+import com.example.helloworld.ui.components.CopyableErrorMessage
 
 @Composable
 fun NotificationsScreen(
@@ -79,8 +80,11 @@ fun NotificationsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = viewModel::refresh) { Text("Retry") }
+                CopyableErrorMessage(
+                    message = error!!,
+                    technicalDetails = error,
+                    onRetry = viewModel::refresh
+                )
             }
         } else if (notifications.isEmpty()) {
             Column(
