@@ -51,7 +51,7 @@ fun AdminShell(
                     currentUser.permissions.isEmpty() && currentUser.role != "super_admin" -> NoPermissionsScreen(viewModel::logout)
                     openModule == "credentials" ->
                         ModuleFrame("Account Credentials", { openModule = null }) { AccountCredentialsScreen(currentUser, Modifier.fillMaxSize()) }
-                    openModule == "identity" && currentUser.hasPermission(AdminPermissions.IDENTITY_VIEW) && currentUser.hasPermission(AdminPermissions.IDENTITY_EDIT) ->
+                    openModule == "identity" && currentUser.canEditChurchIdentity() ->
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
