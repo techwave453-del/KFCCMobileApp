@@ -2,6 +2,7 @@ package com.example.helloworld.data
 
 import com.example.helloworld.config.AppConfig
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
