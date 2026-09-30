@@ -37,6 +37,7 @@ import com.example.helloworld.auth.UnifiedAuthResult
 import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.ui.ChatViewModel
+import com.example.helloworld.ui.components.CopyableErrorMessage
 import kotlinx.coroutines.launch
 
 @Composable
@@ -122,7 +123,14 @@ fun UnifiedAuthScreen(
                             OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
                         }
 
-                        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp)) }
+                        error?.let {
+                            CopyableErrorMessage(
+                                message = it,
+                                technicalDetails = it,
+                                modifier = Modifier.padding(top = 12.dp),
+                                title = "Sign-in error"
+                            )
+                        }
                         Spacer(Modifier.height(20.dp))
                         Button(
                             onClick = {
