@@ -170,6 +170,9 @@ class ChatAuthRepository {
             this.email = email.trim()
             this.password = password
         }
+        val importedSession = auth.currentSessionOrNull()
+            ?: error("Unable to establish a sign-in session.")
+        SupabaseProvider.rememberImportedSession(importedSession)
         ChatAuthResult(true)
     } catch (error: Exception) {
         ChatAuthResult(false, error.message ?: "Unable to sign in.")
