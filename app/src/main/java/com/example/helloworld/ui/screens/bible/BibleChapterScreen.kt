@@ -68,12 +68,13 @@ fun BibleChapterScreen(
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
+    val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
     LaunchedEffect(bookId, chapterNumber) {
         prefs.edit().putString("continue_book", bookId).putInt("continue_chapter", chapterNumber).apply()
     }
 
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
-        value = runCatching { repository.getBooks("kjv") }.getOrDefault(emptyList())
+        value = runCatching { repository.getBooks(translationId) }.getOrDefault(emptyList())
     }
 
     val book = books.firstOrNull { it.id == bookId }
@@ -81,7 +82,7 @@ fun BibleChapterScreen(
     val chapter by produceState<BibleChapter?>(initialValue = null, repository, bookId, chapterNumber) {
         value = runCatching {
             repository.getChapter(
-                translationId = "kjv",
+                translationId = translationId,
                 bookId = bookId,
                 chapterNumber = chapterNumber
             )
@@ -103,7 +104,7 @@ fun BibleChapterScreen(
                         )
 
                         Text(
-                            text = "Chapter $chapterNumber • KJV",
+                            text = "Chapter $chapterNumber • ${translationId.uppercase()}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -394,7 +395,7 @@ private fun BibleReader(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "KING JAMES VERSION",
+                text = translationId.uppercase()
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -543,7 +544,7 @@ private fun BibleReader(
                             )
 
                             Text(
-                                text = "King James Version",
+                                text = translationId.uppercase()
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
