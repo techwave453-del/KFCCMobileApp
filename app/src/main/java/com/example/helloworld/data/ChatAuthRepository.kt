@@ -145,6 +145,8 @@ class ChatAuthRepository {
                         user = null
                     )
                 )
+                com.example.helloworld.notifications.DeviceTokenRepository()
+                    .registerCurrentToken()
                 ChatAuthResult(true)
             }
         } catch (error: Exception) {
@@ -160,6 +162,8 @@ class ChatAuthRepository {
             this.email = email.trim()
             this.password = password
         }
+        com.example.helloworld.notifications.DeviceTokenRepository()
+            .registerCurrentToken()
         ChatAuthResult(true)
     } catch (error: Exception) {
         ChatAuthResult(false, error.message ?: "Unable to sign in.")
