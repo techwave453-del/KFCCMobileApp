@@ -55,9 +55,16 @@ fun AdminShell(
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
-                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SITE_EDIT) || currentUser.hasPermission(AdminPermissions.SERVICES_EDIT)) ->
-                        ModuleFrame("Services & Giving", { openModule = null }) { AdminServicesScreen(Modifier.fillMaxSize(), viewModel(factory = WebsiteContentViewModel.Factory(application))) }
-                    openModule == "events" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
+                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)) ->
+                        ModuleFrame("Services & Giving", { openModule = null }) {
+                            AdminServicesScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                viewModel = viewModel(factory = WebsiteContentViewModel.Factory(application)),
+                                canEditServices = currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT),
+                                canEditGiving = currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)
+                            )
+                        }
+                    openModule == "events" && currentUser.hasPermission(AdminPermissions.EVENTS_MANAGE) ->
                         ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
                     openModule == "notifications" && currentUser.hasPermission(AdminPermissions.NOTIFICATIONS_SEND) ->
                         ModuleFrame("Notifications", { openModule = null }) { AdminNotificationsScreen(Modifier.fillMaxSize()) }
@@ -169,8 +176,8 @@ private fun AdminDashboardScreen(
         AdminModule("Account Credentials", "Administrator username, email, role and status", AdminPermissions.ACCOUNT_CREDENTIALS_VIEW, Icons.Default.AccountCircle),
         AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
         AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
-        AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SITE_EDIT, Icons.Default.Church),
-        AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.SITE_EDIT, Icons.Default.Event),
+        AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SERVICES_EDIT, Icons.Default.Church),
+        AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.EVENTS_MANAGE, Icons.Default.Event),
         AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
