@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +53,7 @@ import com.example.helloworld.data.bible.BibleBook
 import com.example.helloworld.data.bible.KfccBibleRepository
 import com.example.helloworld.data.bible.Testament
 import android.content.Context
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,11 +67,60 @@ fun BibleHomeScreen(
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
     val savedBook = prefs.getString("continue_book", "GEN") ?: "GEN"
     val savedChapter = prefs.getInt("continue_chapter", 1)
+    val selectedTranslationId = prefs.getString("translation_id", "kjv") ?: "kjv"
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
-        value = runCatching { repository.getBooks("kjv") }.getOrDefault(emptyList())
+        value = runCatching { repository.getBooks(selectedTranslationId) }.getOrDefault(emptyList())
+    }
+    val translations by produceState(initialValue = emptyList<com.example.helloworld.data.bible.BibleTranslation>(), repository) {
+        value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
+    }
+    val translationAvailability by produceState(initialValue = emptyMap<String, Int>(), repository, translations) {
+        value = translations.associate { translation ->
+            translation.id to runCatching { repository.getVerseCount(translation.id) }.getOrDefault(0)
+        }
+    }
+    var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
+    var showTranslations by remember { mutableStateOf(false) }
+    val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
+    val dailyChapter by produceState<com.example.helloworld.data.bible.BibleChapter?>(initialValue = null, repository, selectedTranslationId) {
+        val day = LocalDate.now().dayOfYear
+        val chapterNumber = (day % 150) + 1
+        value = runCatching { repository.getChapter(selectedTranslationId, "psalms", chapterNumber) }.getOrNull()
     }
 
-    var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
+    if (showTranslations) {
+        AlertDialog(
+            onDismissRequest = { showTranslations = false },
+            title = { Text("Bible translation") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    translations.forEach { translation ->
+                        val count = translationAvailability[translation.id] ?: 0
+                        TextButton(
+                            onClick = {
+                                if (count > 0) {
+                                    prefs.edit().putString("translation_id", translation.id).apply()
+                                    showTranslations = false
+                                }
+                            },
+                            enabled = count > 0,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (count > 0) "${count} verses available" else "Verse data not available yet",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTranslations = false }) { Text("Close") } }
+        )
+    }
 
     selectedBook?.let { book ->
         BibleChapterPickerDialog(
@@ -93,7 +144,7 @@ fun BibleHomeScreen(
                         )
 
                         Text(
-                            text = "King James Version",
+                            text = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -108,6 +159,12 @@ fun BibleHomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showTranslations = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Choose Bible translation"
+                        )
+                    }
                     IconButton(onClick = onOpenSearch) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -138,16 +195,20 @@ fun BibleHomeScreen(
 
             item {
                 TodaysScriptureCard(
+                    chapter = dailyChapter,
+                    translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
                     onClick = {
-                        onOpenChapter("psalms", 23)
+                        dailyChapter?.let { onOpenChapter(it.bookId, it.chapterNumber) }
                     }
                 )
             }
 
             item {
                 ContinueReadingCard(
+                    bookName = books.firstOrNull { it.id == savedBook }?.name ?: savedBook,
+                    chapter = savedChapter,
                     onClick = {
-                        onOpenChapter("genesis", 1)
+                        onOpenChapter(savedBook, savedChapter)
                     }
                 )
             }
@@ -274,6 +335,8 @@ private fun BibleHero() {
 
 @Composable
 private fun TodaysScriptureCard(
+    chapter: com.example.helloworld.data.bible.BibleChapter?,
+    translationName: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -318,7 +381,7 @@ private fun TodaysScriptureCard(
                     )
 
                     Text(
-                        text = "Psalm 23",
+                        text = if (chapter != null) "Psalm ${chapter.chapterNumber}" else "Today’s Scripture",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -326,7 +389,7 @@ private fun TodaysScriptureCard(
             }
 
             Text(
-                text = "\"The LORD is my shepherd; I shall not want.\"",
+                text = chapter?.verses?.firstOrNull()?.text?.let { "\"$it\"" } ?: "Scripture for today is not available in this translation.",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 18.dp)
@@ -339,7 +402,7 @@ private fun TodaysScriptureCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Psalm 23:1",
+                    text = chapter?.verses?.firstOrNull()?.let { "Psalm ${chapter.chapterNumber}:${it.number}" } ?: translationName,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -358,6 +421,8 @@ private fun TodaysScriptureCard(
 
 @Composable
 private fun ContinueReadingCard(
+    bookName: String,
+    chapter: Int,
     onClick: () -> Unit
 ) {
     Surface(
@@ -402,7 +467,7 @@ private fun ContinueReadingCard(
                 )
 
                 Text(
-                    text = "Genesis 1",
+                    text = "$bookName $chapter",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 2.dp)
