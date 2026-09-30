@@ -51,6 +51,9 @@ import com.example.helloworld.data.LiveStream
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+import androidx.media3.common.MediaItem as PlayerMediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 
@@ -396,14 +399,43 @@ private fun LivePlayerDialog(liveStream: LiveStream, onDismiss: () -> Unit) {
                         } else {
                             Text("Invalid YouTube URL", color = Color.White, modifier = Modifier.align(Alignment.Center))
                         }
+                    } else if (liveStream.url.isNotBlank()) {
+                        DirectMediaPlayer(url = liveStream.url)
                     } else {
-                        Text("Live Player Placeholder\nURL: ${liveStream.url}", color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.Center))
+                        Text(
+                            "No live stream URL has been configured.",
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
+}
+
+@Composable
+private fun DirectMediaPlayer(url: String) {
+    val context = LocalContext.current
+    val player = remember(url) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(PlayerMediaItem.fromUri(url))
+            prepare()
+            playWhenReady = true
+        }
+    }
+
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { PlayerView(it).apply { this.player = player } },
+        update = { it.player = player }
+    )
 }
 
 @Composable
