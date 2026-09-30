@@ -74,6 +74,29 @@ class WebsiteContentViewModel(application: Application) : AndroidViewModel(appli
         _saved.value = false
     }
 
+    fun saveServices() = viewModelScope.launch {
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
+        legacyRepository.saveServices(_content.value.services)
+            .onSuccess { _saved.value = true }
+            .onFailure { _error.value = it.message ?: "Unable to save service times." }
+        _saving.value = false
+    }
+
+    fun saveGivingUrl(givingUrl: String) = viewModelScope.launch {
+        _saving.value = true
+        _error.value = null
+        _saved.value = false
+        legacyRepository.saveGivingUrl(givingUrl)
+            .onSuccess {
+                _content.value = _content.value.copy(givingUrl = givingUrl.trim())
+                _saved.value = true
+            }
+            .onFailure { _error.value = it.message ?: "Unable to save the giving link." }
+        _saving.value = false
+    }
+
     fun save() = viewModelScope.launch {
         _saving.value = true
         _error.value = null
