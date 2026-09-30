@@ -122,7 +122,7 @@ fun BibleChapterScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { shareText(context, "${book?.name ?: bookId} $chapterNumber — King James Version") }) {
+                    IconButton(onClick = { shareText(context, "${book?.name ?: bookId} $chapterNumber — ${translationId.uppercase()}") }) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share chapter"
@@ -144,6 +144,7 @@ fun BibleChapterScreen(
             chapter?.let { loadedChapter ->
                 BibleReader(
                     chapter = loadedChapter,
+                    translationId = translationId,
                     onVerseClick = { verse ->
                         selectedVerse = verse
                     }
@@ -163,7 +164,7 @@ fun BibleChapterScreen(
                     onDismiss = { selectedVerse = null },
                     onBookmark = { toggleBookmark(prefs, bookId, chapterNumber, it.number) },
                     isBookmarked = { isBookmarked(prefs, bookId, chapterNumber, it.number) },
-                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + it.text) }
+                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + translationId.uppercase() + " — " + it.text) }
                 )
             }
         }
@@ -235,6 +236,8 @@ private fun ChapterNotLoaded(
 private fun BibleReader(
 
     chapter: BibleChapter,
+
+    translationId: String,
 
     onVerseClick: (BibleVerse) -> Unit
 
