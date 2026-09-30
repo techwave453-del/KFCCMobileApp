@@ -15,6 +15,16 @@ import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.contentType
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.serialization.kotlinx.json.json
+import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.HttpClient
@@ -58,6 +68,25 @@ private data class NotificationManagementUpdate(
     @SerialName("updated_at") val updatedAt: String? = null
 )
 
+@Serializable
+private data class AdminSessionResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int,
+    @SerialName("token_type") val tokenType: String = "bearer",
+    val user: AdminSessionUser
+)
+
+@Serializable
+private data class AdminSessionUser(
+    val id: String,
+    val username: String,
+    val email: String? = null,
+    val role: String,
+    val is_active: Boolean,
+    val permissions: List<String> = emptyList()
+)
+
 class AdminRepository(context: Context) {
     private val appContext = context.applicationContext
     private val offlineDb = KfccDatabase.getInstance(appContext)
@@ -70,6 +99,13 @@ class AdminRepository(context: Context) {
     // here until restoreSession() can reconstruct it from the authenticated app.
     @Volatile
     private var authenticatedAdmin: AdminUser? = null
+
+    private val adminLoginClient = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
+    }
+
 
     private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -160,6 +196,64 @@ class AdminRepository(context: Context) {
                 )
             )
         }
+
+    suspend fun login(username: String, password: String): AdminLoginResponse {
+        val normalized = username.trim()
+        if (normalized.isBlank() || password.isBlank()) {
+            return AdminLoginResponse(
+                ok = false,
+                error = "Enter your administrator username and password."
+            )
+        }
+
+        return try {
+            val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
+                contentType(ContentType.Application.Json)
+                setBody(AdminLoginRequest(normalized, password))
+            }
+
+            if (response.status.value !in 200..299) {
+                val error = runCatching {
+                    response.body<AdminErrorResponse>().error
+                }.getOrNull()
+
+                AdminLoginResponse(
+                    ok = false,
+                    error = error ?: "Invalid administrator username or password."
+                )
+            } else {
+                val session = response.body<AdminSessionResponse>()
+                val adminUser = AdminUser(
+                    id = session.user.id,
+                    username = session.user.username,
+                    email = session.user.email,
+                    role = session.user.role,
+                    is_active = session.user.is_active,
+                    permissions = session.user.permissions
+                )
+
+                client.auth.importSession(
+                    UserSession(
+                        accessToken = session.accessToken,
+                        refreshToken = session.refreshToken,
+                        expiresIn = session.expiresIn.toLong(),
+                        tokenType = session.tokenType,
+                        user = null
+                    )
+                )
+
+                runCatching { client.auth.retrieveUserForCurrentSession() }
+                authenticatedAdmin = adminUser
+
+                AdminLoginResponse(ok = true, user = adminUser)
+            }
+        } catch (e: Exception) {
+            AdminLoginResponse(
+                ok = false,
+                error = e.message ?: "Unable to sign in as administrator."
+            )
+        }
+    }
 
     suspend fun restoreSession(): AdminUser? {
         // 1. Check if we have an authoritative admin from the current session's memory.
@@ -472,8 +566,12 @@ class AdminRepository(context: Context) {
 
         private const val ADMIN_API_BASE_URL =
             "https://kingdomfellowshipchristianchurch.onrender.com"
-    }
-}
+    }}
+
+@Serializable
+private data class AdminErrorResponse(
+    val error: String? = null
+)
 
 @Serializable
 private data class AdminErrorResponse(
