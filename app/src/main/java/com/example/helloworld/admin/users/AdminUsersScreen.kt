@@ -47,6 +47,7 @@ private val assignablePermissions = listOf(
     AdminPermissions.LINKS_EDIT,
     AdminPermissions.CLASSES_EDIT,
     AdminPermissions.GALLERY_EDIT,
+    AdminPermissions.EVENTS_MANAGE,
     AdminPermissions.THEME_EDIT,
     AdminPermissions.MEDIA_VIEW,
     AdminPermissions.MEDIA_UPLOAD,
