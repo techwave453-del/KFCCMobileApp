@@ -139,7 +139,23 @@ class AdminRepository(context: Context) {
                     )
                 )
 
-                runCatching { client.auth.retrieveUserForCurrentSession() }
+                // importSession() is the supported way to install a session
+                // returned by an external login flow. Verify that the shared
+                // Supabase client actually retained it before reporting login
+                // success. If the imported session was not retained, force one
+                // refresh using the returned refresh token; this also ensures
+                // the Auth plugin persists a usable session for other modules.
+                if (client.auth.currentSessionOrNull() == null) {
+                    client.auth.refreshSession(refreshToken = session.refreshToken)
+                }
+
+                if (client.auth.currentSessionOrNull() == null) {
+                    error("Administrator authentication succeeded, but the Supabase session could not be installed.")
+                }
+
+                runCatching {
+                    client.auth.retrieveUserForCurrentSession(updateSession = true)
+                }
                 authenticatedAdmin = adminUser
 
                 AdminLoginResponse(ok = true, user = adminUser)
