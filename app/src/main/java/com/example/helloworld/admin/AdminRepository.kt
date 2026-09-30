@@ -21,7 +21,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.contentType
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -105,7 +105,7 @@ class AdminRepository(context: Context) {
 
         return try {
             val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
-                contentType(ContentType.Application.Json)
+                header("Content-Type", ContentType.Application.Json.toString())
                 setBody(AdminLoginRequest(normalized, password))
             }
 
@@ -190,74 +190,6 @@ class AdminRepository(context: Context) {
             is_active = true,
             permissions = permissions
         ).also { authenticatedAdmin = it }
-    }
-
-    suspend fun login(username: String, password: String): AdminLoginResponse {
-        val normalized = username.trim()
-
-        if (normalized.isBlank() || password.isBlank()) {
-            return AdminLoginResponse(
-                ok = false,
-                error = "Enter your administrator username and password."
-            )
-        }
-
-        return try {
-            val response = adminLoginClient.post("$SUPABASE_FUNCTIONS_URL/admin-login") {
-                contentType(ContentType.Application.Json)
-                setBody(AdminLoginRequest(normalized, password))
-            }
-
-            if (response.status.value !in 200..299) {
-                val error = runCatching {
-                    response.body<AdminErrorResponse>().error
-                }.getOrNull()
-
-                AdminLoginResponse(
-                    ok = false,
-                    error = error ?: "Invalid administrator username or password."
-                )
-            } else {
-                val session = response.body<AdminSessionResponse>()
-                val adminUser = AdminUser(
-                    id = session.user.id,
-                    username = session.user.username,
-                    email = session.user.email,
-                    role = session.user.role,
-                    is_active = session.user.is_active,
-                    permissions = session.user.permissions
-                )
-
-                client.auth.importSession(
-                    UserSession(
-                        accessToken = session.accessToken,
-                        refreshToken = session.refreshToken,
-                        expiresIn = session.expiresIn.toLong(),
-                        tokenType = session.tokenType,
-                        user = null
-                    )
-                )
-
-                // Force fetching the user object so client.auth.currentUserOrNull() 
-                // is correctly populated for other repositories (like Chat).
-                runCatching { client.auth.retrieveUserForCurrentSession() }
-
-                // Store the exact authoritative user returned by admin-login.
-                // AdminViewModel.restoreSession() will read this same repository
-                // instance when the AdminShell is entered after unified sign-in.
-                authenticatedAdmin = adminUser
-
-                AdminLoginResponse(
-                    ok = true,
-                    user = adminUser
-                )
-            }
-        } catch (e: Exception) {
-            AdminLoginResponse(
-                ok = false,
-                error = e.message ?: "Unable to sign in as administrator."
-            )
-        }
     }
 
     suspend fun logout() {
