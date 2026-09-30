@@ -1,6 +1,8 @@
 package com.example.helloworld.ui.screens
 
 import android.app.Application
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -70,6 +72,7 @@ fun ProfileScreen(
     var updatingEmail by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var uploadingAvatar by remember { mutableStateOf(false) }
 
     val avatarPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -144,7 +147,9 @@ fun ProfileScreen(
             ProfileHeader(
                 displayName = adminUser?.username ?: username.ifBlank { email.substringBefore("@") },
                 avatarUrl = avatarUrl,
-                subtitle = if (adminUser != null) "Administrator Account" else "Community Member"
+                subtitle = if (adminUser != null) "Administrator Account" else "Community Member",
+                onAvatarClick = { if (!uploadingAvatar) avatarPicker.launch("image/*") },
+                uploading = uploadingAvatar
             )
 
             Spacer(Modifier.height(24.dp))
@@ -191,16 +196,17 @@ fun ProfileScreen(
                     
                     Spacer(Modifier.height(12.dp))
 
-                    OutlinedTextField(
-                        value = avatarUrl,
-                        onValueChange = { avatarUrl = it },
+                    OutlinedButton(
+                        onClick = { if (!uploadingAvatar) avatarPicker.launch("image/*") },
+                        enabled = !uploadingAvatar,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Profile Picture URL") },
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp)) },
-                        supportingText = { Text("Direct link to your avatar image") }
-                    )
-                    
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (uploadingAvatar) "Uploading profile picture…" else "Choose Profile Picture")
+                    }
+
                     Spacer(Modifier.height(16.dp))
                     
                     Button(
@@ -224,7 +230,7 @@ fun ProfileScreen(
                                 saving = false
                             }
                         },
-                        enabled = !saving && username.isNotBlank(),
+                        enabled = !saving && !uploadingAvatar && username.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
