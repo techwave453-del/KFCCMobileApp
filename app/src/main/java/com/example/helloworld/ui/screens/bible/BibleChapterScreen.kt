@@ -147,8 +147,9 @@ fun BibleChapterScreen(
                     onBack = onBack
                 )
             } else {
+                val loadedChapter = chapter
                 BibleReader(
-                    chapter = chapter,
+                    chapter = loadedChapter,
                     onVerseClick = { verse ->
                         selectedVerse = verse
                     }
