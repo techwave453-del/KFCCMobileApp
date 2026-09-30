@@ -15,6 +15,8 @@ import com.example.helloworld.data.SiteContentRow
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -23,19 +25,6 @@ import io.ktor.client.request.contentType
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.serialization.kotlinx.json.json
-import io.github.jan.supabase.auth.user.UserSession
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
-import io.ktor.client.statement.HttpResponse
-import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -55,7 +44,6 @@ private data class NotificationSyncPayload(
     @SerialName("show_on_install") val showOnInstall: Boolean = false,
     @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false
 )
-
 
 @Serializable
 private data class NotificationManagementUpdate(
@@ -105,7 +93,6 @@ class AdminRepository(context: Context) {
             json(Json { ignoreUnknownKeys = true })
         }
     }
-
 
     private val adminLoginClient = HttpClient(CIO) {
         install(ContentNegotiation) {
