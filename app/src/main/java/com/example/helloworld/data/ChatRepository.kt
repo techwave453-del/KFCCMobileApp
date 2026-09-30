@@ -2,6 +2,7 @@ package com.example.helloworld.data
 
 import android.content.Context
 import android.util.Base64
+import com.example.helloworld.admin.AdminRepositoryProvider
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
@@ -270,18 +271,19 @@ class ChatRepository {
         }
     }
 
-    suspend fun createGroup(title: String): Result<ChatRoom> = runCatching {
+    suspend fun createGroup(title: String, context: Context): Result<ChatRoom> = runCatching {
         require(title.trim().isNotEmpty()) { "Group name cannot be empty." }
 
-        // The shared Auth client may temporarily lose its in-memory session during
-        // an Android lifecycle transition even though the imported session is still
-        // persisted by the Auth plugin. Rehydrate it before declaring the user signed out.
+        // Group creation is an administrator-only operation. Recover the shared
+        // administrator Auth session before resolving auth.uid(), because Android
+        // can temporarily clear the Auth plugin's in-memory session.
+        AdminRepositoryProvider.get(context).ensureAdminSession()
         client.auth.awaitInitialization()
         if (client.auth.currentSessionOrNull() == null) {
             runCatching { client.auth.loadFromStorage(autoRefresh = true) }
         }
 
-        val session = client.auth.currentSessionOrNull()
+        val session = client.auth.currentSessionOrNull();
         val userId = client.auth.currentUserOrNull()?.id ?: session?.user?.id ?: session?.accessToken?.let { token ->
             try {
                 val parts = token.split(".")
