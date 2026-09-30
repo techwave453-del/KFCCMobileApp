@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,9 @@ fun EventsScreen(events: List<Event>, innerPadding: PaddingValues) {
 
 @Composable
 private fun EventCard(event: Event) {
+    val uriHandler = LocalUriHandler.current
+    val canRegister = event.registration_url.isNotBlank()
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             if (event.featured) Text("FEATURED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -45,7 +49,7 @@ private fun EventCard(event: Event) {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssistChip(onClick = {}, label = { Text(event.attendance_type.replace('_', ' ')) })
-                if (event.registration_url.isNotBlank()) AssistChip(onClick = {}, label = { Text("Register") })
+                if (canRegister) AssistChip(onClick = { uriHandler.openUri(event.registration_url) }, label = { Text("Register") })
             }
         }
     }
