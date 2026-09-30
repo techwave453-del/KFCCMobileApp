@@ -69,6 +69,7 @@ object AdminPermissions {
     const val USERS_PERMISSIONS = "users.permissions"
     const val AUDIT_VIEW = "audit.view"
     const val NOTIFICATIONS_SEND = "notifications.send"
+    const val EVENTS_MANAGE = "events.manage"
 }
 
 fun AdminUser.hasPermission(permission: String): Boolean =
