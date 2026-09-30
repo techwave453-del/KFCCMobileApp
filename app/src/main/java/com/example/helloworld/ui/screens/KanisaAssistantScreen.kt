@@ -36,6 +36,7 @@ import androidx.compose.foundation.BorderStroke
 import com.example.helloworld.data.KanisaAssistantBibleQuote
 import com.example.helloworld.ui.KanisaAssistantUiMessage
 import com.example.helloworld.ui.KanisaAssistantViewModel
+import com.example.helloworld.ui.components.CopyableErrorMessage
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -173,24 +174,13 @@ fun KanisaAssistantScreen(
         }
 
         error?.let { message ->
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    Modifier.padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        message,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    TextButton(onClick = viewModel::clearError) { Text("Dismiss") }
-                }
-            }
+            CopyableErrorMessage(
+                message = message,
+                technicalDetails = message,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                title = "Kanisa Assistant error",
+                onRetry = null
+            )
         }
 
         Surface(
