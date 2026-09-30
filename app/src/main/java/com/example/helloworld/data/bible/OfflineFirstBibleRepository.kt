@@ -18,6 +18,8 @@ class OfflineFirstBibleRepository(private val database: KfccDatabase) : BibleRep
         BibleTranslation(it.id, it.abbreviation, it.name, it.language, it.isOffline)
     }
 
+    override suspend fun getVerseCount(translationId: String) = verses.count(translationId)
+
     override suspend fun getBooks(translationId: String) = books.getAll().map {
         BibleBook(it.id, it.name, it.abbreviation,
             if (it.testament == "NT") Testament.NEW else Testament.OLD, it.chapterCount)
