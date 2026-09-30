@@ -5,6 +5,7 @@ import com.example.helloworld.data.offline.KfccDatabase
 
 interface BibleRepository {
     suspend fun getTranslations(): List<BibleTranslation>
+    suspend fun getVerseCount(translationId: String): Int
     suspend fun getBooks(translationId: String): List<BibleBook>
     suspend fun getChapter(translationId: String, bookId: String, chapterNumber: Int): BibleChapter?
     suspend fun search(translationId: String, query: String): List<BibleSearchResult>
@@ -23,6 +24,7 @@ class KfccBibleRepository : BibleRepository {
         get() = OfflineFirstBibleRepository(KfccDatabase.getInstance(KfccDataContext.appContext))
 
     override suspend fun getTranslations() = delegate.getTranslations()
+    override suspend fun getVerseCount(translationId: String) = delegate.getVerseCount(translationId)
     override suspend fun getBooks(translationId: String) = delegate.getBooks(translationId)
     override suspend fun getChapter(translationId: String, bookId: String, chapterNumber: Int) =
         delegate.getChapter(translationId, bookId, chapterNumber)
