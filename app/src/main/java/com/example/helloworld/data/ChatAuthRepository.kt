@@ -150,12 +150,25 @@ class ChatAuthRepository {
                     user = null
                 )
                 auth.importSession(importedSession)
-                // Share externally imported member sessions with the centralized
-                // recovery layer. Chat and Kanisa Assistant can otherwise see a
-                // signed-in UI while the Auth plugin temporarily has no in-memory
-                // session after a lifecycle/storage transition.
-                SupabaseProvider.rememberImportedSession(importedSession)
-                ChatAuthResult(true)
+
+                // Username login is performed by the Edge Function, so the imported
+                // session initially has no user object. Resolve the Auth user now
+                // so downstream Chat/PostgREST calls see the same authenticated
+                // state as email/password login.
+                runCatching {
+                    auth.retrieveUserForCurrentSession()
+                }.getOrElse { cause ->
+                    throw IllegalStateException(
+                        "Username sign-in succeeded, but the Supabase user session could not be established.",
+                        cause
+                    )
+                }
+
+                val activeSession = auth.currentSessionOrNull()
+                    ?: error("Username sign-in succeeded, but the Supabase session is unavailable.")
+
+                // Cache the fully established session for lifecycle recovery.
+                SupabaseProvider.rememberImportedSession(activeSession)                ChatAuthResult(true)
             }
         } catch (error: Exception) {
             ChatAuthResult(false, error.message ?: "Unable to sign in.")
