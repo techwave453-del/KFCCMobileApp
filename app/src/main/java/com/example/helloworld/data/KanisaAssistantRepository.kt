@@ -17,6 +17,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
+private data class ChatAssistantJwtPayload(val sub: String)
+
+@Serializable
 data class KanisaAssistantMessage(
     val role: String,
     val content: String
@@ -78,6 +81,9 @@ class KanisaAssistantRepository {
     }
 
     suspend fun loadHistory(limit: Int = 80): Result<List<StoredKanisaAssistantMessage>> = runCatching {
+        if (!SupabaseProvider.ensureSession()) {
+            error("Please sign in to use Kanisa Assistant.")
+        }
         val userId = currentUserId() ?: error("Please sign in to use Kanisa Assistant.")
         SupabaseProvider.client.from("kanisa_assistant_messages")
             .select {
@@ -126,9 +132,21 @@ class KanisaAssistantRepository {
         }
     }
 
-    private fun currentUserId(): String? =
-        SupabaseProvider.client.auth.currentUserOrNull()?.id
-            ?: SupabaseProvider.client.auth.currentSessionOrNull()?.user?.id
+    private fun currentUserId(): String? {
+        val auth = SupabaseProvider.client.auth
+        val user = auth.currentUserOrNull() ?: auth.currentSessionOrNull()?.user
+        if (user != null) return user.id
+
+        val token = auth.currentAccessTokenOrNull() ?: return null
+        return runCatching {
+            val parts = token.split(".")
+            if (parts.size != 3) return@runCatching null
+            val payload = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE)
+            kotlinx.serialization.json.Json
+                .decodeFromString<ChatAssistantJwtPayload>(String(payload))
+                .sub
+        }.getOrNull()
+    }
 
     suspend fun ask(
         message: String,
