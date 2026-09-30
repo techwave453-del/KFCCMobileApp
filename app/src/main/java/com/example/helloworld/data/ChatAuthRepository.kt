@@ -7,13 +7,14 @@ import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.storage.storage
+import io.ktor.http.ContentType
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
@@ -163,6 +164,27 @@ class ChatAuthRepository {
         ChatAuthResult(true)
     } catch (error: Exception) {
         ChatAuthResult(false, error.message ?: "Unable to sign in.")
+    }
+
+    suspend fun uploadProfileImage(bytes: ByteArray, contentType: String): Result<String> = runCatching {
+        val userId = currentUserId() ?: error("Please sign in first.")
+        require(bytes.isNotEmpty()) { "The selected image is empty." }
+        require(bytes.size <= 6 * 1024 * 1024) { "Profile images must be 6 MB or smaller." }
+
+        val normalizedType = contentType.lowercase()
+        require(normalizedType.startsWith("image/")) { "Please select an image file." }
+        val extension = when (normalizedType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            "image/gif" -> "gif"
+            else -> "jpg"
+        }
+        val path = "$userId/avatar.$extension"
+        val bucket = SupabaseProvider.client.storage["profile-avatars"]
+        bucket.upload(path, bytes, upsert = true) {
+            this.contentType = normalizedType
+        }
+        bucket.publicUrl(path)
     }
 
     suspend fun completeProfile(
