@@ -139,6 +139,9 @@ class ChatAuthRepository {
                 ChatAuthResult(false, "Invalid username or password.")
             } else {
                 val session = response.body<UsernameLoginResponse>()
+                // Do not let Auth storage initialization race with the
+                // externally authenticated username session.
+                auth.awaitInitialization()
                 auth.importSession(
                     UserSession(
                         accessToken = session.accessToken,
