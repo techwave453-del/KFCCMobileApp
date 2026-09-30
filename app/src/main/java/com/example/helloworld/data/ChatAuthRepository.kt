@@ -185,7 +185,7 @@ class ChatAuthRepository {
         val bucket = SupabaseProvider.client.storage["profile-avatars"]
         bucket.upload(path, UploadData(ByteReadChannel(bytes), bytes.size.toLong())) {
             upsert = true
-            contentType = ContentType.parse(normalizedType)
+            this.contentType = ContentType.parse(normalizedType)
         }
         bucket.publicUrl(path)
     }
