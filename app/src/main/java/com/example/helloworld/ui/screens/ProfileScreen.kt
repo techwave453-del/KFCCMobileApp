@@ -40,6 +40,7 @@ fun ProfileScreen(
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
 ) {
     val repository = remember { ChatAuthRepository() }
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val adminUser by adminViewModel.user.collectAsState()
     val signedIn by chatViewModel.signedIn.collectAsState()
@@ -78,7 +79,7 @@ fun ProfileScreen(
                 uploadingAvatar = true
                 message = null
                 error = null
-                val resolver = LocalContext.current.contentResolver
+                val resolver = context.contentResolver
                 val mimeType = resolver.getType(uri) ?: "image/jpeg"
                 val bytes = runCatching {
                     resolver.openInputStream(uri)?.use { it.readBytes() }
