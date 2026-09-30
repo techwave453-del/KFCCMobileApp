@@ -250,6 +250,7 @@ class AdminRepository(context: Context) {
 
     suspend fun logout() {
         authenticatedAdmin = null
+        lastImportedSession = null
         try {
             client.auth.signOut()
         } catch (_: Exception) {
