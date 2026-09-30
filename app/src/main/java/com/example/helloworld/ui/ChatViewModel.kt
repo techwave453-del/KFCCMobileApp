@@ -416,7 +416,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             _loading.value = true
-            chatRepository.createGroup(title)
+            chatRepository.createGroup(title, context)
                 .onSuccess { newRoom ->
                     loadRooms()
                     selectRoom(newRoom.id)
