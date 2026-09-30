@@ -70,6 +70,48 @@ fun ProfileScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val avatarPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                uploadingAvatar = true
+                message = null
+                error = null
+                val resolver = LocalContext.current.contentResolver
+                val mimeType = resolver.getType(uri) ?: "image/jpeg"
+                val bytes = runCatching {
+                    resolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+
+                if (bytes == null) {
+                    error = "Unable to read the selected image."
+                } else {
+                    repository.uploadProfileImage(bytes, mimeType)
+                        .onSuccess { uploadedUrl ->
+                            avatarUrl = uploadedUrl
+                            val result = repository.completeProfile(
+                                username = username,
+                                avatarUrl = uploadedUrl,
+                                adminRole = adminUser?.role,
+                                isAdminVisible = isAdminVisible
+                            )
+                            if (result.success) {
+                                message = "Profile picture updated successfully."
+                                repository.getProfile().onSuccess { profile = it }
+                            } else {
+                                error = result.message ?: "Image uploaded, but the profile could not be updated."
+                            }
+                        }
+                        .onFailure { uploadError ->
+                            error = uploadError.message ?: "Unable to upload your profile picture."
+                        }
+                }
+                uploadingAvatar = false
+            }
+        }
+    }
+
     suspend fun load() {
         if (signedIn) {
             loading = true
@@ -292,7 +334,13 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(displayName: String, avatarUrl: String, subtitle: String) {
+private fun ProfileHeader(
+    displayName: String,
+    avatarUrl: String,
+    subtitle: String,
+    onAvatarClick: () -> Unit,
+    uploading: Boolean
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.BottomEnd) {
             Surface(
@@ -319,11 +367,26 @@ private fun ProfileHeader(displayName: String, avatarUrl: String, subtitle: Stri
                 }
             }
             Surface(
+                onClick = onAvatarClick,
                 modifier = Modifier.size(30.dp).clip(CircleShape),
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 shadowElevation = 2.dp
             ) {
-                Icon(Icons.Default.PhotoCamera, null, Modifier.padding(6.dp).size(16.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                if (uploading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(7.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.PhotoCamera,
+                        null,
+                        Modifier.padding(6.dp).size(16.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
