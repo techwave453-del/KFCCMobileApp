@@ -278,12 +278,9 @@ class ChatRepository {
         // administrator Auth session before resolving auth.uid(), because Android
         // can temporarily clear the Auth plugin's in-memory session.
         AdminRepositoryProvider.get(context).ensureAdminSession()
-        client.auth.awaitInitialization()
-        if (client.auth.currentSessionOrNull() == null) {
-            runCatching { client.auth.loadFromStorage(autoRefresh = true) }
-        }
+        SupabaseProvider.ensureSession()
 
-        val session = client.auth.currentSessionOrNull();
+        val session = client.auth.currentSessionOrNull()
         val userId = client.auth.currentUserOrNull()?.id ?: session?.user?.id ?: session?.accessToken?.let { token ->
             try {
                 val parts = token.split(".")
