@@ -30,10 +30,9 @@ import androidx.compose.runtime.LaunchedEffect
 /**
  * A reusable error surface for the whole app.
  *
- * The user-facing message can stay friendly while [technicalDetails] contains
- * the actual exception/backend message that is useful when reporting a bug.
- * The copy action never copies secrets automatically; callers should pass only
- * safe diagnostic information.
+ * Technical exception strings from Supabase/Ktor can contain request URLs,
+ * query parameters and authentication headers. Always sanitize them before
+ * showing or copying diagnostics.
  */
 @Composable
 fun CopyableErrorMessage(
@@ -46,13 +45,16 @@ fun CopyableErrorMessage(
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
 
+    val safeMessage = sanitizeErrorText(message)
+    val safeTechnicalDetails = technicalDetails?.let(::sanitizeErrorText)
+
     val copyText = buildString {
         append(title)
         append(": ")
-        append(message)
-        if (!technicalDetails.isNullOrBlank() && technicalDetails != message) {
+        append(safeMessage)
+        if (!safeTechnicalDetails.isNullOrBlank() && safeTechnicalDetails != safeMessage) {
             append("\n\nTechnical details:\n")
-            append(technicalDetails)
+            append(safeTechnicalDetails)
         }
     }
 
@@ -80,14 +82,14 @@ fun CopyableErrorMessage(
             )
 
             Text(
-                text = message,
+                text = safeMessage,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
 
-            if (!technicalDetails.isNullOrBlank() && technicalDetails != message) {
+            if (!safeTechnicalDetails.isNullOrBlank() && safeTechnicalDetails != safeMessage) {
                 Text(
-                    text = technicalDetails,
+                    text = safeTechnicalDetails,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     maxLines = 8,
@@ -117,9 +119,38 @@ fun CopyableErrorMessage(
 }
 
 /**
+ * Removes credentials and request metadata that must never leave the process
+ * through an error surface or clipboard.
+ */
+fun sanitizeErrorText(raw: String): String {
+    var value = raw.trim()
+
+    value = value.replace(
+        Regex("(?i)Authorization=\\[Bearer\\s+[^\\]]*\\]"),
+        "Authorization=[REDACTED]"
+    )
+    value = value.replace(
+        Regex("(?i)apikey=\\[[^\\]]*\\]"),
+        "apikey=[REDACTED]"
+    )
+    value = value.replace(
+        Regex("(?i)(password|passwd|access_token|refresh_token|api[_-]?key)\\s*[:=]\\s*[^,;\\s\\]]+"),
+        "$1=[REDACTED]"
+    )
+    value = value.replace(
+        Regex("https?://[^\\s,}\\]]+"),
+        "[request URL redacted]"
+    )
+    value = value.replace(
+        Regex("\\bBearer\\s+[A-Za-z0-9._~+/=-]+"),
+        "Bearer [REDACTED]"
+    )
+
+    return value.ifBlank { "Unknown error." }
+}
+
+/**
  * Converts an exception into a safe diagnostic string for CopyableErrorMessage.
- * Authentication tokens, passwords and authorization headers must not be passed
- * into this function or exposed to the UI.
  */
 fun safeErrorDetails(error: Throwable?): String? =
-    error?.message?.trim()?.takeIf { it.isNotBlank() }
+    error?.message?.let(::sanitizeErrorText)?.takeIf { it.isNotBlank() }
