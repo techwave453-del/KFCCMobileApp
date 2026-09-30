@@ -159,6 +159,7 @@ fun BibleChapterScreen(
                     verse = verse,
                     bookName = book?.name ?: bookId,
                     chapterNumber = chapterNumber,
+                    translationId = translationId,
                     onDismiss = { selectedVerse = null },
                     onBookmark = { toggleBookmark(prefs, bookId, chapterNumber, it.number) },
                     isBookmarked = { isBookmarked(prefs, bookId, chapterNumber, it.number) },
@@ -341,7 +342,7 @@ private fun BibleReader(
 
 
 
-            ChapterHeader(chapter)
+            ChapterHeader(chapter, translationId)
 
 
 
@@ -389,13 +390,14 @@ private fun BibleReader(
 
     @Composable
     private fun ChapterHeader(
-        chapter: BibleChapter
+        chapter: BibleChapter,
+        translationId: String
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = translationId.uppercase()
+                text = translationId.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -478,6 +480,7 @@ private fun BibleReader(
         verse: BibleVerse,
         bookName: String,
         chapterNumber: Int,
+        translationId: String,
         onDismiss: () -> Unit,
         onBookmark: (BibleVerse) -> Unit,
         isBookmarked: (BibleVerse) -> Boolean,
@@ -544,7 +547,7 @@ private fun BibleReader(
                             )
 
                             Text(
-                                text = translationId.uppercase()
+                                text = translationId.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
