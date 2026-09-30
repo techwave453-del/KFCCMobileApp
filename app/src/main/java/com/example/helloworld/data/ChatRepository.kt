@@ -272,10 +272,20 @@ class ChatRepository {
 
     suspend fun createGroup(title: String): Result<ChatRoom> = runCatching {
         require(title.trim().isNotEmpty()) { "Group name cannot be empty." }
+
+        // The shared Auth client may temporarily lose its in-memory session during
+        // an Android lifecycle transition even though the imported session is still
+        // persisted by the Auth plugin. Rehydrate it before declaring the user signed out.
+        client.auth.awaitInitialization()
+        if (client.auth.currentSessionOrNull() == null) {
+            runCatching { client.auth.loadFromStorage(autoRefresh = true) }
+        }
+
         val session = client.auth.currentSessionOrNull()
         val userId = client.auth.currentUserOrNull()?.id ?: session?.user?.id ?: session?.accessToken?.let { token ->
             try {
                 val parts = token.split(".")
+                if (parts.size != 3) return@let null
                 val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
                 Json.decodeFromString<ChatRepoJwtPayload>(payload).sub
             } catch (_: Exception) { null }
