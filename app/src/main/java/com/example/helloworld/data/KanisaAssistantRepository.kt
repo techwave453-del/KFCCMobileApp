@@ -136,8 +136,11 @@ class KanisaAssistantRepository {
         roomId: String? = null,
         replyToMessageId: String? = null
     ): Result<KanisaAssistantResponse> = runCatching {
+        if (!SupabaseProvider.ensureSession()) {
+            error("Your sign-in session is unavailable. Please sign in again.")
+        }
         val token = SupabaseProvider.client.auth.currentAccessTokenOrNull()
-            ?: error("Please sign in to use Kanisa Assistant.")
+            ?: error("Your sign-in session is unavailable. Please sign in again.")
 
         val response = client.post("$FUNCTIONS_URL/kanisa-assistant") {
             bearerAuth(token)
