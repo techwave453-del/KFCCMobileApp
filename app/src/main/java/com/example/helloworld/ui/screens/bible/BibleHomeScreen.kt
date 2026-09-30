@@ -84,7 +84,7 @@ fun BibleHomeScreen(
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
     val dailyChapter by produceState<com.example.helloworld.data.bible.BibleChapter?>(initialValue = null, repository, selectedTranslationId) {
         val day = LocalDate.now().dayOfYear
-        val chapterNumber = (day % 150) + 1
+        val chapterNumber = ((day - 1) % 150) + 1
         value = runCatching { repository.getChapter(selectedTranslationId, "psalms", chapterNumber) }.getOrNull()
     }
 
