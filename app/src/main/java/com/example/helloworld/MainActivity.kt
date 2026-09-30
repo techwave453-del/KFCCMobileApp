@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.helloworld.ui.screens.bible.BibleChapterScreen
 import com.example.helloworld.ui.screens.bible.BibleHomeScreen
+import com.example.helloworld.ui.screens.bible.BibleSearchScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -289,19 +290,22 @@ fun KFCCApp(
                     )
 
                     AppDestinations.BIBLE -> BibleHomeScreen(
-
                         onBack = { navigate(AppDestinations.HOME) },
-
+                        onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
                         onOpenChapter = { bookId, chapter ->
-
                             bibleBookId = bookId
-
                             bibleChapter = chapter
-
                             navigate(AppDestinations.BIBLE_CHAPTER)
-
                         }
+                    )
 
+                    AppDestinations.BIBLE_SEARCH -> BibleSearchScreen(
+                        onBack = { navigate(AppDestinations.BIBLE) },
+                        onOpenChapter = { bookId, chapter ->
+                            bibleBookId = bookId
+                            bibleChapter = chapter
+                            navigate(AppDestinations.BIBLE_CHAPTER)
+                        }
                     )
 
                     AppDestinations.BIBLE_CHAPTER -> {
@@ -469,6 +473,7 @@ enum class AppDestinations(val label: String) {
     HOME("Home"),
     BIBLE("Bible"),
     BIBLE_CHAPTER("Bible Chapter"),
+    BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
     EVENTS("Events"),
     MEDIA("Media"),
