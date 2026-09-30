@@ -102,14 +102,22 @@ class ChatRepository {
         if (!SupabaseProvider.ensureSession()) {
             error("Chat session is not available. Please sign in again.")
         }
-        client.postgrest.rpc("join_kfcc_community").decodeAs<String>()
+        val response = client.postgrest.rpc("join_kfcc_community")
+        val raw = response.data
+        if (raw.isBlank()) {
+            ""
+        } else {
+            runCatching { response.decodeAs<String>() }.getOrElse { raw }
+        }
     }
 
     suspend fun getCommunityRoom(): Result<ChatRoom> = runCatching {
-        client.from("chat_rooms")
+        val raw = client.from("chat_rooms")
             .select { filter { eq("type", "community") } }
-            .decodeList<ChatRoom>()
-            .firstOrNull() ?: error("Community chat is not available yet.")
+        val rooms = runCatching { raw.decodeList<ChatRoom>() }.getOrElse { cause ->
+            if (raw.data.isBlank()) emptyList() else throw cause
+        }
+        rooms.firstOrNull() ?: error("Community chat is not available yet.")
     }
 
     suspend fun getMessages(roomId: String): Result<List<ChatMessage>> = runCatching {
