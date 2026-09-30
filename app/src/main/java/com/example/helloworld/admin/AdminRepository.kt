@@ -210,8 +210,10 @@ class AdminRepository(context: Context) {
     }
 
     suspend fun saveSiteContent(content: ChurchInfo): Result<ChurchInfo> = runCatching {
+        // Church identity is managed exclusively by the Super Admin through
+        // IdentityRepository. Do not enqueue protected identity keys from
+        // generic Website Content/Services saves.
         val rows = listOf(
-            SiteContentEntity("churchName", content.churchName),
             SiteContentEntity("tagline", content.tagline),
             SiteContentEntity("title", content.title),
             SiteContentEntity("subtitle", content.subtitle),
