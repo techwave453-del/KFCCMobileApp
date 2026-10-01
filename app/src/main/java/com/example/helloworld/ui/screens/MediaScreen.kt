@@ -79,8 +79,15 @@ fun MediaScreen(
     val latestMedia = filteredMedia.take(10)
 
     val heroItems = remember(mediaItems) {
-        mediaItems.filter { it.featured && (it.type.equals("video", true) || it.type.equals("image", true)) }
-            .ifEmpty { mediaItems.filter { it.type.equals("video", true) || it.type.equals("image", true) } }
+        mediaItems.filter {
+            it.hero &&
+                (it.type.equals("video", true) || it.type.equals("image", true))
+        }
+            .ifEmpty {
+                mediaItems.filter {
+                    it.type.equals("video", true) || it.type.equals("image", true)
+                }
+            }
             .distinctBy { it.id }
             .take(8)
     }
@@ -227,7 +234,7 @@ private fun MediaHeroSection(
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(20.dp)
         ) {
             Text(
-                text = if (current.type.equals("video", true)) "FEATURED VIDEO" else "FEATURED IMAGE",
+                text = if (current.type.equals("video", true)) "HERO VIDEO" else "HERO IMAGE",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 fontWeight = FontWeight.Bold,
