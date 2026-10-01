@@ -9,10 +9,8 @@ class PreferencesViewModel(application: Application) : AndroidViewModel(applicat
     private val preferencesManager = PreferencesManager(application)
 
     val themeMode: StateFlow<String> = preferencesManager.themeMode
-    val isDarkMode: StateFlow<Boolean> = preferencesManager.isDarkMode
     val isAudioAutoplay: StateFlow<Boolean> = preferencesManager.isAudioAutoplay
 
     fun setThemeMode(mode: String) = preferencesManager.setThemeMode(mode)
-    fun toggleDarkMode() = preferencesManager.toggleDarkMode()
     fun toggleAudioAutoplay() = preferencesManager.toggleAudioAutoplay()
 }
