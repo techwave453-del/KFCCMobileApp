@@ -3,13 +3,9 @@ package com.example.helloworld.admin.media
 import android.content.Context
 import com.example.helloworld.data.SupabaseProvider
 import com.example.helloworld.data.offline.KfccDatabase
-import com.example.helloworld.data.offline.KfccOutboxRepository
 import com.example.helloworld.data.offline.MediaItemEntity
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.UUID
 
 @Serializable
@@ -26,7 +22,6 @@ class MediaRepository(context: Context) {
     private val appContext = context.applicationContext
     private val client = SupabaseProvider.client
     private val db = KfccDatabase.getInstance(appContext)
-    private val outbox = KfccOutboxRepository(appContext, db)
 
     suspend fun load(): Result<List<AdminMediaItem>> {
         return runCatching {
@@ -50,42 +45,45 @@ class MediaRepository(context: Context) {
         published: Boolean? = null,
         featured: Boolean? = null
     ): Result<AdminMediaItem> = runCatching {
-        val current = db.mediaItemDao().getAll().firstOrNull { it.id == id }
-            ?: error("Media item $id is not available in the local cache.")
-        val updated = current.copy(
-            title = title,
-            description = description,
-            category = category,
-            published = published ?: current.published,
-            featured = featured ?: current.featured
-        )
-        db.mediaItemDao().upsertAll(listOf(updated))
-        outbox.enqueue(
-            entityType = "media_items",
-            operationType = "UPDATE",
-            entityId = id.toString(),
-            payload = Json.encodeToString(
-                MediaSyncPayload(title, description, category, published, featured)
-            )
-        )
-        toAdminItem(updated)
+        val changes = buildMap<String, Any> {
+            put("title", title.trim())
+            put("description", description.trim())
+            put("category", category.trim())
+            published?.let { put("published", it) }
+            featured?.let { put("featured", it) }
+        }
+        client.from("media_items").update(changes) {
+            select()
+            filter { eq("id", id) }
+        }.decodeSingle<AdminMediaItem>()
+            .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
     }
 
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
-        val current = db.mediaItemDao().getAll().firstOrNull { it.id == id }
-            ?: error("Media item $id is not available in the local cache.")
-        db.mediaItemDao().upsertAll(listOf(current.copy(featured = featured)))
-        outbox.enqueue(
-            entityType = "media_items",
-            operationType = "UPDATE",
-            entityId = id.toString(),
-            payload = Json.encodeToString(MediaSyncPayload(featured = featured))
-        )
+        client.from("media_items").update(mapOf("featured" to featured)) {
+            filter { eq("id", id) }
+        }
+        db.mediaItemDao().getAll().firstOrNull { it.id == id }?.let { current ->
+            db.mediaItemDao().upsertAll(listOf(current.copy(featured = featured)))
+        }
     }
 
     suspend fun delete(id: Long): Result<Unit> = runCatching {
+        val current = client.from("media_items")
+            .select()
+            .decodeList<AdminMediaItem>()
+            .firstOrNull { it.id == id }
+            ?: error("Media item $id was not found.")
+
+        client.from("media_items").delete {
+            filter { eq("id", id) }
+        }
+
+        current.storage_path?.takeIf { it.isNotBlank() }?.let { path ->
+            client.storage.from("church-media").delete(path)
+        }
+
         db.mediaItemDao().deleteById(id)
-        outbox.enqueue("media_items", "DELETE", id.toString(), "{}")
     }
 
     suspend fun upload(
@@ -127,7 +125,7 @@ class MediaRepository(context: Context) {
         val item = mapOf(
             "title" to title.trim().ifBlank { "External media" },
             "description" to description.trim(),
-            "category" to category.trim().ifBlank { "general" },
+            "category" to category.trim().ifBlank { "videos" },
             "type" to type.trim().ifBlank { "video" },
             "url" to url.trim(),
             "published" to true
