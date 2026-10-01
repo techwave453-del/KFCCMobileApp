@@ -178,48 +178,20 @@ fun MediaCenterScreen(
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(items, key = { it.id }) { item ->
-                            Card(Modifier.fillMaxWidth()) {
-                                Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(if (item.isVideo) Icons.Default.VideoLibrary else Icons.Default.Image, contentDescription = null)
-                                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                            Text(item.title.ifBlank { item.url }, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                            Spacer(Modifier.height(4.dp))
-                                            Text("${item.type} · ${item.category}", style = MaterialTheme.typography.bodySmall)
-                                        }
-                                        if (canEdit) IconButton(onClick = { editingItem = item }, enabled = !saving && !deleting) { Icon(Icons.Default.Edit, contentDescription = "Edit media") }
-                                        if (canDelete) IconButton(onClick = { deletingItem = item }, enabled = !saving && !deleting) { Icon(Icons.Default.Delete, contentDescription = "Delete media") }
-                                    }
-                                    if (item.description.isNotBlank()) { Spacer(Modifier.height(6.dp)); Text(item.description, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis) }
-                                    Spacer(Modifier.height(8.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url))) }, enabled = item.url.isNotBlank()) {
-                                            Icon(Icons.Default.OpenInNew, contentDescription = null)
-                                            Text("Open URL", modifier = Modifier.padding(start = 5.dp))
-                                        }
-                                        OutlinedButton(onClick = {
-                                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                                            clipboard?.setPrimaryClip(ClipData.newPlainText("Media URL", item.url))
-                                        }, enabled = item.url.isNotBlank()) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = null)
-                                            Text("Copy URL", modifier = Modifier.padding(start = 5.dp))
-                                        }
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(if (item.published) "Published" else "Unpublished", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                                        if (canEdit) Switch(checked = item.published, onCheckedChange = { checked -> viewModel.save(item, item.title, item.description, item.category, checked) {} }, enabled = !saving && !deleting)
-                                    }
-                                    if (item.isVideo) {
-                                        Spacer(Modifier.height(6.dp))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Star, contentDescription = null, tint = if (item.featured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                            Text(if (item.featured) "Featured video" else "Not featured", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f).padding(start = 6.dp))
-                                            if (canEdit) OutlinedButton(onClick = { viewModel.setFeatured(item, !item.featured) }, enabled = !saving && !deleting) { Text(if (item.featured) "Unfeature" else "Feature video") }
-                                        }
-                                    }
-                                }
-                            }
+                            MediaItemCard(
+                                item = item,
+                                canEdit = canEdit,
+                                canDelete = canDelete,
+                                saving = saving,
+                                deleting = deleting,
+                                context = context,
+                                onEdit = { editingItem = item },
+                                onDelete = { deletingItem = item },
+                                onPublishedChange = { checked ->
+                                    viewModel.save(item, item.title, item.description, item.category, checked) {}
+                                },
+                                onFeaturedChange = { viewModel.setFeatured(item, !item.featured) }
+                            )
                         }
                     }
                 }
@@ -271,6 +243,214 @@ fun MediaCenterScreen(
             confirmButton = { Button(onClick = { viewModel.delete(item) { deletingItem = null } }, enabled = !deleting) { if (deleting) CircularProgressIndicator(Modifier.height(18.dp)) else Text("Delete") } },
             dismissButton = { OutlinedButton(onClick = { deletingItem = null }, enabled = !deleting) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun MediaItemCard(
+    item: AdminMediaItem,
+    canEdit: Boolean,
+    canDelete: Boolean,
+    saving: Boolean,
+    deleting: Boolean,
+    context: android.content.Context,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onPublishedChange: (Boolean) -> Unit,
+    onFeaturedChange: () -> Unit
+) {
+    val icon = when {
+        item.type.equals("video", true) -> Icons.Default.VideoLibrary
+        item.type.equals("audio", true) -> Icons.Default.AudioFile
+        item.type.equals("document", true) -> Icons.Default.Description
+        else -> Icons.Default.Image
+    }
+    val typeLabel = item.type.ifBlank { "media" }.replaceFirstChar { it.uppercase() }
+    val category = categoryLabel(item.category)
+    val urlAvailable = item.url.isNotBlank()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        item.title.ifBlank { "Untitled media" },
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(typeLabel) },
+                            leadingIcon = { Icon(icon, contentDescription = null, Modifier.size(16.dp)) }
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(category) }
+                        )
+                    }
+                }
+                if (canEdit) {
+                    IconButton(onClick = onEdit, enabled = !saving && !deleting) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit media")
+                    }
+                }
+                if (canDelete) {
+                    IconButton(onClick = onDelete, enabled = !saving && !deleting) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete media")
+                    }
+                }
+            }
+
+            if (item.description.isNotBlank()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    item.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (urlAvailable) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        item.url,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Open")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("Media URL", item.url))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Copy")
+                    }
+                }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (item.published) "Published" else "Unpublished",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        if (item.published) "Visible in public media" else "Hidden from public media",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (canEdit) {
+                    Switch(
+                        checked = item.published,
+                        onCheckedChange = onPublishedChange,
+                        enabled = !saving && !deleting
+                    )
+                }
+            }
+
+            if (item.isVideo) {
+                Spacer(Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small,
+                    color = if (item.featured) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (item.featured) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (item.featured) "Featured video" else "Not featured",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Text(
+                                if (item.featured) "Shown as the featured media" else "Available as a regular video",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (canEdit) {
+                            OutlinedButton(
+                                onClick = onFeaturedChange,
+                                enabled = !saving && !deleting
+                            ) {
+                                Text(if (item.featured) "Remove" else "Feature")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
