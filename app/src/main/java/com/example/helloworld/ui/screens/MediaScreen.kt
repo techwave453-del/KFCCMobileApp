@@ -67,7 +67,9 @@ fun MediaScreen(
             "sermons" -> mediaItems.filter { it.category.equals("sermons", true) }
             "worship" -> mediaItems.filter { it.category.equals("worship", true) }
             "events" -> mediaItems.filter { it.category.equals("events", true) }
-            "gallery" -> mediaItems.filter { it.category.equals("gallery", true) || it.type.equals("image", true) }
+            "gallery" -> mediaItems.filter {
+                it.category.equals("gallery", true) && it.type.equals("image", true)
+            }
             else -> emptyList()
         }
     }
