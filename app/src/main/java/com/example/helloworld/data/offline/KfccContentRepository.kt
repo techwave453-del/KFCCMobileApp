@@ -101,7 +101,17 @@ class KfccContentRepository(private val db: KfccDatabase) {
     )
 
     private fun toMedia(x: MediaItemEntity) =
-        MediaItem(\n            id = x.id,\n            title = x.title,\n            type = x.type,\n            category = x.category,\n            description = x.description,\n            url = x.url,\n            featured = x.featured,\n            createdAt = x.createdAt,\n            thumbnailUrl = x.thumbnailUrl\n        )
+        MediaItem(
+            id = x.id,
+            title = x.title,
+            type = x.type,
+            category = x.category,
+            description = x.description,
+            url = x.url,
+            featured = x.featured,
+            createdAt = x.createdAt,
+            thumbnailUrl = x.thumbnailUrl
+        )
 
     private fun toEventEntity(x: EventItem) = EventEntity(
         x.id, x.slug, x.title, x.category, x.shortDescription, x.description, x.image, x.flyerUrl,
