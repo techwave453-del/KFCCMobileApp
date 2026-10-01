@@ -61,7 +61,9 @@ class MediaRepository(context: Context) {
     }
 
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
-        client.from("media_items").update(mapOf("featured" to featured)) {
+        client.from("media_items").update({
+            set("featured", featured)
+        }) {
             filter { eq("id", id) }
         }
         db.mediaItemDao().getAll().firstOrNull { it.id == id }?.let { current ->
