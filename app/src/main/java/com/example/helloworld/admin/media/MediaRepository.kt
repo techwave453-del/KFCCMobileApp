@@ -7,6 +7,7 @@ import com.example.helloworld.data.offline.MediaItemEntity
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 @Serializable
 private data class MediaSyncPayload(
