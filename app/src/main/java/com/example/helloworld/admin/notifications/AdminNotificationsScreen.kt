@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.notifications
+import com.example.helloworld.admin.AdminErrorMessage
 
 import android.app.Application
 import androidx.compose.foundation.layout.*
@@ -103,7 +104,7 @@ fun AdminNotificationsScreen(
             item { Text(text, color = MaterialTheme.colorScheme.primary) }
         }
         error?.let { text ->
-            item { Text(text, color = MaterialTheme.colorScheme.error) }
+            item { AdminErrorMessage(message = text, modifier = Modifier.padding(vertical = 8.dp)) }
         }
 
         item {
