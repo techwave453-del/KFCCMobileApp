@@ -133,6 +133,21 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun setHero(item: AdminMediaItem, hero: Boolean) {
+        viewModelScope.launch {
+            _saving.value = true
+            _error.value = null
+            _actionMessage.value = null
+            repository.setHero(item.id, hero)
+                .onSuccess {
+                    _actionMessage.value = if (hero) "Media added to the hero carousel." else "Media removed from the hero carousel."
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Unable to update the media hero selection." }
+            _saving.value = false
+        }
+    }
+
     fun delete(item: AdminMediaItem, onComplete: () -> Unit) {
         viewModelScope.launch {
             _deleting.value = true; _error.value = null; _actionMessage.value = null
