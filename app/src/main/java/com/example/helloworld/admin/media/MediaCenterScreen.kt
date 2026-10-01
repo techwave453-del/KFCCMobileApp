@@ -299,7 +299,8 @@ private fun AddMediaUrlDialog(
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("general") }
+    var category by remember { mutableStateOf("videos") }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf("video") }
     var typeExpanded by remember { mutableStateOf(false) }
 
