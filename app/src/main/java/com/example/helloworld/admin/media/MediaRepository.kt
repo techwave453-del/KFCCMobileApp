@@ -95,6 +95,22 @@ class MediaRepository(context: Context) {
         db.mediaItemDao().upsertAll(listOf(toEntity(refreshed)))
     }
 
+    suspend fun setHero(id: Long, hero: Boolean): Result<Unit> = runCatching {
+        client.from("media_items").update({
+            set("hero", hero)
+        }) {
+            filter { eq("id", id) }
+        }
+
+        val refreshed = client.from("media_items")
+            .select()
+            .decodeList<AdminMediaItem>()
+            .firstOrNull { it.id == id }
+            ?: error("Media item $id was not found after updating hero status.")
+
+        db.mediaItemDao().upsertAll(listOf(toEntity(refreshed)))
+    }
+
     private suspend fun clearOtherFeaturedVideos(exceptId: Long) {
         val featuredVideos = client.from("media_items")
             .select()
@@ -194,7 +210,7 @@ class MediaRepository(context: Context) {
         id = item.id, legacyId = item.legacy_id, title = item.title, type = item.type,
         category = item.category, description = item.description, url = item.url,
         storagePath = item.storage_path, createdAt = item.created_at, published = item.published,
-        thumbnailUrl = item.thumbnail_url, featured = item.featured
+        thumbnailUrl = item.thumbnail_url, featured = item.featured || item.hero
     )
 
     private fun toAdminItem(item: MediaItemEntity) = AdminMediaItem(
