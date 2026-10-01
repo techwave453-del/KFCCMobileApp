@@ -194,7 +194,8 @@ fun MediaCenterScreen(
                                 onPublishedChange = { checked ->
                                     viewModel.save(item, item.title, item.description, item.category, checked) {}
                                 },
-                                onFeaturedChange = { viewModel.setFeatured(item, !item.featured) }
+                                onFeaturedChange = { viewModel.setFeatured(item, !item.featured) },
+                                onHeroChange = { viewModel.setHero(item, !item.hero) }
                             )
                         }
                     }
@@ -261,7 +262,8 @@ private fun MediaItemCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onPublishedChange: (Boolean) -> Unit,
-    onFeaturedChange: () -> Unit
+    onFeaturedChange: () -> Unit,
+    onHeroChange: () -> Unit
 ) {
     val icon = when {
         item.type.equals("video", true) -> Icons.Default.VideoLibrary
@@ -449,6 +451,49 @@ private fun MediaItemCard(
                                 enabled = !saving && !deleting
                             ) {
                                 Text(if (item.featured) "Remove" else "Feature")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (item.type.equals("image", true) || item.type.equals("video", true)) {
+                Spacer(Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small,
+                    color = if (item.hero) MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.ViewCarousel,
+                            contentDescription = null,
+                            tint = if (item.hero) MaterialTheme.colorScheme.onTertiaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (item.hero) "Hero carousel" else "Not in hero carousel",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Text(
+                                if (item.hero) "Shown in the public media hero carousel"
+                                else "Available as regular media",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (canEdit) {
+                            OutlinedButton(
+                                onClick = onHeroChange,
+                                enabled = !saving && !deleting
+                            ) {
+                                Text(if (item.hero) "Remove" else "Add to Hero")
                             }
                         }
                     }
