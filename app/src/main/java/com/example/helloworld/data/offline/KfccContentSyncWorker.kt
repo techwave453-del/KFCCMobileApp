@@ -237,7 +237,8 @@ class KfccContentSyncWorker(
                 createdAt = it.created_at,
                 published = it.published,
                 thumbnailUrl = it.thumbnail_url,
-                featured = it.featured
+                featured = it.featured,
+                hero = it.hero
             )
         })
     }
