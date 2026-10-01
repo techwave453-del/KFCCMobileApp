@@ -1,5 +1,7 @@
 package com.example.helloworld.admin.media
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +28,7 @@ fun MediaCenterScreen(
     canDelete: Boolean = false
 ) {
     val viewModel: MediaCenterViewModel = viewModel()
+    val context = LocalContext.current
     val items by viewModel.items.collectAsState()
     val loading by viewModel.loading.collectAsState()
     val uploading by viewModel.uploading.collectAsState()
@@ -131,6 +135,20 @@ fun MediaCenterScreen(
                                         if (canDelete) IconButton(onClick = { deletingItem = item }, enabled = !saving && !deleting) { Icon(Icons.Default.Delete, contentDescription = "Delete media") }
                                     }
                                     if (item.description.isNotBlank()) { Spacer(Modifier.height(6.dp)); Text(item.description, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url))) }, enabled = item.url.isNotBlank()) {
+                                            Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                            Text("Open URL", modifier = Modifier.padding(start = 5.dp))
+                                        }
+                                        OutlinedButton(onClick = {
+                                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                            clipboard?.setPrimaryClip(ClipData.newPlainText("Media URL", item.url))
+                                        }, enabled = item.url.isNotBlank()) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                            Text("Copy URL", modifier = Modifier.padding(start = 5.dp))
+                                        }
+                                    }
                                     Spacer(Modifier.height(8.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(if (item.published) "Published" else "Unpublished", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
