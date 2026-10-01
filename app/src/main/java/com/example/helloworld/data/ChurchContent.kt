@@ -34,7 +34,7 @@ data class MembershipClass(val title: String, @SerialName("image") val imageUrl:
 data class LiveStream(val enabled: Boolean = false, val url: String = "", val title: String = "", val description: String = "")
 
 @Serializable
-data class MediaItem(val id: Long, val title: String, val type: String, val category: String, val description: String = "", val url: String, val featured: Boolean = false, @SerialName("created_at") val createdAt: String, @SerialName("thumbnail_url") val thumbnailUrl: String? = null)
+data class MediaItem(val id: Long, val title: String, val type: String, val category: String, val description: String = "", val url: String, val featured: Boolean = false, val hero: Boolean = false, @SerialName("created_at") val createdAt: String, @SerialName("thumbnail_url") val thumbnailUrl: String? = null)
 
 @Serializable
 data class SiteContentRow(val key: String, val value: String)
