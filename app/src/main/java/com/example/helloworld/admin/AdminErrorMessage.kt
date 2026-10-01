@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -21,7 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import MaterialTheme
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun AdminErrorMessage(
@@ -32,28 +33,28 @@ fun AdminErrorMessage(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
+            containerColor = MaterialTheme.colorScheme.errorContainer
         ),
-        shape = androidx.compose.material3.MaterialTheme.shapes.medium
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.ErrorOutline,
                     contentDescription = "Error",
-                    tint = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                    tint = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "Operation failed",
-                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
             Spacer(Modifier.height(8.dp))
             Text(
                 message,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
             )
             Spacer(Modifier.height(10.dp))
