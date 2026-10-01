@@ -1,5 +1,6 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -76,6 +78,13 @@ fun MediaScreen(
 
     val latestMedia = filteredMedia.take(10)
 
+    val heroItems = remember(mediaItems) {
+        mediaItems.filter { it.featured && (it.type.equals("video", true) || it.type.equals("image", true)) }
+            .ifEmpty { mediaItems.filter { it.type.equals("video", true) || it.type.equals("image", true) } }
+            .distinctBy { it.id }
+            .take(8)
+    }
+
     val galleryItems = mediaItems.filter {
         it.category.equals("gallery", ignoreCase = true) &&
             it.type.equals("image", ignoreCase = true)
@@ -89,7 +98,7 @@ fun MediaScreen(
     ) {
         // 1. Media Hero
         item {
-            MediaHeroSection()
+            MediaHeroSection(items = heroItems, onMediaClick = { selectedVideo = it })
         }
 
         // 2. Featured Message
@@ -141,63 +150,124 @@ fun MediaScreen(
 }
 
 @Composable
-private fun MediaHeroSection() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(280.dp)
-    ) {
-        AsyncImage(
-            model = "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1600&q=80",
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+private fun MediaHeroSection(
+    items: List<MediaItem>,
+    onMediaClick: (MediaItem) -> Unit
+) {
+    if (items.isEmpty()) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))
-                    )
+            modifier = Modifier.fillMaxWidth().height(280.dp).background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.VideoLibrary, contentDescription = null, modifier = Modifier.size(42.dp))
+                Spacer(Modifier.height(10.dp))
+                Text("Media", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    "Select media for the hero section from Media Center.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+        return
+    }
+
+    var currentIndex by remember(items) { mutableIntStateOf(0) }
+
+    LaunchedEffect(items) {
+        while (items.size > 1) {
+            delay(5000)
+            currentIndex = (currentIndex + 1) % items.size
+        }
+    }
+
+    val current = items[currentIndex]
+
+    Box(
+        modifier = Modifier.fillMaxWidth().height(280.dp).clickable { onMediaClick(current) }
+    ) {
+        Crossfade(targetState = current, label = "mediaHero") { item ->
+            AsyncImage(
+                model = if (item.type.equals("video", true)) {
+                    youtubeThumbnailUrl(item.url) ?: item.thumbnailUrl ?: item.url
+                } else {
+                    item.thumbnailUrl ?: item.url
+                },
+                contentDescription = item.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    colors = listOf(Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.85f))
+                )
+            )
         )
+
+        if (current.type.equals("video", true)) {
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.55f)
+            ) {
+                Icon(
+                    Icons.Default.PlayCircle,
+                    contentDescription = "Play media",
+                    modifier = Modifier.padding(10.dp).size(52.dp),
+                    tint = Color.White
+                )
+            }
+        }
+
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Bottom
+            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(20.dp)
         ) {
             Text(
-                text = "MEDIA",
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
-                letterSpacing = 2.sp
+                text = if (current.type.equals("video", true)) "FEATURED VIDEO" else "FEATURED IMAGE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp
             )
+            Spacer(Modifier.height(5.dp))
             Text(
-                text = "Watch, listen, and experience Kingdom Fellowship wherever you are.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(3.dp)
-                    .background(Color(0xFFFFD700))
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Jesus Changes Lives",
+                current.title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = Color.White.copy(alpha = 0.7f),
-                fontWeight = FontWeight.W300,
-                fontStyle = FontStyle.Italic
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
+            if (current.description.isNotBlank()) {
+                Text(
+                    current.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.82f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (items.size > 1) {
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    items.forEachIndexed { index, _ ->
+                        Box(
+                            modifier = Modifier
+                                .width(if (index == currentIndex) 22.dp else 7.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    if (index == currentIndex) Color.White
+                                    else Color.White.copy(alpha = 0.45f)
+                                )
+                        )
+                    }
+                }
+            }
         }
     }
 }
