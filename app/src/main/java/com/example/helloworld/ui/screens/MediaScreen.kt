@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -367,6 +369,8 @@ private fun CategoryTile(
 
 @Composable
 private fun LatestMediaItem(item: MediaItem, onClick: () -> Unit) {
+    val isVideo = item.type.equals("video", true)
+    val isImage = item.type.equals("image", true)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -375,34 +379,45 @@ private fun LatestMediaItem(item: MediaItem, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.size(110.dp, 66.dp).clip(RoundedCornerShape(8.dp))) {
-            AsyncImage(
-                model = youtubeThumbnailUrl(item.url),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Surface(
-                modifier = Modifier.align(Alignment.Center),
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.4f)
-            ) {
-                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp).padding(2.dp), tint = Color.White)
+            if (isVideo || isImage) {
+                AsyncImage(
+                    model = if (isVideo) youtubeThumbnailUrl(item.url) ?: item.thumbnailUrl ?: item.url else item.thumbnailUrl ?: item.url,
+                    contentDescription = item.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when (item.type.lowercase()) {
+                            "audio" -> Icons.Default.Headphones
+                            "document" -> Icons.Default.Description
+                            else -> Icons.Default.InsertDriveFile
+                        },
+                        contentDescription = item.type,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
-            ) {
-                Text("48:22", color = Color.White, fontSize = 9.sp)
+            if (isVideo) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center),
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.4f)
+                ) {
+                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp).padding(2.dp), tint = Color.White)
+                }
             }
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Pastor John K. Mwangi", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("September 3, 2026", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            Text(item.type.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Tap to open", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }
         SuggestionChip(
             onClick = {},
@@ -419,10 +434,10 @@ private fun PhotoGalleryRow(items: List<MediaItem>) {
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items) { item ->
+        items(items.filter { it.type.equals("image", true) }) { item ->
             AsyncImage(
-                model = item.url,
-                contentDescription = null,
+                model = item.thumbnailUrl ?: item.url,
+                contentDescription = item.title,
                 modifier = Modifier.size(140.dp, 90.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
@@ -485,9 +500,67 @@ private fun SectionHeader(title: String, subtitle: String, onSeeAll: () -> Unit)
 
 @Composable
 private fun MediaPlayerDialog(item: MediaItem, onDismiss: () -> Unit) {
-    VideoDialog(title = item.title, onDismiss = onDismiss) {
-        if (youtubeVideoId(item.url) != null) YoutubePlayer(url = item.url)
-        else ExoPlayerView(url = item.url)
+    when (item.type.lowercase()) {
+        "image" -> MediaContentDialog(title = item.title, onDismiss = onDismiss) {
+            AsyncImage(
+                model = item.url,
+                contentDescription = item.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+        "video", "audio" -> VideoDialog(title = item.title, onDismiss = onDismiss) {
+            if (youtubeVideoId(item.url) != null && item.type.equals("video", true)) YoutubePlayer(url = item.url)
+            else ExoPlayerView(url = item.url)
+        }
+        else -> MediaContentDialog(title = item.title, onDismiss = onDismiss) {
+            val context = LocalContext.current
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Description, null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(12.dp))
+                Text("This media is available as an external document.", textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url))) }) {
+                    Icon(Icons.Default.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Open Document")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaContentDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
+                    TextButton(onClick = onDismiss) { Text("Close") }
+                }
+                Box(modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 520.dp)) { content() }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
     }
 }
 
