@@ -58,6 +58,10 @@ class MediaRepository(context: Context) {
         published: Boolean? = null,
         featured: Boolean? = null
     ): Result<AdminMediaItem> = runCatching {
+        if (featured == true) {
+            clearOtherFeaturedVideos(id)
+        }
+
         client.from("media_items").update({
             set("title", title.trim())
             set("description", description.trim())
@@ -72,13 +76,47 @@ class MediaRepository(context: Context) {
     }
 
     suspend fun setFeatured(id: Long, featured: Boolean): Result<Unit> = runCatching {
+        if (featured) {
+            clearOtherFeaturedVideos(id)
+        }
+
         client.from("media_items").update({
             set("featured", featured)
         }) {
             filter { eq("id", id) }
         }
-        db.mediaItemDao().getAll().firstOrNull { it.id == id }?.let { current ->
-            db.mediaItemDao().upsertAll(listOf(current.copy(featured = featured)))
+
+        val refreshed = client.from("media_items")
+            .select()
+            .decodeList<AdminMediaItem>()
+            .firstOrNull { it.id == id }
+            ?: error("Media item $id was not found after updating featured status.")
+
+        db.mediaItemDao().upsertAll(listOf(toEntity(refreshed)))
+    }
+
+    private suspend fun clearOtherFeaturedVideos(exceptId: Long) {
+        val featuredVideos = client.from("media_items")
+            .select()
+            .decodeList<AdminMediaItem>()
+            .filter {
+                it.id != exceptId &&
+                    it.featured &&
+                    it.type.equals("video", ignoreCase = true)
+            }
+
+        featuredVideos.forEach { item ->
+            client.from("media_items").update({
+                set("featured", false)
+            }) {
+                filter { eq("id", item.id) }
+            }
+
+            db.mediaItemDao().getAll()
+                .firstOrNull { it.id == item.id }
+                ?.let { current ->
+                    db.mediaItemDao().upsertAll(listOf(current.copy(featured = false)))
+                }
         }
     }
 
