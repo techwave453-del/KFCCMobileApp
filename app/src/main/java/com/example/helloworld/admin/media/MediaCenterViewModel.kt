@@ -50,6 +50,31 @@ class MediaCenterViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun addUrl(title: String, url: String, description: String, category: String, type: String, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _saving.value = true
+            _error.value = null
+            _actionMessage.value = null
+            val normalizedUrl = url.trim()
+            try {
+                val parsed = Uri.parse(normalizedUrl)
+                if (parsed.scheme !in listOf("http", "https") || parsed.host.isNullOrBlank()) {
+                    error("Please enter a valid public URL beginning with https:// or http://.")
+                }
+                repository.addUrl(title, normalizedUrl, description, category, type)
+                    .onSuccess {
+                        _actionMessage.value = "Media URL added successfully."
+                        onComplete()
+                        load()
+                    }
+                    .onFailure { _error.value = it.message ?: "Unable to add the media URL." }
+            } catch (error: Exception) {
+                _error.value = error.message ?: "Unable to add the media URL."
+            } finally {
+                _saving.value = false
+            }
+        }
+    }
     fun upload(uri: Uri, title: String, description: String, category: String, type: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             _uploading.value = true
