@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.users
+import com.example.helloworld.admin.AdminErrorMessage
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -190,7 +191,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                 OutlinedButton(onClick = viewModel::refresh, enabled = !loading) { Text("Refresh") }
             }
             Spacer(Modifier.height(12.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
-            if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+            error?.let { message -> AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp)) }
             if (message != null) Text(message!!, color = MaterialTheme.colorScheme.primary)
             Text("Pending approvals", style = MaterialTheme.typography.titleMedium); Spacer(Modifier.height(6.dp))
             if (requests.isEmpty()) Text("No pending approval requests.", style = MaterialTheme.typography.bodySmall)
