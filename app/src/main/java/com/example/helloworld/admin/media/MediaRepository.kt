@@ -210,13 +210,13 @@ class MediaRepository(context: Context) {
         id = item.id, legacyId = item.legacy_id, title = item.title, type = item.type,
         category = item.category, description = item.description, url = item.url,
         storagePath = item.storage_path, createdAt = item.created_at, published = item.published,
-        thumbnailUrl = item.thumbnail_url, featured = item.featured || item.hero
+        thumbnailUrl = item.thumbnail_url, featured = item.featured, hero = item.hero
     )
 
     private fun toAdminItem(item: MediaItemEntity) = AdminMediaItem(
         id = item.id, title = item.title, type = item.type, category = item.category,
         description = item.description, url = item.url, storage_path = item.storagePath,
-        featured = item.featured, published = item.published, thumbnail_url = item.thumbnailUrl,
+        featured = item.featured, hero = item.hero, published = item.published, thumbnail_url = item.thumbnailUrl,
         created_at = item.createdAt
     )
 }
