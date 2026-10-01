@@ -1,5 +1,6 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,50 +34,120 @@ fun SearchScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
+            Text(
+                "Search",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Find sermons, events, services and media.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+
             OutlinedTextField(
                 value = query,
-                onValueChange = { viewModel.onQueryChange(it) },
+                onValueChange = viewModel::onQueryChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search sermons, events, or media...") },
+                placeholder = { Text("Search the church library") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (isSearching) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    if (query.isNotBlank()) {
+                        IconButton(onClick = { viewModel.onQueryChange("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                        }
                     }
                 },
-                singleLine = true
+                supportingText = {
+                    if (isSearching) Text("Searching…")
+                },
+                singleLine = true,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
             )
-            
-            Spacer(Modifier.height(16.dp))
-            
-            if (results.isEmpty() && query.length >= 2 && !isSearching) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No results found for \"$query\"")
+
+            Spacer(Modifier.height(20.dp))
+
+            if (query.length < 2 && !isSearching) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Explore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                "Explore Kanisa",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Try a sermon title, event name, service, or media topic.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                 }
-            } else if (query.length < 2) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Start typing to search the KFCC library.")
+            } else if (results.isEmpty() && !isSearching) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(42.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "No results found",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Try a different search term.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
+                Text(
+                    if (isSearching) "Searching…" else "Results",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(results) { item ->
-                        when(item) {
+                        when (item) {
                             is SearchItem.Media -> SearchResultCard(
                                 title = item.item.title,
                                 subtitle = item.item.category,
                                 icon = Icons.Default.PlayCircle,
-                                type = "Sermon/Media"
+                                type = "Media"
                             )
                             is SearchItem.Event -> SearchResultCard(
                                 title = item.item.title,
                                 subtitle = item.item.start_at.replace("T", " "),
                                 icon = Icons.Default.Event,
-                                type = "Upcoming Event"
+                                type = "Event"
                             )
                             is SearchItem.Service -> SearchResultCard(
                                 title = item.item.title,
