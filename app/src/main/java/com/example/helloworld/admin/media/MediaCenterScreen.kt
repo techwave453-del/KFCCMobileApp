@@ -15,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -616,3 +618,14 @@ private fun AddMediaUrlDialog(
         dismissButton = { OutlinedButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
     )
 }
+
+private fun youtubeVideoId(url: String): String? {
+    val patterns = listOf(
+        Regex("(?:youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/embed/|youtube\\.com/live/)([A-Za-z0-9_-]{11})"),
+        Regex("youtube\\.com/watch\\?.*v=([A-Za-z0-9_-]{11})")
+    )
+    return patterns.firstNotNullOfOrNull { it.find(url)?.groupValues?.getOrNull(1) }
+}
+
+private fun youtubeThumbnailUrl(url: String): String? =
+    youtubeVideoId(url)?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
