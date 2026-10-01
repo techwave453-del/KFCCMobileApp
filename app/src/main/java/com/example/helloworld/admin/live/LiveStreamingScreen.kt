@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.live
+import com.example.helloworld.admin.AdminErrorMessage
 
 import android.app.Application
 import androidx.compose.foundation.layout.*
@@ -75,7 +76,7 @@ fun LiveStreamingScreen(
             style = MaterialTheme.typography.bodySmall
         )
 
-        if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+        error?.let { message -> AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp)) }
         if (saved) Text("Live-stream settings saved successfully.", color = MaterialTheme.colorScheme.primary)
 
         Button(
