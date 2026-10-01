@@ -84,35 +84,76 @@ fun MediaCenterScreen(
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.VideoLibrary, contentDescription = null)
-                Text("Media Center", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                if (canUpload) {
-                    Button(
-                        onClick = { picker.launch(arrayOf("image/*", "video/*", "audio/*", "application/pdf")) },
-                        enabled = !loading && !uploading && !saving && !deleting
-                    ) {
-                        Icon(Icons.Default.UploadFile, contentDescription = null)
-                        Text("Upload", modifier = Modifier.padding(start = 6.dp))
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Media Center", style = MaterialTheme.typography.headlineSmall)
+                            Text(
+                                "${items.size} media item${if (items.size == 1) "" else "s"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    Spacer(Modifier.width(4.dp))
-                    OutlinedButton(onClick = { showUrlDialog = true }, enabled = !loading && !uploading && !saving && !deleting) {
-                        Icon(Icons.Default.Link, contentDescription = null)
-                        Text("Add URL", modifier = Modifier.padding(start = 6.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Manage church images, videos, audio and documents from one secure media library.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (canUpload) {
+                            Button(
+                                onClick = { picker.launch(arrayOf("image/*", "video/*", "audio/*", "application/pdf")) },
+                                enabled = !loading && !uploading && !saving && !deleting,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.UploadFile, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Upload")
+                            }
+                            OutlinedButton(
+                                onClick = { showUrlDialog = true },
+                                enabled = !loading && !uploading && !saving && !deleting,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Link, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Add URL")
+                            }
+                        }
+                        FilledTonalIconButton(
+                            onClick = viewModel::load,
+                            enabled = !loading && !uploading && !saving && !deleting
+                        ) {
+                            if (loading) CircularProgressIndicator(Modifier.size(20.dp))
+                            else Icon(Icons.Default.Refresh, contentDescription = "Refresh media")
+                        }
                     }
-                    Spacer(Modifier.width(4.dp))
-                }
-                IconButton(onClick = viewModel::load, enabled = !loading && !uploading && !saving && !deleting) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh media")
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Text("Manage church images, videos, audio and documents from one secure media library.", style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
-
+            Spacer(Modifier.height(16.dp))
             uploadMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)) }
             actionMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)) }
             if (error != null && items.isNotEmpty()) {
