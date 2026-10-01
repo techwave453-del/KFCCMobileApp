@@ -117,6 +117,26 @@ class MediaRepository(context: Context) {
             .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
     }
 
+    suspend fun addUrl(
+        title: String,
+        url: String,
+        description: String,
+        category: String,
+        type: String
+    ): Result<AdminMediaItem> = runCatching {
+        val item = mapOf(
+            "title" to title.trim().ifBlank { "External media" },
+            "description" to description.trim(),
+            "category" to category.trim().ifBlank { "general" },
+            "type" to type.trim().ifBlank { "video" },
+            "url" to url.trim(),
+            "published" to true
+        )
+        client.from("media_items")
+            .insert(item)
+            .decodeSingle<AdminMediaItem>()
+            .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
+    }
     private fun toEntity(item: AdminMediaItem) = MediaItemEntity(
         id = item.id, legacyId = item.legacy_id, title = item.title, type = item.type,
         category = item.category, description = item.description, url = item.url,
