@@ -52,18 +52,30 @@ fun MediaScreen(
 ) {
     var selectedVideo by remember { mutableStateOf<MediaItem?>(null) }
     var showLivePlayer by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf("videos") }
 
     val featuredMessage = remember(mediaItems) {
         mediaItems.firstOrNull { it.featured && it.type == "video" }
             ?: mediaItems.firstOrNull { it.type == "video" }
     }
 
-    val latestMedia = remember(mediaItems) {
-        mediaItems.filter { it.type == "video" }.take(10)
+    val filteredMedia = remember(mediaItems, selectedCategory) {
+        when (selectedCategory) {
+            "videos" -> mediaItems.filter { it.category.equals("videos", true) || (it.category.equals("general", true) && it.type.equals("video", true)) }
+            "sermons" -> mediaItems.filter { it.category.equals("sermons", true) }
+            "worship" -> mediaItems.filter { it.category.equals("worship", true) }
+            "events" -> mediaItems.filter { it.category.equals("events", true) }
+            "gallery" -> mediaItems.filter { it.category.equals("gallery", true) || it.type.equals("image", true) }
+            else -> emptyList()
+        }
     }
 
-    val galleryItems = remember(mediaItems) {
-        mediaItems.filter { it.category.equals("gallery", ignoreCase = true) || it.type == "image" }
+    val latestMedia = filteredMedia.take(10)
+
+    val galleryItems = if (selectedCategory == "gallery") {
+        filteredMedia
+    } else {
+        mediaItems.filter { it.category.equals("gallery", ignoreCase = true) || it.type.equals("image", true) }
     }
 
     LazyColumn(
@@ -93,12 +105,12 @@ fun MediaScreen(
 
         // 4. Explore Media
         item {
-            ExploreMediaSection()
+            ExploreMediaSection(selectedCategory = selectedCategory, onCategorySelected = { selectedCategory = it })
         }
 
         // 5. Latest Media
         item {
-            SectionHeader(title = "Latest Media", subtitle = "See our newest content", onSeeAll = {})
+            SectionHeader(title = "${selectedCategory.replaceFirstChar { it.uppercase() }} Media", subtitle = "Browse the latest ${selectedCategory} content", onSeeAll = {})
         }
         items(latestMedia) { item ->
             LatestMediaItem(item) { selectedVideo = item }
@@ -308,7 +320,7 @@ private fun LiveNowBanner(liveStream: LiveStream, onWatchLive: () -> Unit) {
 }
 
 @Composable
-private fun ExploreMediaSection() {
+private fun ExploreMediaSection(selectedCategory: String, onCategorySelected: (String) -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)) {
         Text("Explore Media", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("Browse through our different media categories", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -317,21 +329,29 @@ private fun ExploreMediaSection() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CategoryTile("Videos", Icons.Default.VideoLibrary, Color(0xFF1A237E), Modifier.weight(1f))
-            CategoryTile("Sermons", Icons.Default.Mic, Color(0xFF4A148C), Modifier.weight(1f))
-            CategoryTile("Worship", Icons.Default.MusicNote, Color(0xFF1B5E20), Modifier.weight(1f))
-            CategoryTile("Events", Icons.Default.CalendarMonth, Color(0xFFE65100), Modifier.weight(1f))
-            CategoryTile("Gallery", Icons.Default.Collections, Color(0xFF880E4F), Modifier.weight(1f))
+            CategoryTile("Videos", "videos", Icons.Default.VideoLibrary, Color(0xFF1A237E), selectedCategory, Modifier.weight(1f), onCategorySelected)
+            CategoryTile("Sermons", "sermons", Icons.Default.Mic, Color(0xFF4A148C), selectedCategory, Modifier.weight(1f), onCategorySelected)
+            CategoryTile("Worship", "worship", Icons.Default.MusicNote, Color(0xFF1B5E20), selectedCategory, Modifier.weight(1f), onCategorySelected)
+            CategoryTile("Events", "events", Icons.Default.CalendarMonth, Color(0xFFE65100), selectedCategory, Modifier.weight(1f), onCategorySelected)
+            CategoryTile("Gallery", "gallery", Icons.Default.Collections, Color(0xFF880E4F), selectedCategory, Modifier.weight(1f), onCategorySelected)
         }
     }
 }
 
 @Composable
-private fun CategoryTile(title: String, icon: ImageVector, color: Color, modifier: Modifier) {
+private fun CategoryTile(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    selectedCategory: String,
+    modifier: Modifier,
+    onCategorySelected: (String) -> Unit
+) {
     Surface(
-        color = color,
+        color = if (selectedCategory == value) color else color.copy(alpha = 0.78f),
         shape = RoundedCornerShape(12.dp),
-        modifier = modifier.aspectRatio(0.85f)
+        modifier = modifier.aspectRatio(0.85f).clickable { onCategorySelected(value) }
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(8.dp),
