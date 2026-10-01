@@ -15,8 +15,9 @@ fun PreferencesScreen(
     innerPadding: PaddingValues,
     viewModel: PreferencesViewModel = viewModel()
 ) {
-    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
     val isAudioAutoplay by viewModel.isAudioAutoplay.collectAsState()
+    val isDarkMode = themeMode == "dark"
 
     Surface(
         modifier = Modifier
@@ -24,20 +25,28 @@ fun PreferencesScreen(
             .padding(innerPadding)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            Text("App Preferences", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "App Preferences",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(24.dp))
-            
+
             PreferenceToggle(
                 title = "Dark Mode",
                 subtitle = "Enable a darker theme for the app",
                 checked = isDarkMode,
-                onCheckedChange = { viewModel.toggleDarkMode() }
+                onCheckedChange = { enabled ->
+                    viewModel.setThemeMode(if (enabled) "dark" else "light")
+                }
             )
-            
+
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
-            
+
             PreferenceToggle(
                 title = "Audio Auto-play",
                 subtitle = "Automatically start sermons when opened",
@@ -60,8 +69,16 @@ private fun PreferenceToggle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
