@@ -38,6 +38,7 @@ fun MediaCenterScreen(
     var selectedFileName by remember { mutableStateOf("") }
     var selectedMimeType by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
+    var showUrlDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<AdminMediaItem?>(null) }
     var deletingItem by remember { mutableStateOf<AdminMediaItem?>(null) }
 
@@ -75,6 +76,11 @@ fun MediaCenterScreen(
                     ) {
                         Icon(Icons.Default.UploadFile, contentDescription = null)
                         Text("Upload", modifier = Modifier.padding(start = 6.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    OutlinedButton(onClick = { showUrlDialog = true }, enabled = !loading && !uploading && !saving && !deleting) {
+                        Icon(Icons.Default.Link, contentDescription = null)
+                        Text("Add URL", modifier = Modifier.padding(start = 6.dp))
                     }
                     Spacer(Modifier.width(4.dp))
                 }
@@ -145,6 +151,16 @@ fun MediaCenterScreen(
                 }
             }
         }
+    }
+
+    if (showUrlDialog) {
+        AddMediaUrlDialog(
+            saving = saving,
+            onDismiss = { if (!saving) showUrlDialog = false },
+            onAdd = { title, url, description, category, type ->
+                viewModel.addUrl(title, url, description, category, type) { showUrlDialog = false }
+            }
+        )
     }
 
     if (showUploadDialog && selectedUri != null) {
@@ -223,4 +239,50 @@ private fun UploadMediaDialog(uploading: Boolean, fileName: String, mimeType: St
         Column { OutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Type: $type") }; DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) { listOf("image", "video", "audio", "document").forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { type = value; typeExpanded = false }) } } }
         if (uploading) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.height(20.dp)); Text("Uploading…", modifier = Modifier.padding(start = 10.dp)) }
     } }, confirmButton = { Button(onClick = { onUpload(title, description, category, type) }, enabled = !uploading && title.isNotBlank()) { Text("Upload") } }, dismissButton = { OutlinedButton(onClick = onDismiss, enabled = !uploading) { Text("Cancel") } })
+}
+
+@Composable
+private fun AddMediaUrlDialog(
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onAdd: (String, String, String, String, String) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("general") }
+    var type by remember { mutableStateOf("video") }
+    var typeExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Media URL") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Add a YouTube, video, image, audio, PDF or other public media URL without uploading a file.", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Media URL") }, placeholder = { Text("https://...") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Column {
+                    OutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Type: $type") }
+                    DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                        listOf("video", "image", "audio", "document").forEach { value ->
+                            DropdownMenuItem(text = { Text(value) }, onClick = { type = value; typeExpanded = false })
+                        }
+                    }
+                }
+                if (saving) Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.height(20.dp))
+                    Text("Adding URL…", modifier = Modifier.padding(start = 10.dp))
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onAdd(title.ifBlank { "External media" }, url.trim(), description, category, type) }, enabled = !saving && url.trim().isNotBlank()) {
+                if (saving) CircularProgressIndicator(Modifier.height(18.dp)) else Text("Add URL")
+            }
+        },
+        dismissButton = { OutlinedButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
+    )
 }
