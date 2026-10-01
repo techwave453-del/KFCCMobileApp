@@ -40,15 +40,18 @@ class KfccContentRepository(private val db: KfccDatabase) {
     }
 
     suspend fun getMedia(): List<MediaItem> {
-        val local = db.mediaItemDao().getPublished()
-        if (local.isNotEmpty()) return local.map(::toMedia)
         return runCatching {
+            // Supabase is authoritative when online; Room remains the offline fallback.
             val rows = SupabaseProvider.client.from("media_items")
-                .select { filter { eq("published", true) } }.decodeList<com.example.helloworld.admin.media.AdminMediaItem>()
+                .select { filter { eq("published", true) } }
+                .decodeList<com.example.helloworld.admin.media.AdminMediaItem>()
             val entities = rows.map(::toMediaEntity)
+            db.mediaItemDao().deleteServerBacked()
             db.mediaItemDao().upsertAll(entities)
-            entities.filter { it.published }.map(::toMedia)
-        }.getOrElse { emptyList() }
+            entities.map(::toMedia)
+        }.getOrElse {
+            db.mediaItemDao().getPublished().map(::toMedia)
+        }
     }
 
     suspend fun getEvents(): List<EventItem> {
