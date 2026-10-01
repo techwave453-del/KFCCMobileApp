@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import MaterialTheme
 
 @Composable
 fun AdminErrorMessage(
@@ -49,13 +50,13 @@ fun AdminErrorMessage(
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
                 )
             }
-            Spacer(Modifier.padding(top = 8.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 message,
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
             )
-            Spacer(Modifier.padding(top = 10.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedButton(
                 onClick = {
                     val clipboard = context.getSystemService(ClipboardManager::class.java)
