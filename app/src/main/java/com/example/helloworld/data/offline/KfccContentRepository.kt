@@ -100,7 +100,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
     private fun toMediaEntity(x: com.example.helloworld.admin.media.AdminMediaItem) = MediaItemEntity(
         id = x.id, legacyId = x.legacy_id, title = x.title, type = x.type, category = x.category,
         description = x.description, url = x.url, storagePath = x.storage_path, createdAt = x.created_at,
-        published = x.published, thumbnailUrl = x.thumbnail_url, featured = x.featured || x.hero
+        published = x.published, thumbnailUrl = x.thumbnail_url, featured = x.featured, hero = x.hero
     )
 
     private fun toMedia(x: MediaItemEntity) =
@@ -112,6 +112,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
             description = x.description,
             url = x.url,
             featured = x.featured,
+            hero = x.hero,
             createdAt = x.createdAt,
             thumbnailUrl = x.thumbnailUrl
         )
