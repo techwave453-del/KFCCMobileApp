@@ -1,23 +1,24 @@
 package com.example.helloworld.ui.screens
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.LocalCache
 
 @Composable
-fun SettingsScreen(innerPadding: PaddingValues) {
-    val context = LocalContext.current
+fun SettingsScreen(
+    innerPadding: PaddingValues,
+    onOpenAppearance: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {}
+) {
     var showCacheDialog by remember { mutableStateOf(false) }
     var cacheCleared by remember { mutableStateOf(false) }
 
@@ -37,23 +38,24 @@ fun SettingsScreen(innerPadding: PaddingValues) {
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "Manage app access and local app data.",
+                "Manage your Kanisa app preferences and local app data.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
             )
 
             SettingsItem(
+                icon = Icons.Default.Palette,
+                title = "Appearance",
+                subtitle = "Choose light, dark, or system theme",
+                onClick = onOpenAppearance
+            )
+
+            SettingsItem(
                 icon = Icons.Default.Notifications,
                 title = "Notifications",
-                subtitle = "Control Kanisa notification permission",
-                onClick = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                        }
-                    )
-                }
+                subtitle = "Manage Kanisa notification settings",
+                onClick = onOpenNotifications
             )
 
             SettingsItem(
@@ -85,7 +87,12 @@ fun SettingsScreen(innerPadding: PaddingValues) {
         AlertDialog(
             onDismissRequest = { showCacheDialog = false },
             title = { Text("Clear local cache?") },
-            text = { Text("This removes cached church and media content from this device. Your account and Supabase data are not deleted.") },
+            text = {
+                Text(
+                    "This removes cached church and media content from this device. " +
+                        "Your account and Supabase data are not deleted."
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -123,7 +130,11 @@ private fun SettingsItem(
             )
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
