@@ -10,7 +10,6 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 @Serializable
-@Serializable
 private data class MediaUrlInsertPayload(
     val title: String,
     val description: String,
