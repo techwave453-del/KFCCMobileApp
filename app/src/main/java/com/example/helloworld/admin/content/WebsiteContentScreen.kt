@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.content
+import com.example.helloworld.admin.AdminErrorMessage
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -83,7 +84,7 @@ fun WebsiteContentScreen(
             }
         }
 
-        if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+        error?.let { message -> AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp)) }
         if (saved) Text("CMS changes saved successfully.", color = MaterialTheme.colorScheme.primary)
     }
 }
