@@ -10,12 +10,25 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 @Serializable
-private data class MediaSyncPayload(
-    val title: String? = null,
-    val description: String? = null,
-    val category: String? = null,
-    val published: Boolean? = null,
-    val featured: Boolean? = null
+@Serializable
+private data class MediaUrlInsertPayload(
+    val title: String,
+    val description: String,
+    val category: String,
+    val type: String,
+    val url: String,
+    val published: Boolean = true
+)
+
+@Serializable
+private data class MediaUploadInsertPayload(
+    val title: String,
+    val description: String,
+    val category: String,
+    val type: String,
+    val url: String,
+    val storage_path: String,
+    val published: Boolean = true
 )
 
 /** Direct Supabase Media Center repository with local Room cache + outbox mutations. */
@@ -46,14 +59,13 @@ class MediaRepository(context: Context) {
         published: Boolean? = null,
         featured: Boolean? = null
     ): Result<AdminMediaItem> = runCatching {
-        val changes = buildMap<String, Any> {
-            put("title", title.trim())
-            put("description", description.trim())
-            put("category", category.trim())
-            published?.let { put("published", it) }
-            featured?.let { put("featured", it) }
-        }
-        client.from("media_items").update(changes) {
+        client.from("media_items").update({
+            set("title", title.trim())
+            set("description", description.trim())
+            set("category", category.trim())
+            published?.let { set("published", it) }
+            featured?.let { set("featured", it) }
+        }) {
             select()
             filter { eq("id", id) }
         }.decodeSingle<AdminMediaItem>()
@@ -105,14 +117,13 @@ class MediaRepository(context: Context) {
             contentType = io.ktor.http.ContentType.parse(mimeType)
         }
         val publicUrl = bucket.publicUrl(path)
-        val item = mapOf(
-            "title" to title,
-            "description" to description,
-            "category" to category,
-            "type" to type,
-            "url" to publicUrl,
-            "storage_path" to path,
-            "published" to true
+        val item = MediaUploadInsertPayload(
+            title = title.trim().ifBlank { "Uploaded media" },
+            description = description.trim(),
+            category = category.trim().ifBlank { "videos" },
+            type = type.trim().ifBlank { "video" },
+            url = publicUrl,
+            storage_path = path
         )
         client.from("media_items").insert(item).decodeSingle<AdminMediaItem>()
             .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
@@ -125,13 +136,12 @@ class MediaRepository(context: Context) {
         category: String,
         type: String
     ): Result<AdminMediaItem> = runCatching {
-        val item = mapOf(
-            "title" to title.trim().ifBlank { "External media" },
-            "description" to description.trim(),
-            "category" to category.trim().ifBlank { "videos" },
-            "type" to type.trim().ifBlank { "video" },
-            "url" to url.trim(),
-            "published" to true
+        val item = MediaUrlInsertPayload(
+            title = title.trim().ifBlank { "External media" },
+            description = description.trim(),
+            category = category.trim().ifBlank { "videos" },
+            type = type.trim().ifBlank { "video" },
+            url = url.trim()
         )
         client.from("media_items")
             .insert(item)
