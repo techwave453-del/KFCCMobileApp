@@ -196,10 +196,7 @@ fun KFCCApp(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                modifier = Modifier.fillMaxHeight(),
-                drawerContainerColor = MaterialTheme.colorScheme.surface
-            ) {
+            ModalDrawerSheet {
                 Column(Modifier.fillMaxSize()) {
                     Row(
                         modifier = Modifier
@@ -208,7 +205,7 @@ fun KFCCApp(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(50.dp),
                             shape = androidx.compose.foundation.shape.CircleShape,
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
@@ -216,7 +213,7 @@ fun KFCCApp(
                                 Icon(
                                     Icons.Default.AccountCircle,
                                     contentDescription = null,
-                                    modifier = Modifier.size(42.dp),
+                                    modifier = Modifier.size(44.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -224,24 +221,19 @@ fun KFCCApp(
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = if (adminUser != null) adminUser!!.username else "My Profile",
+                                if (adminUser != null) adminUser!!.username else "My Profile",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
                             Text(
-                                text = if (adminUser != null) "Administrator" else "Community member",
+                                if (adminUser != null) "Administrator" else "Community member",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = { navigate(AppDestinations.PROFILE) }) {
                             Icon(Icons.Default.ChevronRight, "Open profile")
-                        }
-                        if (adminUser != null) {
-                            IconButton(onClick = { navigate(AppDestinations.ADMIN) }) {
-                                Icon(Icons.Default.AdminPanelSettings, "Open administration")
-                            }
                         }
                     }
 
