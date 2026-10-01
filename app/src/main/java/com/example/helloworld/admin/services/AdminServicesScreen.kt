@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.services
+import com.example.helloworld.admin.AdminErrorMessage
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,9 +70,8 @@ fun AdminServicesScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        if (error != null) {
-            Text(error!!, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(8.dp))
+        error?.let { message ->
+            AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp))
         }
         if (saved) {
             Text("Changes saved successfully.", color = MaterialTheme.colorScheme.primary)
