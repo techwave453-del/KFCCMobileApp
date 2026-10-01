@@ -19,4 +19,5 @@ data class PublicMediaItem(
     @SerialName("thumbnail_url")
     val thumbnailUrl: String? = null,
     val featured: Boolean = false,
+    val hero: Boolean = false,
 )
