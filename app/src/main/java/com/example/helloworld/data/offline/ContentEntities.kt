@@ -25,7 +25,8 @@ data class MediaItemEntity(
     val createdAt: String,
     val published: Boolean,
     val thumbnailUrl: String?,
-    val featured: Boolean
+    val featured: Boolean,
+    val hero: Boolean
 )
 
 @Entity(
