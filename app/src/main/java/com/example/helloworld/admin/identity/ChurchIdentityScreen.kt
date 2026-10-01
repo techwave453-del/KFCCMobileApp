@@ -1,4 +1,5 @@
 package com.example.helloworld.admin.identity
+import com.example.helloworld.admin.AdminErrorMessage
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +55,7 @@ fun ChurchIdentityScreen(
         OutlinedTextField(identity.logoUrl, { viewModel.update(identity.copy(logoUrl = it)) }, label = { Text("Logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.officialLogo, { viewModel.update(identity.copy(officialLogo = it)) }, label = { Text("Official logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.logo, { viewModel.update(identity.copy(logo = it)) }, label = { Text("Legacy logo value") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
-        if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
+        error?.let { message -> AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp)) }
         if (saved) Text("Church Identity saved successfully.", color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(4.dp))
         Button(onClick = viewModel::save, enabled = !loading && !saving && identity.churchName.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
