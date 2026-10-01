@@ -20,6 +20,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+private data class MediaCategoryOption(val value: String, val label: String)
+
+private val MEDIA_CATEGORIES = listOf(
+    MediaCategoryOption("videos", "Videos"),
+    MediaCategoryOption("sermons", "Sermons"),
+    MediaCategoryOption("worship", "Worship"),
+    MediaCategoryOption("events", "Events"),
+    MediaCategoryOption("gallery", "Gallery")
+)
+
+private fun categoryLabel(value: String): String =
+    MEDIA_CATEGORIES.firstOrNull { it.value.equals(value, ignoreCase = true) }?.label
+        ?: value.replaceFirstChar { it.uppercase() }
+
+
 @Composable
 fun MediaCenterScreen(
     modifier: Modifier = Modifier,
@@ -232,11 +247,19 @@ private fun EditMediaDialog(item: AdminMediaItem, saving: Boolean, onDismiss: ()
     var title by remember(item.id) { mutableStateOf(item.title) }
     var description by remember(item.id) { mutableStateOf(item.description) }
     var category by remember(item.id) { mutableStateOf(item.category) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var published by remember(item.id) { mutableStateOf(item.published) }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Edit media") }, text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(description, { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(category, { category = it }, label = { Text("Category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Column {
+            OutlinedButton(onClick = { categoryExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Category: ${categoryLabel(category)}") }
+            DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                MEDIA_CATEGORIES.forEach { option ->
+                    DropdownMenuItem(text = { Text(option.label) }, onClick = { category = option.value; categoryExpanded = false })
+                }
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) { Text("Published", modifier = Modifier.weight(1f)); Switch(checked = published, onCheckedChange = { published = it }, enabled = !saving) }
     } }, confirmButton = { Button(onClick = { onSave(title, description, category, published) }, enabled = !saving && title.isNotBlank()) { if (saving) CircularProgressIndicator(Modifier.height(18.dp)) else Text("Save") } }, dismissButton = { OutlinedButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } })
 }
@@ -245,7 +268,8 @@ private fun EditMediaDialog(item: AdminMediaItem, saving: Boolean, onDismiss: ()
 private fun UploadMediaDialog(uploading: Boolean, fileName: String, mimeType: String, onDismiss: () -> Unit, onUpload: (String, String, String, String) -> Unit) {
     var title by remember(fileName) { mutableStateOf(fileName.substringBeforeLast('.').ifBlank { "Media" }) }
     var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("general") }
+    var category by remember { mutableStateOf("videos") }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf(if (mimeType.startsWith("video/")) "video" else if (mimeType.startsWith("audio/")) "audio" else if (mimeType == "application/pdf") "document" else "image") }
     var typeExpanded by remember { mutableStateOf(false) }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Upload media") }, text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -253,7 +277,14 @@ private fun UploadMediaDialog(uploading: Boolean, fileName: String, mimeType: St
         if (mimeType.isNotBlank()) Text(mimeType, style = MaterialTheme.typography.labelSmall)
         OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(description, { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(category, { category = it }, label = { Text("Category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Column {
+            OutlinedButton(onClick = { categoryExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Category: ${categoryLabel(category)}") }
+            DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                MEDIA_CATEGORIES.forEach { option ->
+                    DropdownMenuItem(text = { Text(option.label) }, onClick = { category = option.value; categoryExpanded = false })
+                }
+            }
+        }
         Column { OutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Type: $type") }; DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) { listOf("image", "video", "audio", "document").forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { type = value; typeExpanded = false }) } } }
         if (uploading) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.height(20.dp)); Text("Uploading…", modifier = Modifier.padding(start = 10.dp)) }
     } }, confirmButton = { Button(onClick = { onUpload(title, description, category, type) }, enabled = !uploading && title.isNotBlank()) { Text("Upload") } }, dismissButton = { OutlinedButton(onClick = onDismiss, enabled = !uploading) { Text("Cancel") } })
@@ -281,7 +312,14 @@ private fun AddMediaUrlDialog(
                 OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Media URL") }, placeholder = { Text("https://...") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Column {
+                    OutlinedButton(onClick = { categoryExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Category: ${categoryLabel(category)}") }
+                    DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                        MEDIA_CATEGORIES.forEach { option ->
+                            DropdownMenuItem(text = { Text(option.label) }, onClick = { category = option.value; categoryExpanded = false })
+                        }
+                    }
+                }
                 Column {
                     OutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Type: $type") }
                     DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
