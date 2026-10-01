@@ -441,7 +441,11 @@ fun KFCCApp(
                         canViewNotifications = chatSignedIn || adminUser != null
                     )
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
-                    AppDestinations.SETTINGS -> SettingsScreen(innerPadding)
+                    AppDestinations.SETTINGS -> SettingsScreen(
+                        innerPadding = innerPadding,
+                        onOpenAppearance = { navigate(AppDestinations.APPEARANCE) },
+                        onOpenNotifications = { navigate(AppDestinations.NOTIFICATIONS) }
+                    )
                     AppDestinations.VERSION -> VersionScreen(innerPadding)
                     AppDestinations.GIVING -> GivingScreen(churchInfo, innerPadding)
                     AppDestinations.ADMIN -> AdminShell(adminViewModel, innerPadding, onBackToApp = { navigate(AppDestinations.HOME) })
