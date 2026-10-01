@@ -221,7 +221,7 @@ private fun FeaturedMessageSection(item: MediaItem, onWatchNow: () -> Unit) {
             Column {
                 Box(modifier = Modifier.height(200.dp).fillMaxWidth().clickable(onClick = onWatchNow)) {
                     AsyncImage(
-                        model = youtubeThumbnailUrl(item.url),
+                        model = youtubeThumbnailUrl(item.url) ?: item.thumbnailUrl ?: item.url,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -250,18 +250,15 @@ private fun FeaturedMessageSection(item: MediaItem, onWatchNow: () -> Unit) {
                 }
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Pastor John K. Mwangi", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(
-                        modifier = Modifier.padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Sunday Service", style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.width(12.dp))
-                        Icon(Icons.Default.Schedule, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(4.dp))
-                        Text("September 7, 2026", style = MaterialTheme.typography.labelMedium)
+                    if (item.description.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            item.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -328,15 +325,15 @@ private fun ExploreMediaSection(selectedCategory: String, onCategorySelected: (S
         Text("Explore Media", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("Browse through our different media categories", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
-            CategoryTile("Videos", "videos", Icons.Default.VideoLibrary, Color(0xFF1A237E), selectedCategory, Modifier.weight(1f), onCategorySelected)
-            CategoryTile("Sermons", "sermons", Icons.Default.Mic, Color(0xFF4A148C), selectedCategory, Modifier.weight(1f), onCategorySelected)
-            CategoryTile("Worship", "worship", Icons.Default.MusicNote, Color(0xFF1B5E20), selectedCategory, Modifier.weight(1f), onCategorySelected)
-            CategoryTile("Events", "events", Icons.Default.CalendarMonth, Color(0xFFE65100), selectedCategory, Modifier.weight(1f), onCategorySelected)
-            CategoryTile("Gallery", "gallery", Icons.Default.Collections, Color(0xFF880E4F), selectedCategory, Modifier.weight(1f), onCategorySelected)
+            item { CategoryTile("Videos", "videos", Icons.Default.VideoLibrary, MaterialTheme.colorScheme.primary, selectedCategory, onCategorySelected) }
+            item { CategoryTile("Sermons", "sermons", Icons.Default.Mic, MaterialTheme.colorScheme.secondary, selectedCategory, onCategorySelected) }
+            item { CategoryTile("Worship", "worship", Icons.Default.MusicNote, MaterialTheme.colorScheme.tertiary, selectedCategory, onCategorySelected) }
+            item { CategoryTile("Events", "events", Icons.Default.CalendarMonth, MaterialTheme.colorScheme.primary, selectedCategory, onCategorySelected) }
+            item { CategoryTile("Gallery", "gallery", Icons.Default.Collections, MaterialTheme.colorScheme.secondary, selectedCategory, onCategorySelected) }
         }
     }
 }
@@ -348,13 +345,15 @@ private fun CategoryTile(
     icon: ImageVector,
     color: Color,
     selectedCategory: String,
-    modifier: Modifier,
     onCategorySelected: (String) -> Unit
 ) {
     Surface(
-        color = if (selectedCategory == value) color else color.copy(alpha = 0.78f),
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier.aspectRatio(0.85f).clickable { onCategorySelected(value) }
+        color = if (selectedCategory == value) color else color.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .width(92.dp)
+            .height(88.dp)
+            .clickable { onCategorySelected(value) }
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(8.dp),
@@ -362,8 +361,8 @@ private fun CategoryTile(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(title, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(7.dp))
+            Text(title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
     }
 }
