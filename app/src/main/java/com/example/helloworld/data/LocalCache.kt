@@ -34,4 +34,11 @@ object LocalCache {
         val raw = prefs.getString(KEY_MEDIA_ITEMS, null) ?: return null
         return try { json.decodeFromString(raw) } catch (_: Exception) { null }
     }
+
+    fun clearCachedContent() {
+        prefs.edit()
+            .remove(KEY_CHURCH_INFO)
+            .remove(KEY_MEDIA_ITEMS)
+            .apply()
+    }
 }
