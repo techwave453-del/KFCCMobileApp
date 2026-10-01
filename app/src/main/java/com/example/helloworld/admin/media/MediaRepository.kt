@@ -124,7 +124,9 @@ class MediaRepository(context: Context) {
             url = publicUrl,
             storage_path = path
         )
-        client.from("media_items").insert(item).decodeSingle<AdminMediaItem>()
+        client.from("media_items").insert(item) {
+            select()
+        }.decodeSingle<AdminMediaItem>()
             .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
     }
 
@@ -143,10 +145,13 @@ class MediaRepository(context: Context) {
             url = url.trim()
         )
         client.from("media_items")
-            .insert(item)
+            .insert(item) {
+                select()
+            }
             .decodeSingle<AdminMediaItem>()
             .also { db.mediaItemDao().upsertAll(listOf(toEntity(it))) }
     }
+
     private fun toEntity(item: AdminMediaItem) = MediaItemEntity(
         id = item.id, legacyId = item.legacy_id, title = item.title, type = item.type,
         category = item.category, description = item.description, url = item.url,
