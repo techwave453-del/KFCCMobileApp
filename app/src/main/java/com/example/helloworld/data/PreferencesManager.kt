@@ -8,25 +8,22 @@ import kotlinx.coroutines.flow.asStateFlow
 class PreferencesManager(context: Context) {
     private val prefs = context.getSharedPreferences("kfcc_prefs", Context.MODE_PRIVATE)
 
-    private val _themeMode = MutableStateFlow(prefs.getString("theme_mode", "system") ?: "system")
+    private val _themeMode = MutableStateFlow(
+        prefs.getString("theme_mode", null)
+            ?: if (prefs.getBoolean("dark_mode", false)) "dark" else "system"
+    )
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
-
-    // Kept for compatibility with existing screens.
-    val isDarkMode: StateFlow<Boolean> = MutableStateFlow(_themeMode.value == "dark").asStateFlow()
 
     private val _isAudioAutoplay = MutableStateFlow(prefs.getBoolean("audio_autoplay", true))
     val isAudioAutoplay: StateFlow<Boolean> = _isAudioAutoplay.asStateFlow()
 
     fun setThemeMode(mode: String) {
-        val normalized = mode.lowercase().let {
-            if (it == "light" || it == "dark") it else "system"
-        }
-        prefs.edit().putString("theme_mode", normalized).apply()
+        val normalized = mode.takeIf { it in setOf("system", "light", "dark") } ?: "system"
+        prefs.edit()
+            .putString("theme_mode", normalized)
+            .putBoolean("dark_mode", normalized == "dark")
+            .apply()
         _themeMode.value = normalized
-    }
-
-    fun toggleDarkMode() {
-        setThemeMode(if (_themeMode.value == "dark") "light" else "dark")
     }
 
     fun toggleAudioAutoplay() {
