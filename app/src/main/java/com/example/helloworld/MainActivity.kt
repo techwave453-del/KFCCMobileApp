@@ -71,8 +71,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val prefsViewModel: PreferencesViewModel = viewModel()
-            val isDarkMode by prefsViewModel.isDarkMode.collectAsState()
-            KFCCTheme(darkTheme = isDarkMode) {
+            val themeMode by prefsViewModel.themeMode.collectAsState()
+            KFCCTheme(
+                darkTheme = when (themeMode) {
+                    "dark" -> true
+                    "light" -> false
+                    else -> androidx.compose.foundation.isSystemInDarkTheme()
+                }
+            ) {
                 KFCCApp(
                     openNotifications = openNotifications,
                     onNotificationOpened = { openNotifications = false }
@@ -190,58 +196,121 @@ fun KFCCApp(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AsyncImage(
-                        model = churchInfo.logoUrl.ifBlank { null },
-                        contentDescription = churchInfo.churchName,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        churchInfo.churchName.ifBlank { "KFCC" },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = { scope.launch { drawerState.close() } }) {
-                        Icon(Icons.Default.Close, "Close menu")
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxHeight(),
+                drawerContainerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.AccountCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(42.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = if (adminUser != null) adminUser!!.username else "My Profile",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = if (adminUser != null) "Administrator" else "Community member",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { navigate(AppDestinations.PROFILE) }) {
+                            Icon(Icons.Default.ChevronRight, "Open profile")
+                        }
+                        if (adminUser != null) {
+                            IconButton(onClick = { navigate(AppDestinations.ADMIN) }) {
+                                Icon(Icons.Default.AdminPanelSettings, "Open administration")
+                            }
+                        }
                     }
-                }
-                HorizontalDivider()
-                NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
-                NavigationDrawerItem(label = { Text("Bible") }, selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Filled.MenuBook, null) })
-                
-                NavigationDrawerItem(label = { Text("Notifications") }, selected = currentDestination == AppDestinations.NOTIFICATIONS, onClick = { navigate(AppDestinations.NOTIFICATIONS) }, icon = { Icon(Icons.Default.Notifications, null) })
-                NavigationDrawerItem(label = { Text("Preferences") }, selected = currentDestination == AppDestinations.PREFERENCES, onClick = { navigate(AppDestinations.PREFERENCES) }, icon = { Icon(Icons.Default.Tune, null) })
-                NavigationDrawerItem(label = { Text("Settings") }, selected = currentDestination == AppDestinations.SETTINGS, onClick = { navigate(AppDestinations.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) })
-                NavigationDrawerItem(label = { Text("App Version") }, selected = currentDestination == AppDestinations.VERSION, onClick = { navigate(AppDestinations.VERSION) }, icon = { Icon(Icons.Default.Info, null) })
 
-                if (adminUser != null) {
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    NavigationDrawerItem(
-                        label = { Text("Admin Dashboard") },
-                        selected = currentDestination == AppDestinations.ADMIN,
-                        onClick = { navigate(AppDestinations.ADMIN) },
-                        icon = { Icon(Icons.Default.AdminPanelSettings, null) }
-                    )
-                }
+                    HorizontalDivider()
 
-                if (chatSignedIn || adminUser != null) {
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    NavigationDrawerItem(
-                        label = { Text("Sign out") },
-                        selected = false,
-                        onClick = {
-                            chatViewModel.signOut()
-                            adminViewModel.logout()
-                            scope.launch { drawerState.close() }
-                        },
-                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, null) }
-                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                    ) {
+                        NavigationDrawerItem(label = { Text("Home") }, selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, null) })
+                        NavigationDrawerItem(label = { Text("Media Center") }, selected = currentDestination == AppDestinations.MEDIA, onClick = { navigate(AppDestinations.MEDIA) }, icon = { Icon(Icons.Default.PlayCircle, null) })
+                        NavigationDrawerItem(label = { Text("Events") }, selected = currentDestination == AppDestinations.EVENTS, onClick = { navigate(AppDestinations.EVENTS) }, icon = { Icon(Icons.Default.Event, null) })
+                        NavigationDrawerItem(label = { Text("Services") }, selected = currentDestination == AppDestinations.SERVICES, onClick = { navigate(AppDestinations.SERVICES) }, icon = { Icon(Icons.Default.Church, null) })
+                        NavigationDrawerItem(label = { Text("Giving") }, selected = currentDestination == AppDestinations.GIVING, onClick = { navigate(AppDestinations.GIVING) }, icon = { Icon(Icons.Default.Favorite, null) })
+                        NavigationDrawerItem(label = { Text("Bible") }, selected = currentDestination == AppDestinations.BIBLE, onClick = { navigate(AppDestinations.BIBLE) }, icon = { Icon(Icons.Default.MenuBook, null) })
+                        NavigationDrawerItem(label = { Text("Chat") }, selected = currentDestination == AppDestinations.CHAT, onClick = { navigate(AppDestinations.CHAT) }, icon = { Icon(Icons.Default.Chat, null) })
+
+                        if (adminUser != null) {
+                            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                            NavigationDrawerItem(
+                                label = { Text("Administration") },
+                                selected = currentDestination == AppDestinations.ADMIN,
+                                onClick = { navigate(AppDestinations.ADMIN) },
+                                icon = { Icon(Icons.Default.AdminPanelSettings, null) }
+                            )
+                        }
+
+                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                        NavigationDrawerItem(
+                            label = { Text("Appearance") },
+                            selected = currentDestination == AppDestinations.APPEARANCE,
+                            onClick = { navigate(AppDestinations.APPEARANCE) },
+                            icon = { Icon(Icons.Default.Palette, null) }
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Settings") },
+                            selected = currentDestination == AppDestinations.SETTINGS,
+                            onClick = { navigate(AppDestinations.SETTINGS) },
+                            icon = { Icon(Icons.Default.Settings, null) }
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Notifications") },
+                            selected = currentDestination == AppDestinations.NOTIFICATIONS,
+                            onClick = { navigate(AppDestinations.NOTIFICATIONS) },
+                            icon = { Icon(Icons.Default.Notifications, null) }
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("App Version") },
+                            selected = currentDestination == AppDestinations.VERSION,
+                            onClick = { navigate(AppDestinations.VERSION) },
+                            icon = { Icon(Icons.Default.Info, null) }
+                        )
+                    }
+
+                    if (chatSignedIn || adminUser != null) {
+                        HorizontalDivider()
+                        NavigationDrawerItem(
+                            label = { Text("Log out") },
+                            selected = false,
+                            onClick = {
+                                chatViewModel.signOut()
+                                adminViewModel.logout()
+                                navigate(AppDestinations.HOME)
+                            },
+                            icon = { Icon(Icons.AutoMirrored.Filled.Logout, null) }
+                        )
+                    }
                 }
             }
         }
@@ -250,28 +319,56 @@ fun KFCCApp(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(model = churchInfo.logoUrl.ifBlank { null }, contentDescription = churchInfo.churchName, modifier = Modifier.size(32.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(churchInfo.churchName.ifBlank { "KFCC" })
+                        Text(
+                            churchInfo.churchName.ifBlank { "KFCC" },
+                            maxLines = 1
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, "Open menu")
                         }
                     },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Open menu") } }
+                    actions = {
+                        IconButton(onClick = { navigate(AppDestinations.BIBLE) }) {
+                            Icon(Icons.Default.MenuBook, "Bible")
+                        }
+                        IconButton(onClick = { navigate(AppDestinations.SEARCH) }) {
+                            Icon(Icons.Default.Search, "Search")
+                        }
+                    }
                 )
             },
             bottomBar = {
                 NavigationBar {
-                    NavigationBarItem(selected = currentDestination == AppDestinations.HOME, onClick = { navigate(AppDestinations.HOME) }, icon = { Icon(Icons.Default.Home, "Home") }, label = { Text("Home") })
-                    NavigationBarItem(selected = currentDestination == AppDestinations.SEARCH, onClick = { navigate(AppDestinations.SEARCH) }, icon = { Icon(Icons.Default.Search, "Search") }, label = { Text("Search") })
-                    NavigationBarItem(selected = currentDestination == AppDestinations.CHAT, onClick = { navigate(AppDestinations.CHAT) }, icon = { Icon(Icons.Default.Chat, "Chat") }, label = { Text("Chat") })
                     NavigationBarItem(
-                        selected = currentDestination == AppDestinations.PROFILE || currentDestination == AppDestinations.ACCOUNT,
-                        onClick = { navigate(if (chatSignedIn || adminUser != null) AppDestinations.PROFILE else AppDestinations.ACCOUNT) },
-                        icon = { Icon(Icons.Default.AccountCircle, "Profile") },
-                        label = { Text(if (chatSignedIn || adminUser != null) "Profile" else "Account") }
+                        selected = currentDestination == AppDestinations.HOME,
+                        onClick = { navigate(AppDestinations.HOME) },
+                        icon = { Icon(Icons.Default.Home, "Home") },
+                        label = { Text("Home") }
                     )
+                    NavigationBarItem(
+                        selected = currentDestination == AppDestinations.BIBLE,
+                        onClick = { navigate(AppDestinations.BIBLE) },
+                        icon = { Icon(Icons.Default.MenuBook, "Bible") },
+                        label = { Text("Bible") }
+                    )
+                    NavigationBarItem(
+                        selected = currentDestination == AppDestinations.CHAT || currentDestination == AppDestinations.ACCOUNT,
+                        onClick = { navigate(AppDestinations.CHAT) },
+                        icon = { Icon(Icons.Default.Chat, "Chat") },
+                        label = { Text("Chat") }
+                    )
+                    if (adminUser != null) {
+                        NavigationBarItem(
+                            selected = currentDestination == AppDestinations.ADMIN,
+                            onClick = { navigate(AppDestinations.ADMIN) },
+                            icon = { Icon(Icons.Default.AdminPanelSettings, "Admin") },
+                            label = { Text("Admin") }
+                        )
+                    }
                 }
-            }
+            },
         ) { innerPadding ->
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 when (currentDestination) {
@@ -346,6 +443,7 @@ fun KFCCApp(
                     )
                     AppDestinations.SEARCH -> SearchScreen(innerPadding)
                     AppDestinations.PROFILE -> ProfileScreen(innerPadding, adminViewModel = adminViewModel)
+                    AppDestinations.APPEARANCE -> AppearanceScreen(innerPadding)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(
                         innerPadding = innerPadding,
                         canViewNotifications = chatSignedIn || adminUser != null
@@ -481,6 +579,7 @@ enum class AppDestinations(val label: String) {
     ACCOUNT("Account"),
     SEARCH("Search"),
     PROFILE("Profile"),
+    APPEARANCE("Appearance"),
     NOTIFICATIONS("Notifications"),
     PREFERENCES("Preferences"),
     SETTINGS("Settings"),
