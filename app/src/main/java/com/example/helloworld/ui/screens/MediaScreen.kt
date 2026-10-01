@@ -74,10 +74,9 @@ fun MediaScreen(
 
     val latestMedia = filteredMedia.take(10)
 
-    val galleryItems = if (selectedCategory == "gallery") {
-        filteredMedia
-    } else {
-        mediaItems.filter { it.category.equals("gallery", ignoreCase = true) || it.type.equals("image", true) }
+    val galleryItems = mediaItems.filter {
+        it.category.equals("gallery", ignoreCase = true) &&
+            it.type.equals("image", ignoreCase = true)
     }
 
     LazyColumn(
