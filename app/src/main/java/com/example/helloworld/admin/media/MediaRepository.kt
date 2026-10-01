@@ -98,7 +98,7 @@ class MediaRepository(context: Context) {
         type: String
     ): Result<AdminMediaItem> = runCatching {
         val path = "${UUID.randomUUID()}_$fileName"
-        val bucket = client.storage.from("media")
+        val bucket = client.storage.from("church-media")
         bucket.upload(path, bytes) {
             upsert = true
             contentType = io.ktor.http.ContentType.parse(mimeType)
