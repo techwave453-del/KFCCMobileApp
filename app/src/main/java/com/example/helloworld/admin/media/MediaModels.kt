@@ -14,6 +14,7 @@ data class AdminMediaItem(
     val url: String = "",
     @SerialName("storage_path") val storage_path: String? = null,
     val featured: Boolean = false,
+    val hero: Boolean = false,
     val published: Boolean = true,
     @SerialName("thumbnail_url") val thumbnail_url: String? = null,
     val created_at: String = ""
