@@ -156,14 +156,16 @@ fun MediaCenterScreen(
             Spacer(Modifier.height(16.dp))
             uploadMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)) }
             actionMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)) }
-            if (error != null && items.isNotEmpty()) {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(8.dp))
+            error?.let { message ->
+                AdminErrorMessage(message = message, modifier = Modifier.padding(bottom = 8.dp))
             }
 
             when {
                 loading && items.isEmpty() -> CenterMessage("Loading media library…", true)
-                error != null && items.isEmpty() -> CenterMessage("Unable to load the media library\n${error ?: "Please refresh and try again."}")
+                error != null && items.isEmpty() -> AdminErrorMessage(
+                    message = "Unable to load the media library\n${error ?: "Please refresh and try again."}",
+                    modifier = Modifier.fillMaxSize().padding(16.dp)
+                )
                 items.isEmpty() -> {
                     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Image, contentDescription = null)
@@ -449,6 +451,56 @@ private fun MediaItemCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminErrorMessage(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.ErrorOutline,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Operation failed",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    clipboard?.setPrimaryClip(
+                        ClipData.newPlainText("Kanisa Admin Error", message)
+                    )
+                }
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Copy error")
             }
         }
     }
