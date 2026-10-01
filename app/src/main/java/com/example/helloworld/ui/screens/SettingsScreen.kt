@@ -1,26 +1,25 @@
 package com.example.helloworld.ui.screens
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.helloworld.ui.PreferencesViewModel
+import com.example.helloworld.data.LocalCache
 
 @Composable
-fun SettingsScreen(
-    innerPadding: PaddingValues,
-    onOpenAppearance: () -> Unit = {},
-    onOpenNotifications: () -> Unit = {},
-    viewModel: PreferencesViewModel = viewModel()
-) {
-    val isAudioAutoplay by viewModel.isAudioAutoplay.collectAsState()
+fun SettingsScreen(innerPadding: PaddingValues) {
+    val context = LocalContext.current
+    var showCacheDialog by remember { mutableStateOf(false) }
+    var cacheCleared by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier
@@ -37,48 +36,74 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(6.dp))
             Text(
-                "Manage the way Kanisa behaves and keeps you connected.",
+                "Manage app access and local app data.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
             )
-            Spacer(Modifier.height(22.dp))
 
-            SettingsAction(
-                icon = Icons.Default.Palette,
-                title = "Appearance",
-                subtitle = "Theme and display preferences",
-                onClick = onOpenAppearance
-            )
-            SettingsAction(
+            SettingsItem(
                 icon = Icons.Default.Notifications,
                 title = "Notifications",
-                subtitle = "Open your church notifications",
-                onClick = onOpenNotifications
-            )
-
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-
-            ListItem(
-                leadingContent = { Icon(Icons.Default.PlayCircle, contentDescription = null) },
-                headlineContent = { Text("Audio auto-play", fontWeight = FontWeight.SemiBold) },
-                supportingContent = { Text("Start sermon audio automatically when available") },
-                trailingContent = {
-                    Switch(
-                        checked = isAudioAutoplay,
-                        onCheckedChange = { viewModel.toggleAudioAutoplay() }
+                subtitle = "Control Kanisa notification permission",
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
                     )
                 }
             )
+
+            SettingsItem(
+                icon = Icons.Default.Security,
+                title = "Account & security",
+                subtitle = "Manage your account from the profile and sign-in screens",
+                onClick = { }
+            )
+
+            SettingsItem(
+                icon = Icons.Default.Cached,
+                title = "Clear local cache",
+                subtitle = "Refresh saved church content on the next load",
+                onClick = { showCacheDialog = true }
+            )
+
+            if (cacheCleared) {
+                Text(
+                    "Local cache cleared. Reload content when you return to Home.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
+    }
+
+    if (showCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showCacheDialog = false },
+            title = { Text("Clear local cache?") },
+            text = { Text("This removes cached church and media content from this device. Your account and Supabase data are not deleted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        LocalCache.clearCachedContent()
+                        cacheCleared = true
+                        showCacheDialog = false
+                    }
+                ) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCacheDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
 @Composable
-private fun SettingsAction(
+private fun SettingsItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
@@ -88,12 +113,23 @@ private fun SettingsAction(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp)
+            .padding(bottom = 12.dp)
     ) {
-        ListItem(
-            leadingContent = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            headlineContent = { Text(title, fontWeight = FontWeight.SemiBold) },
-            supportingContent = { Text(subtitle) }
-        )
+        Row(modifier = Modifier.padding(16.dp)) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
