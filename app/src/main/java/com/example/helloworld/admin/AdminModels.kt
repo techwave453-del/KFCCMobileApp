@@ -70,6 +70,7 @@ object AdminPermissions {
     const val AUDIT_VIEW = "audit.view"
     const val NOTIFICATIONS_SEND = "notifications.send"
     const val EVENTS_MANAGE = "events.manage"
+    const val DAILY_SCRIPTURE_MANAGE = "daily_scripture.manage"
 }
 
 fun AdminUser.hasPermission(permission: String): Boolean =
