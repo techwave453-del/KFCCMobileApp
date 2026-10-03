@@ -3,6 +3,8 @@ package com.example.helloworld.data
 import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
 import com.example.helloworld.data.offline.NotificationReadEntity
+import com.example.helloworld.data.bible.DailyScriptureRepository
+import com.example.helloworld.data.bible.KfccBibleRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
@@ -20,6 +22,7 @@ private data class NotificationReadRecord(
 class NotificationRepository {
     private val client = SupabaseProvider.client
     private val offline = KfccContentRepository(KfccDatabase.getInstance(KfccDataContext.appContext))
+    private val dailyScriptureRepository = DailyScriptureRepository(KfccBibleRepository())
 
     fun observeNotifications(): Flow<List<AppNotification>> {
         val userId = client.auth.currentUserOrNull()?.id
@@ -51,12 +54,23 @@ class NotificationRepository {
             notification.copy(readAt = reads[notification.id]?.readAt)
         }
 
+        val dailyScripture = getTodayScriptureNotification(userId)
+        val all = if (dailyScripture != null) resolved + dailyScripture else resolved
+
         cache(resolved)
-        resolved
+        all.sortedByDescending { it.createdAt }
     }
 
     suspend fun markAsRead(notificationId: String): Result<Unit> = runCatching {
         val userId = client.auth.currentUserOrNull()?.id ?: error("No signed-in user")
+        if (notificationId.startsWith(DAILY_SCRIPTURE_NOTIFICATION_PREFIX)) {
+            val date = notificationId.removePrefix(DAILY_SCRIPTURE_NOTIFICATION_PREFIX)
+            applicationPreferences()
+                .edit()
+                .putBoolean(dailyScriptureReadKey(userId, date), true)
+                .apply()
+            return@runCatching Unit
+        }
         val now = java.time.Instant.now().toString()
         client.from("notification_reads").upsert(
             NotificationReadRecord(
@@ -69,6 +83,53 @@ class NotificationRepository {
             NotificationReadEntity(notificationId, userId, now)
         )
     }
+
+    private suspend fun getTodayScriptureNotification(userId: String): AppNotification? {
+        val translations = KfccBibleRepository().getTranslations()
+        val translationId = translations.firstOrNull { it.id.equals("kjv", true) }?.id ?: "kjv"
+        val selected = dailyScriptureRepository.getToday(translationId) ?: return null
+        val chapter = dailyScriptureRepository.getPassage(translationId, selected) ?: return null
+        val books = KfccBibleRepository().getBooks(translationId)
+        val bookName = books.firstOrNull { it.id == selected.bookId }?.name ?: selected.bookId
+        val verses = chapter.verses
+            .filter { it.number in selected.verseStart..selected.verseEnd }
+            .joinToString(" ") { "${it.number}. ${it.text}" }
+        if (verses.isBlank()) return null
+
+        val date = java.time.LocalDate.now().toString()
+        val id = DAILY_SCRIPTURE_NOTIFICATION_PREFIX + date
+        val readAt = if (
+            applicationPreferences().getBoolean(dailyScriptureReadKey(userId, date), false)
+        ) java.time.Instant.now().toString() else null
+        val reference = selected.reference(bookName)
+        val message = buildString {
+            append(reference)
+            append("\n\n")
+            append(verses)
+            if (selected.reflection.isNotBlank()) {
+                append("\n\n")
+                append(selected.reflection)
+            }
+        }.take(2000)
+
+        return AppNotification(
+            id = id,
+            title = "Today's Scripture • ${selected.themeName}",
+            message = message,
+            type = "daily_scripture",
+            createdAt = date + "T00:00:00Z",
+            readAt = readAt
+        )
+    }
+
+    private fun applicationPreferences() =
+        KfccDataContext.appContext.getSharedPreferences(
+            "kfcc_notification_delivery",
+            android.content.Context.MODE_PRIVATE
+        )
+
+    private fun dailyScriptureReadKey(userId: String, date: String) =
+        "daily_scripture_read_${userId}_$date"
 
     suspend fun markAllAsRead(notificationIds: List<String>): Result<Unit> = runCatching {
         val userId = client.auth.currentUserOrNull()?.id ?: error("No signed-in user")
@@ -110,4 +171,8 @@ class NotificationRepository {
     }
 
     private fun offlineCache() = KfccDatabase.getInstance(KfccDataContext.appContext)
+
+    companion object {
+        const val DAILY_SCRIPTURE_NOTIFICATION_PREFIX = "daily-scripture-"
+    }
 }
