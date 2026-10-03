@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class NotificationViewModel : ViewModel() {
     private val repository = NotificationRepository()
@@ -32,6 +33,22 @@ class NotificationViewModel : ViewModel() {
         }
         KfccNotificationScheduler.syncNow(KfccDataContext.appContext)
         refresh()
+
+        // Keep the notification center current while it is open. This makes
+        // administrator changes to Today's Scripture appear without requiring
+        // the user to leave and reopen the screen.
+        viewModelScope.launch {
+            while (true) {
+                delay(5_000)
+                repository.syncFromServer()
+                    .onSuccess { rows ->
+                        _notifications.value = rows.sortedWith(
+                            compareBy<AppNotification> { it.readAt != null }
+                                .thenByDescending { it.createdAt }
+                        )
+                    }
+            }
+        }
     }
 
     fun refresh() {
