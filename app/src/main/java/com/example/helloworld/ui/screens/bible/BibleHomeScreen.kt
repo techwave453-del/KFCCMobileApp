@@ -52,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleBook
 import com.example.helloworld.data.bible.KfccBibleRepository
+import com.example.helloworld.data.bible.DailyScripture
+import com.example.helloworld.data.bible.DailyScriptureRepository
 import com.example.helloworld.data.bible.Testament
 import android.content.Context
 import java.time.LocalDate
@@ -83,29 +85,13 @@ fun BibleHomeScreen(
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
     var showTranslations by remember { mutableStateOf(false) }
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
-    val dailyChapter by produceState<com.example.helloworld.data.bible.BibleChapter?>(
-        initialValue = null,
-        repository,
-        selectedTranslationId,
-        books
-    ) {
-        val day = LocalDate.now().dayOfYear
-        val chapterNumber = ((day - 1) % 150) + 1
-
-        // The bundled Bible data uses "PSA" as the Psalms book ID.
-        // Resolve the book from the loaded catalog instead of relying on a
-        // human-readable name such as "psalms", which does not match the
-        // stored book_id and therefore returns no verses.
-        val psalmsBookId = books.firstOrNull {
-            it.id.equals("PSA", ignoreCase = true) ||
-                it.abbreviation.equals("PSA", ignoreCase = true) ||
-                it.name.equals("Psalms", ignoreCase = true)
-        }?.id
-
-        value = psalmsBookId?.let { bookId ->
-            runCatching {
-                repository.getChapter(selectedTranslationId, bookId, chapterNumber)
-            }.getOrNull()
+    val dailyScriptureRepository = remember { DailyScriptureRepository(repository) }
+    val dailyScripture by produceState<DailyScripture?>(initialValue = null, dailyScriptureRepository, selectedTranslationId) {
+        value = runCatching { dailyScriptureRepository.getToday(selectedTranslationId) }.getOrNull()
+    }
+    val dailyChapter by produceState<com.example.helloworld.data.bible.BibleChapter?>(initialValue = null, dailyScriptureRepository, dailyScripture, selectedTranslationId) {
+        value = dailyScripture?.let { scripture ->
+            runCatching { dailyScriptureRepository.getPassage(selectedTranslationId, scripture) }.getOrNull()
         }
     }
 
@@ -217,10 +203,11 @@ selectedTranslationId = translation.id
 
             item {
                 TodaysScriptureCard(
+                    scripture = dailyScripture,
                     chapter = dailyChapter,
                     translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
                     onClick = {
-                        dailyChapter?.let { onOpenChapter(it.bookId, it.chapterNumber) }
+                        dailyScripture?.let { onOpenChapter(it.bookId, it.chapter) }
                     }
                 )
             }
@@ -357,6 +344,7 @@ private fun BiblePill(text: String) {
 
 @Composable
 private fun TodaysScriptureCard(
+    scripture: DailyScripture?,
     chapter: com.example.helloworld.data.bible.BibleChapter?,
     translationName: String,
     onClick: () -> Unit
@@ -382,29 +370,51 @@ private fun TodaysScriptureCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelMedium, color = colors.primary, fontWeight = FontWeight.Bold)
                     Text(
-                        if (chapter != null) "Psalm ${chapter.chapterNumber}" else "Daily reading",
+                        scripture?.themeName ?: "Daily reading",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
             Text(
-                chapter?.verses?.firstOrNull()?.text?.let { "“$it”" } ?: "Scripture for today is not available in this translation.",
+                chapter?.let { loadedChapter ->
+                    loadedChapter.verses
+                        .filter { it.number in (scripture?.verseStart ?: 1)..(scripture?.verseEnd ?: 1) }
+                        .joinToString(" ") { "“${it.text}”" }
+                } ?: "Scripture for today is not available in this translation.",
                 style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.titleLarge.lineHeight * 1.3f),
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 18.dp)
             )
+            scripture?.situation?.takeIf { it.isNotBlank() }?.let { situation ->
+                Text(
+                    situation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+            scripture?.reflection?.takeIf { it.isNotBlank() }?.let { reflection ->
+                Text(
+                    reflection,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    chapter?.verses?.firstOrNull()?.let { "Psalm ${chapter.chapterNumber}:${it.number}" } ?: translationName,
+                    scripture?.let { selected ->
+                        val verses = if (selected.verseStart == selected.verseEnd) "${selected.verseStart}" else "${selected.verseStart}-${selected.verseEnd}"
+                        "${selected.bookId} ${selected.chapter}:$verses"
+                    } ?: translationName,
                     style = MaterialTheme.typography.labelLarge,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                Text("Read chapter  ›", style = MaterialTheme.typography.labelLarge, color = colors.primary, fontWeight = FontWeight.Bold)
+                Text("Read in Bible  ›", style = MaterialTheme.typography.labelLarge, color = colors.primary, fontWeight = FontWeight.Bold)
             }
         }
     }
