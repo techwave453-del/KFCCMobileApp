@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleBook
@@ -260,75 +262,75 @@ fun BibleHomeScreen(
 
 @Composable
 private fun BibleHero() {
+    val colors = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = colors.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(
-                horizontal = 24.dp,
-                vertical = 26.dp
-            )
-        ) {
-            Surface(
-                modifier = Modifier.size(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MenuBook,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Read the Word.",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "God's Word, always with you.",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(top = 5.dp)
-            )
-
-            Text(
-                text = "Explore Scripture, reflect on God's promises, and grow in faith.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
-                modifier = Modifier.padding(top = 10.dp)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Surface(
-                shape = RoundedCornerShape(50.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
-            ) {
-                Text(
-                    text = "KJV  •  66 books  •  Offline",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(
-                        horizontal = 14.dp,
-                        vertical = 8.dp
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(colors.primaryContainer, colors.secondaryContainer, colors.tertiaryContainer)
                     )
                 )
+                .padding(24.dp)
+        ) {
+            Column {
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = RoundedCornerShape(17.dp),
+                    color = colors.surface.copy(alpha = 0.72f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = colors.primary, modifier = Modifier.size(29.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(22.dp))
+                Text(
+                    text = "Holy Bible",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
+                )
+                Text(
+                    text = "Read the Word. Grow in faith.",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    text = "Discover Scripture, reflect on God’s promises, and continue your journey wherever you are.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.onPrimaryContainer.copy(alpha = 0.82f),
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BiblePill("KJV")
+                    BiblePill("66 Books")
+                    BiblePill("Offline")
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun BiblePill(text: String) {
+    Surface(
+        shape = RoundedCornerShape(50.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
+        )
     }
 }
 
@@ -338,81 +340,50 @@ private fun TodaysScriptureCard(
     translationName: String,
     onClick: () -> Unit
 ) {
+    val colors = MaterialTheme.colorScheme
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
-                    modifier = Modifier.size(42.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = colors.primaryContainer
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = colors.primary)
                     }
                 }
-
                 Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelMedium, color = colors.primary, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "TODAY'S SCRIPTURE",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = if (chapter != null) "Psalm ${chapter.chapterNumber}" else "Today’s Scripture",
+                        if (chapter != null) "Psalm ${chapter.chapterNumber}" else "Daily reading",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
-
             Text(
-                text = chapter?.verses?.firstOrNull()?.text?.let { "\"$it\"" } ?: "Scripture for today is not available in this translation.",
-                style = MaterialTheme.typography.titleMedium,
+                chapter?.verses?.firstOrNull()?.text?.let { "“$it”" } ?: "Scripture for today is not available in this translation.",
+                style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.titleLarge.lineHeight * 1.3f),
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 18.dp)
             )
-
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = chapter?.verses?.firstOrNull()?.let { "Psalm ${chapter.chapterNumber}:${it.number}" } ?: translationName,
+                    chapter?.verses?.firstOrNull()?.let { "Psalm ${chapter.chapterNumber}:${it.number}" } ?: translationName,
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-
-                Text(
-                    text = "Read chapter  ›",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Read chapter  ›", style = MaterialTheme.typography.labelLarge, color = colors.primary, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -425,59 +396,29 @@ private fun ContinueReadingCard(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
-            modifier = Modifier.padding(
-                horizontal = 18.dp,
-                vertical = 16.dp
-            ),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(13.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Box(
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MenuBook,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
-
             Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Continue Reading",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "$bookName $chapter",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Text("CONTINUE READING", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 2.dp))
             }
-
-            Text(
-                text = "›",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Text("Continue  ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -539,60 +480,29 @@ private fun BibleBookRow(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Row(
-            modifier = Modifier.padding(
-                horizontal = 14.dp,
-                vertical = 13.dp
-            ),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer
-                    ),
-                contentAlignment = Alignment.Center
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Icon(
-                    imageVector = Icons.Default.MenuBook,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(21.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
+                }
             }
-
             Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = book.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Text(
-                    text = "${book.chapterCount} chapters",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(book.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("${book.chapterCount} chapters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             }
-
-            Text(
-                text = "›",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
