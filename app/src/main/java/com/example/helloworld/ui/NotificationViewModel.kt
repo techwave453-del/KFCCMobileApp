@@ -6,15 +6,24 @@ import com.example.helloworld.data.AppNotification
 import com.example.helloworld.data.NotificationRepository
 import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.notifications.KfccNotificationScheduler
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.RealtimeChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 class NotificationViewModel : ViewModel() {
     private val repository = NotificationRepository()
+    private val realtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var realtimeChannel: RealtimeChannel? = null
 
     private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
     val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
@@ -34,20 +43,36 @@ class NotificationViewModel : ViewModel() {
         KfccNotificationScheduler.syncNow(KfccDataContext.appContext)
         refresh()
 
-        // Keep the notification center current while it is open. This makes
-        // administrator changes to Today's Scripture appear without requiring
-        // the user to leave and reopen the screen.
-        viewModelScope.launch {
-            while (true) {
-                delay(10_000)
-                repository.syncFromServer()
-                    .onSuccess { rows ->
-                        _notifications.value = rows.sortedWith(
-                            compareBy<AppNotification> { it.readAt != null }
-                                .thenByDescending { it.createdAt }
-                        )
-                    }
+        startRealtimeNotifications()
+    }
+
+    private fun startRealtimeNotifications() {
+        val channel = SupabaseProvider.client.channel("kfcc-notification-updates")
+        realtimeChannel = channel
+
+        listOf(
+            "daily_scripture_settings",
+            "daily_scripture_themes",
+            "daily_scriptures",
+            "app_notifications"
+        ).forEach { tableName ->
+            realtimeScope.launch {
+                channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = tableName
+                }.collect {
+                    repository.syncFromServer()
+                        .onSuccess { rows ->
+                            _notifications.value = rows.sortedWith(
+                                compareBy<AppNotification> { it.readAt != null }
+                                    .thenByDescending { it.createdAt }
+                            )
+                        }
+                }
             }
+        }
+
+        realtimeScope.launch {
+            channel.subscribe()
         }
     }
 
@@ -78,5 +103,18 @@ class NotificationViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    override fun onCleared() {
+        val channel = realtimeChannel
+        if (channel != null) {
+            realtimeScope.launch {
+                SupabaseProvider.client.realtime.removeChannel(channel)
+                realtimeScope.cancel()
+            }
+        } else {
+            realtimeScope.cancel()
+        }
+        super.onCleared()
     }
 }
