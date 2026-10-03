@@ -43,18 +43,35 @@ class DailyScriptureRepository(
                 filter { eq("is_active", true) }
                 order("sort_order", Order.ASCENDING)
             }.decodeList<DailyScriptureThemeRow>()
-        }.getOrDefault(emptyList()).associateBy { it.id }
+        }.getOrDefault(emptyList())
+
+        if (themes.isEmpty()) return null
+
+        val themeById = themes.associateBy { it.id }
+        val configuredThemeId = runCatching {
+            SupabaseProvider.client.from("daily_scripture_settings").select {
+                filter { eq("id", 1) }
+            }.decodeList<DailyScriptureSettingsRow>().firstOrNull()?.selected_theme_id
+        }.getOrNull()
+
+        // An administrator can pin a theme. When no theme is pinned, select a
+        // stable pseudo-random active theme for the calendar day so every user
+        // sees the same theme throughout that day.
+        val selectedTheme = configuredThemeId
+            ?.let { themeById[it] }
+            ?: themes[Math.floorMod(date.toEpochDay().hashCode(), themes.size)]
 
         val eligible = entries
-            .filter { themes.containsKey(it.theme_id) }
-            .sortedWith(compareBy<DailyScriptureRow> { themes[it.theme_id]?.sort_order ?: Int.MAX_VALUE }.thenBy { it.id })
+            .filter { it.theme_id == selectedTheme.id }
+            .filter { it.theme_id in themeById }
+            .sortedBy { it.id }
 
         if (eligible.isEmpty()) return null
 
-        // Deterministic daily rotation: one stable Scripture per calendar day.
-        // It changes tomorrow, but opening the app repeatedly today returns the same entry.
+        // Keep the selected theme stable for the day, while rotating through
+        // that theme's available passages when it has more than one.
         val selected = eligible[Math.floorMod(date.toEpochDay().hashCode(), eligible.size)]
-        val theme = themes[selected.theme_id] ?: return null
+        val theme = themeById[selected.theme_id] ?: return null
 
         return DailyScripture(
             themeName = theme.name,
@@ -90,6 +107,12 @@ class DailyScriptureRepository(
         val verse_end: Int,
         val situation: String = "",
         val reflection: String = ""
+    )
+
+    @Serializable
+    private data class DailyScriptureSettingsRow(
+        val id: Int,
+        val selected_theme_id: String? = null
     )
 
     @Serializable
