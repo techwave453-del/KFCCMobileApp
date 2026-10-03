@@ -38,6 +38,27 @@ class KfccNotificationWorker(
             val manager = NotificationManagerCompat.from(applicationContext)
             if (!manager.areNotificationsEnabled()) return@runCatching Result.success()
 
+            // Today's Scripture is a first-class notification. The same public
+            // daily record is used by every installation, so an administrator
+            // change changes the notification content without creating duplicate
+            // server notification rows for every user.
+            val dailyScripture = repository.getTodayScriptureNotificationForDelivery()
+            if (dailyScripture != null) {
+                val signature = dailyScripture.id + ":" + dailyScripture.message.hashCode()
+                val previousSignature = preferences.getString(KEY_DAILY_SCRIPTURE_SIGNATURE, null)
+                if (signature != previousSignature) {
+                    postNotification(dailyScripture)
+                    preferences.edit()
+                        .putString(KEY_DAILY_SCRIPTURE_SIGNATURE, signature)
+                        .apply()
+                }
+            }
+
+            if (mode == KfccNotificationScheduler.MODE_DAILY_SCRIPTURE) {
+                KfccNotificationScheduler.scheduleDailyScripture(applicationContext)
+                return@runCatching Result.success()
+            }
+
             if (mode == KfccNotificationScheduler.MODE_SIGN_UP) {
                 val username = inputData.getString(KfccNotificationScheduler.KEY_USERNAME).orEmpty()
                 if (username.isNotBlank()) {
@@ -198,6 +219,7 @@ class KfccNotificationWorker(
         private const val KEY_DELIVERED = "delivered_ids"
         private const val KEY_SERVER_DELIVERED = "server_delivered_ids"
         private const val KEY_INITIALIZED = "initialized"
+        private const val KEY_DAILY_SCRIPTURE_SIGNATURE = "daily_scripture_signature"
         private const val MAX_DELIVERED_IDS = 200
     }
 }
