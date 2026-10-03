@@ -85,11 +85,10 @@ class NotificationRepository {
     }
 
     suspend fun getTodayScriptureNotificationForDelivery(): AppNotification? {
-        val userId = client.auth.currentUserOrNull()?.id ?: return null
-        return getTodayScriptureNotification(userId)
+        return getTodayScriptureNotification(client.auth.currentUserOrNull()?.id)
     }
 
-    private suspend fun getTodayScriptureNotification(userId: String): AppNotification? {
+    private suspend fun getTodayScriptureNotification(userId: String?): AppNotification? {
         val translations = KfccBibleRepository().getTranslations()
         val translationId = translations.firstOrNull { it.id.equals("kjv", true) }?.id ?: "kjv"
         val selected = dailyScriptureRepository.getToday(translationId) ?: return null
@@ -104,6 +103,7 @@ class NotificationRepository {
         val date = java.time.LocalDate.now().toString()
         val id = DAILY_SCRIPTURE_NOTIFICATION_PREFIX + date
         val readAt = if (
+            userId != null &&
             applicationPreferences().getBoolean(dailyScriptureReadKey(userId, date), false)
         ) java.time.Instant.now().toString() else null
         val reference = selected.reference(bookName)
