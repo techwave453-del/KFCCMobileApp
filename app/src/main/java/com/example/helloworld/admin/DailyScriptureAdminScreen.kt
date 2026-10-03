@@ -122,6 +122,9 @@ fun AdminDailyScriptureScreen(
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                Text("Themes", style = MaterialTheme.typography.titleMedium)
+            }
             items(themes, key = { it.id }) { theme ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp)) {
@@ -142,10 +145,44 @@ fun AdminDailyScriptureScreen(
                                         }
                                         reload()
                                     }.onFailure { error = it.message ?: "Unable to delete theme." }
+                                }) {
+                                    Icon(Icons.Default.Delete, "Delete theme")
                                 }
-                            }) {
-                                Icon(Icons.Default.Delete, "Delete theme")
                             }
+                        }
+                    }
+                }
+            }
+            item {
+                Spacer(Modifier.height(8.dp))
+                Text("Scripture entries", style = MaterialTheme.typography.titleMedium)
+            }
+            items(entries, key = { it.id }) { entry ->
+                val themeName = themes.firstOrNull { it.id == entry.theme_id }?.name ?: "Unknown theme"
+                val bookName = books.firstOrNull { it.id == entry.book_id }?.name ?: entry.book_id
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(themeName, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "$bookName ${entry.chapter}:${entry.verse_start}" +
+                                    if (entry.verse_end == entry.verse_start) "" else "-${entry.verse_end}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            if (entry.situation.isNotBlank()) Text(entry.situation, style = MaterialTheme.typography.bodySmall)
+                            if (entry.reflection.isNotBlank()) Text(entry.reflection, style = MaterialTheme.typography.bodySmall)
+                        }
+                        IconButton(onClick = {
+                            scope.launch {
+                                runCatching {
+                                    SupabaseProvider.client.from("daily_scriptures").delete {
+                                        filter { eq("id", entry.id) }
+                                    }
+                                    reload()
+                                }.onFailure { error = it.message ?: "Unable to delete Scripture entry." }
+                            }
+                        }) {
+                            Icon(Icons.Default.Delete, "Delete Scripture")
                         }
                     }
                 }
