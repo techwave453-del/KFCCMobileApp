@@ -100,7 +100,8 @@ fun BibleHomeScreen(
                         TextButton(
                             onClick = {
                                 if (count > 0) {
-                                    prefs.edit().putString("translation_id", translation.id).apply()\n                                    selectedTranslationId = translation.id
+                                    prefs.edit().putString("translation_id", translation.id).apply()
+selectedTranslationId = translation.id
                                     showTranslations = false
                                 }
                             },
@@ -286,7 +287,7 @@ private fun BibleHero(translationAbbreviation: String) {
                     color = colors.surface.copy(alpha = 0.72f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = colors.primary, modifier = Modifier.size(29.dp))
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = colors.primary, modifier = Modifier.size(29.dp))
                     }
                 }
                 Spacer(modifier = Modifier.height(22.dp))
@@ -410,7 +411,7 @@ private fun ContinueReadingCard(
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
             Spacer(modifier = Modifier.width(14.dp))
@@ -494,7 +495,7 @@ private fun BibleBookRow(
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
                 }
             }
             Spacer(modifier = Modifier.width(14.dp))
