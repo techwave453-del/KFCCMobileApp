@@ -184,6 +184,7 @@ private fun NotificationCard(
                     "welcome" -> Icons.Default.Celebration
                     "admin" -> Icons.Default.Campaign
                     "chat" -> Icons.AutoMirrored.Filled.Chat
+                    "daily_scripture" -> Icons.Default.MenuBook
                     else -> Icons.Default.Notifications
                 },
                 contentDescription = null,
