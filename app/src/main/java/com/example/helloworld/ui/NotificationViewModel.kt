@@ -7,7 +7,9 @@ import com.example.helloworld.data.NotificationRepository
 import com.example.helloworld.data.KfccDataContext
 import com.example.helloworld.notifications.KfccNotificationScheduler
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.RealtimeChannel
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +49,7 @@ class NotificationViewModel : ViewModel() {
     }
 
     private fun startRealtimeNotifications() {
-        val channel = SupabaseProvider.client.realtime.createChannel("kfcc-notification-updates")
+        val channel = SupabaseProvider.client.channel("kfcc-notification-updates")
         realtimeChannel = channel
 
         listOf(
