@@ -47,7 +47,19 @@ class DailyScriptureRepository(
 
         if (themes.isEmpty()) return null
 
+        val today = date
+        val eligibleEntries = entries.filter { entry ->
+            entry.available_from?.let { LocalDate.parse(it) <= today } ?: true
+        }.filter { entry ->
+            entry.available_until?.let { LocalDate.parse(it) >= today } ?: true
+        }
+
         val themeById = themes.associateBy { it.id }
+        val availableThemes = themes.filter { theme ->
+            eligibleEntries.any { it.theme_id == theme.id }
+        }
+        if (availableThemes.isEmpty()) return null
+
         val configuredThemeId = runCatching {
             SupabaseProvider.client.from("daily_scripture_settings").select {
                 filter { eq("id", 1) }
@@ -59,11 +71,11 @@ class DailyScriptureRepository(
         // sees the same theme throughout that day.
         val selectedTheme = configuredThemeId
             ?.let { themeById[it] }
-            ?: themes[Math.floorMod(date.toEpochDay().hashCode(), themes.size)]
+            ?.takeIf { it in availableThemes }
+            ?: availableThemes[Math.floorMod(date.toEpochDay().hashCode(), availableThemes.size)]
 
-        val eligible = entries
+        val eligible = eligibleEntries
             .filter { it.theme_id == selectedTheme.id }
-            .filter { it.theme_id in themeById }
             .sortedBy { it.id }
 
         if (eligible.isEmpty()) return null
@@ -106,7 +118,9 @@ class DailyScriptureRepository(
         val verse_start: Int,
         val verse_end: Int,
         val situation: String = "",
-        val reflection: String = ""
+        val reflection: String = "",
+        val available_from: String? = null,
+        val available_until: String? = null
     )
 
     @Serializable
