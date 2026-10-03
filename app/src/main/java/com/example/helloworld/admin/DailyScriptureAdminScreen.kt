@@ -34,6 +34,12 @@ private data class ThemeRow(
 )
 
 @Serializable
+private data class DailyScriptureSettingsRow(
+    val id: Int,
+    val selected_theme_id: String? = null
+)
+
+@Serializable
 private data class EntryRow(
     val id: String,
     val theme_id: String,
@@ -58,6 +64,9 @@ fun AdminDailyScriptureScreen(
     var entries by remember { mutableStateOf<List<EntryRow>>(emptyList()) }
     var books by remember { mutableStateOf<List<BibleBook>>(emptyList()) }
     var translations by remember { mutableStateOf<List<BibleTranslation>>(emptyList()) }
+    var selectedThemeId by remember { mutableStateOf<String?>(null) }
+    var themeMenuExpanded by remember { mutableStateOf(false) }
+    var savingThemeChoice by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showEntryDialog by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -72,6 +81,9 @@ fun AdminDailyScriptureScreen(
             themes = SupabaseProvider.client.from("daily_scripture_themes").select {
                 order("sort_order", Order.ASCENDING)
             }.decodeList()
+            selectedThemeId = SupabaseProvider.client.from("daily_scripture_settings").select {
+                filter { eq("id", 1) }
+            }.decodeList<DailyScriptureSettingsRow>().firstOrNull()?.selected_theme_id
             entries = SupabaseProvider.client.from("daily_scriptures").select {
                 order("priority", Order.DESCENDING)
             }.decodeList()
@@ -103,6 +115,81 @@ fun AdminDailyScriptureScreen(
         error?.let {
             Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
         }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Today's theme", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Choose a theme to pin for Today's Scripture. If you leave it on Random, Kanisa selects an active theme automatically for the day.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Box {
+                    OutlinedTextField(
+                        value = selectedThemeId?.let { id -> themes.firstOrNull { it.id == id }?.name } ?: "Random",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Theme selection") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    DropdownMenu(
+                        expanded = themeMenuExpanded,
+                        onDismissRequest = { themeMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Random") },
+                            onClick = {
+                                selectedThemeId = null
+                                themeMenuExpanded = false
+                            }
+                        )
+                        themes.filter { it.is_active }.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.name) },
+                                onClick = {
+                                    selectedThemeId = item.id
+                                    themeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                    Spacer(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { themeMenuExpanded = true }
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        enabled = !savingThemeChoice,
+                        onClick = {
+                            scope.launch {
+                                savingThemeChoice = true
+                                runCatching {
+                                    SupabaseProvider.client.from("daily_scripture_settings")
+                                        .update(mapOf("selected_theme_id" to selectedThemeId)) {
+                                            filter { eq("id", 1) }
+                                        }
+                                    SupabaseProvider.client.from("daily_scripture_settings")
+                                        .update(mapOf("updated_at" to java.time.Instant.now().toString())) {
+                                            filter { eq("id", 1) }
+                                        }
+                                }.onFailure {
+                                    error = it.message ?: "Unable to save Today's Scripture theme."
+                                }
+                                savingThemeChoice = false
+                            }
+                        }
+                    ) {
+                        Text(if (savingThemeChoice) "Saving..." else "Save theme choice")
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showThemeDialog = true }) {
