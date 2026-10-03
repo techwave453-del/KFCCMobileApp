@@ -84,6 +84,11 @@ class NotificationRepository {
         )
     }
 
+    suspend fun getTodayScriptureNotificationForDelivery(): AppNotification? {
+        val userId = client.auth.currentUserOrNull()?.id ?: return null
+        return getTodayScriptureNotification(userId)
+    }
+
     private suspend fun getTodayScriptureNotification(userId: String): AppNotification? {
         val translations = KfccBibleRepository().getTranslations()
         val translationId = translations.firstOrNull { it.id.equals("kjv", true) }?.id ?: "kjv"
