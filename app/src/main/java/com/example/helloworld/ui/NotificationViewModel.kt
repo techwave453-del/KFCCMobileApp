@@ -39,7 +39,7 @@ class NotificationViewModel : ViewModel() {
         // the user to leave and reopen the screen.
         viewModelScope.launch {
             while (true) {
-                delay(5_000)
+                delay(10_000)
                 repository.syncFromServer()
                     .onSuccess { rows ->
                         _notifications.value = rows.sortedWith(
