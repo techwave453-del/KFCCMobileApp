@@ -332,23 +332,74 @@ private fun EntryDialog(
         title = { Text("Add Scripture") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ExposedDropdownMenuBox(expandedTheme, { expandedTheme = !expandedTheme }) {
-                    OutlinedTextField(theme.name, {}, readOnly = true, label = { Text("Theme") }, modifier = Modifier.menuAnchor().fillMaxWidth())
-                    ExposedDropdownMenu(expandedTheme, { expandedTheme = false }) {
-                        themes.forEach { item -> DropdownMenuItem({ Text(item.name) }, { theme = item; expandedTheme = false }) }
+                Box {
+                    OutlinedTextField(
+                        value = theme.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Theme") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    DropdownMenu(
+                        expanded = expandedTheme,
+                        onDismissRequest = { expandedTheme = false }
+                    ) {
+                        themes.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.name) },
+                                onClick = { theme = item; expandedTheme = false }
+                            )
+                        }
                     }
+                    androidx.compose.foundation.layout.Spacer(
+                        modifier = Modifier.matchParentSize().clickable { expandedTheme = true }
+                    )
                 }
-                ExposedDropdownMenuBox(expandedTranslation, { expandedTranslation = !expandedTranslation }) {
-                    OutlinedTextField(translation.name, {}, readOnly = true, label = { Text("Translation") }, modifier = Modifier.menuAnchor().fillMaxWidth())
-                    ExposedDropdownMenu(expandedTranslation, { expandedTranslation = false }) {
-                        translations.forEach { item -> DropdownMenuItem({ Text(item.name) }, { translation = item; expandedTranslation = false }) }
+                Box {
+                    OutlinedTextField(
+                        value = translation.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Translation") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    DropdownMenu(
+                        expanded = expandedTranslation,
+                        onDismissRequest = { expandedTranslation = false }
+                    ) {
+                        translations.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.name) },
+                                onClick = { translation = item; expandedTranslation = false }
+                            )
+                        }
                     }
+                    androidx.compose.foundation.layout.Spacer(
+                        modifier = Modifier.matchParentSize().clickable { expandedTranslation = true }
+                    )
                 }
-                ExposedDropdownMenuBox(expandedBook, { expandedBook = !expandedBook }) {
-                    OutlinedTextField(book.name, {}, readOnly = true, label = { Text("Book") }, modifier = Modifier.menuAnchor().fillMaxWidth())
-                    ExposedDropdownMenu(expandedBook, { expandedBook = false }) {
-                        books.forEach { item -> DropdownMenuItem({ Text(item.name) }, { book = item; expandedBook = false }) }
+                Box {
+                    OutlinedTextField(
+                        value = book.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Book") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    DropdownMenu(
+                        expanded = expandedBook,
+                        onDismissRequest = { expandedBook = false }
+                    ) {
+                        books.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.name) },
+                                onClick = { book = item; expandedBook = false }
+                            )
+                        }
                     }
+                    androidx.compose.foundation.layout.Spacer(
+                        modifier = Modifier.matchParentSize().clickable { expandedBook = true }
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(chapter, { chapter = it.filter(Char::isDigit) }, label = { Text("Chapter") }, modifier = Modifier.weight(1f))
