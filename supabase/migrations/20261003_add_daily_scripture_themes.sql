@@ -40,10 +40,12 @@ grant select on public.daily_scriptures to anon, authenticated;
 grant insert,update,delete on public.daily_scripture_themes to authenticated;
 grant insert,update,delete on public.daily_scriptures to authenticated;
 
+drop policy if exists "public can read active daily scripture themes" on public.daily_scripture_themes;
 create policy "public can read active daily scripture themes"
 on public.daily_scripture_themes for select to anon,authenticated
 using (is_active = true);
 
+drop policy if exists "public can read active daily scriptures" on public.daily_scriptures;
 create policy "public can read active daily scriptures"
 on public.daily_scriptures for select to anon,authenticated
 using (
@@ -56,11 +58,13 @@ using (
   )
 );
 
+drop policy if exists "admins manage daily scripture themes" on public.daily_scripture_themes;
 create policy "admins manage daily scripture themes"
 on public.daily_scripture_themes for all to authenticated
 using ((select private.has_admin_permission('daily_scripture.manage')))
 with check ((select private.has_admin_permission('daily_scripture.manage')));
 
+drop policy if exists "admins manage daily scriptures" on public.daily_scriptures;
 create policy "admins manage daily scriptures"
 on public.daily_scriptures for all to authenticated
 using ((select private.has_admin_permission('daily_scripture.manage')))
