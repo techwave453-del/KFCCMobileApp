@@ -60,6 +60,8 @@ fun AdminDailyScriptureScreen(
     var showEntryDialog by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var themePendingDelete by remember { mutableStateOf<ThemeRow?>(null) }
+    var entryPendingDelete by remember { mutableStateOf<EntryRow?>(null) }
 
     suspend fun reload() {
         loading = true
@@ -172,22 +174,63 @@ fun AdminDailyScriptureScreen(
                             if (entry.situation.isNotBlank()) Text(entry.situation, style = MaterialTheme.typography.bodySmall)
                             if (entry.reflection.isNotBlank()) Text(entry.reflection, style = MaterialTheme.typography.bodySmall)
                         }
-                        IconButton(onClick = {
-                            scope.launch {
-                                runCatching {
-                                    SupabaseProvider.client.from("daily_scriptures").delete {
-                                        filter { eq("id", entry.id) }
-                                    }
-                                    reload()
-                                }.onFailure { error = it.message ?: "Unable to delete Scripture entry." }
+                        Column {
+                            Switch(checked = entry.is_active, onCheckedChange = { enabled ->
+                                scope.launch {
+                                    runCatching {
+                                        SupabaseProvider.client.from("daily_scriptures").update(mapOf("is_active" to enabled)) { filter { eq("id", entry.id) } }
+                                        reload()
+                                    }.onFailure { error = it.message ?: "Unable to update Scripture entry." }
+                                }
+                            })
+                            IconButton(onClick = { entryPendingDelete = entry }) {
+                                Icon(Icons.Default.Delete, "Delete Scripture")
                             }
-                        }) {
-                            Icon(Icons.Default.Delete, "Delete Scripture")
                         }
                     }
                 }
             }
         }
+    }
+
+    themePendingDelete?.let { theme ->
+        AlertDialog(
+            onDismissRequest = { themePendingDelete = null },
+            title = { Text("Delete theme?") },
+            text = { Text("This will permanently remove the theme. Themes with Scripture entries cannot be deleted.") },
+            confirmButton = {
+                Button(onClick = {
+                    themePendingDelete = null
+                    scope.launch {
+                        runCatching {
+                            SupabaseProvider.client.from("daily_scripture_themes").delete { filter { eq("id", theme.id) } }
+                            reload()
+                        }.onFailure { error = it.message ?: "Unable to delete theme." }
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { themePendingDelete = null }) { Text("Cancel") } }
+        )
+    }
+
+    entryPendingDelete?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { entryPendingDelete = null },
+            title = { Text("Delete Scripture entry?") },
+            text = { Text("This removes the passage from the Today's Scripture library. This action cannot be undone.") },
+            confirmButton = {
+                Button(onClick = {
+                    entryPendingDelete = null
+                    scope.launch {
+                        runCatching {
+                            SupabaseProvider.client.from("daily_scriptures").delete { filter { eq("id", entry.id) } }
+                            reload()
+                        }.onFailure { error = it.message ?: "Unable to delete Scripture entry." }
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { entryPendingDelete = null }) { Text("Cancel") } }
+        )
     }
 
     if (showThemeDialog) {
