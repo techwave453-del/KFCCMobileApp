@@ -21,7 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -68,7 +68,7 @@ fun BibleHomeScreen(
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
     val savedBook = prefs.getString("continue_book", "GEN") ?: "GEN"
     val savedChapter = prefs.getInt("continue_chapter", 1)
-    val selectedTranslationId = prefs.getString("translation_id", "kjv") ?: "kjv"
+    var selectedTranslationId by remember { mutableStateOf(prefs.getString("translation_id", "kjv") ?: "kjv") }
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
         value = runCatching { repository.getBooks(selectedTranslationId) }.getOrDefault(emptyList())
     }
@@ -100,7 +100,7 @@ fun BibleHomeScreen(
                         TextButton(
                             onClick = {
                                 if (count > 0) {
-                                    prefs.edit().putString("translation_id", translation.id).apply()
+                                    prefs.edit().putString("translation_id", translation.id).apply()\n                                    selectedTranslationId = translation.id
                                     showTranslations = false
                                 }
                             },
@@ -162,7 +162,7 @@ fun BibleHomeScreen(
                 actions = {
                     IconButton(onClick = { showTranslations = true }) {
                         Icon(
-                            imageVector = Icons.Default.MenuBook,
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = "Choose Bible translation"
                         )
                     }
@@ -191,7 +191,7 @@ fun BibleHomeScreen(
         ) {
 
             item {
-                BibleHero()
+                BibleHero(translationAbbreviation = selectedTranslation?.abbreviation ?: selectedTranslationId.uppercase())
             }
 
             item {
@@ -261,7 +261,7 @@ fun BibleHomeScreen(
 }
 
 @Composable
-private fun BibleHero() {
+private fun BibleHero(translationAbbreviation: String) {
     val colors = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -310,7 +310,7 @@ private fun BibleHero() {
                 )
                 Spacer(modifier = Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BiblePill("KJV")
+                    BiblePill(translationAbbreviation)
                     BiblePill("66 Books")
                     BiblePill("Offline")
                 }
