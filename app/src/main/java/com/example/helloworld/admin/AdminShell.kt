@@ -68,6 +68,8 @@ fun AdminShell(
                         ModuleFrame("Events Management", { openModule = null }) { AdminEventsScreen(Modifier.fillMaxSize(), viewModel(factory = AdminEventsViewModel.Factory(application))) }
                     openModule == "notifications" && currentUser.hasPermission(AdminPermissions.NOTIFICATIONS_SEND) ->
                         ModuleFrame("Notifications", { openModule = null }) { AdminNotificationsScreen(Modifier.fillMaxSize()) }
+                    openModule == "daily_scripture" && currentUser.hasPermission(AdminPermissions.DAILY_SCRIPTURE_MANAGE) ->
+                        ModuleFrame("Today's Scripture", { openModule = null }) { AdminDailyScriptureScreen(Modifier.fillMaxSize()) }
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
                         ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
                     openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
@@ -93,6 +95,7 @@ fun AdminShell(
                         { openModule = "services" },
                         { openModule = "events" },
                         { openModule = "notifications" },
+                        { openModule = "daily_scripture" },
                         { openModule = "live" },
                         { openModule = "media" },
                         { openModule = "users" },
@@ -167,6 +170,7 @@ private fun AdminDashboardScreen(
     onServices: () -> Unit,
     onEvents: () -> Unit,
     onNotifications: () -> Unit,
+    onDailyScripture: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
     onUsers: () -> Unit,
@@ -179,6 +183,7 @@ private fun AdminDashboardScreen(
         AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SERVICES_EDIT, Icons.Default.Church),
         AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.EVENTS_MANAGE, Icons.Default.Event),
         AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign),
+        AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
         AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People),
@@ -211,6 +216,7 @@ private fun AdminDashboardScreen(
                     "Services & Giving" -> if (allowed) onServices else null
                     "Events Management" -> if (allowed) onEvents else null
                     "Notifications" -> if (allowed) onNotifications else null
+                    "Today's Scripture" -> if (allowed) onDailyScripture else null
                     "Live Streaming" -> if (allowed) onLive else null
                     "Media Center" -> if (allowed) onMedia else null
                     "Users & Permissions" -> if (allowed) onUsers else null
