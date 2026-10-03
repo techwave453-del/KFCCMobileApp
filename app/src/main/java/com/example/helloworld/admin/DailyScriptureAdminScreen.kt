@@ -149,9 +149,10 @@ fun AdminDailyScriptureScreen(
                                         }
                                         reload()
                                     }.onFailure { error = it.message ?: "Unable to delete theme." }
-                                }) {
-                                    Icon(Icons.Default.Delete, "Delete theme")
                                 }
+                            }) {
+                                Icon(Icons.Default.Delete, "Delete theme")
+                            }
                         }
                     }
                 }
