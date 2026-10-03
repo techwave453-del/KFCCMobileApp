@@ -295,7 +295,7 @@ private fun BibleReader(
 
                         Icon(
 
-                            imageVector = Icons.Default.MenuBook,
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
 
                             contentDescription = null,
 
@@ -647,7 +647,7 @@ private fun BibleReader(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MenuBook,
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(21.dp)
