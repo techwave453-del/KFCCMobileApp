@@ -205,6 +205,7 @@ selectedTranslationId = translation.id
                 TodaysScriptureCard(
                     scripture = dailyScripture,
                     chapter = dailyChapter,
+                    bookName = books.firstOrNull { it.id == dailyScripture?.bookId }?.name ?: dailyScripture?.bookId ?: "Bible",
                     translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
                     onClick = {
                         dailyScripture?.let { onOpenChapter(it.bookId, it.chapter) }
@@ -346,6 +347,7 @@ private fun BiblePill(text: String) {
 private fun TodaysScriptureCard(
     scripture: DailyScripture?,
     chapter: com.example.helloworld.data.bible.BibleChapter?,
+    bookName: String,
     translationName: String,
     onClick: () -> Unit
 ) {
@@ -408,7 +410,7 @@ private fun TodaysScriptureCard(
                 Text(
                     scripture?.let { selected ->
                         val verses = if (selected.verseStart == selected.verseEnd) "${selected.verseStart}" else "${selected.verseStart}-${selected.verseEnd}"
-                        "${selected.bookId} ${selected.chapter}:$verses"
+                        "${bookName} ${selected.chapter}:$verses"
                     } ?: translationName,
                     style = MaterialTheme.typography.labelLarge,
                     color = colors.onSurfaceVariant,
