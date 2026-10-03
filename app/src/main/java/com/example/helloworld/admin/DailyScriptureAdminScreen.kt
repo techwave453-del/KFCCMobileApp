@@ -58,7 +58,6 @@ fun AdminDailyScriptureScreen(
     var entries by remember { mutableStateOf<List<EntryRow>>(emptyList()) }
     var books by remember { mutableStateOf<List<BibleBook>>(emptyList()) }
     var translations by remember { mutableStateOf<List<BibleTranslation>>(emptyList()) }
-    var selectedTheme by remember { mutableStateOf<ThemeRow?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showEntryDialog by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -153,7 +152,6 @@ fun AdminDailyScriptureScreen(
                                 }) {
                                     Icon(Icons.Default.Delete, "Delete theme")
                                 }
-                            }
                         }
                     }
                 }
