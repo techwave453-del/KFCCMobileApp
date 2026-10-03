@@ -47,7 +47,7 @@ class NotificationViewModel : ViewModel() {
     }
 
     private fun startRealtimeNotifications() {
-        val channel = SupabaseProvider.client.channel("kfcc-notification-updates")
+        val channel = SupabaseProvider.client.realtime.createChannel("kfcc-notification-updates")
         realtimeChannel = channel
 
         listOf(
