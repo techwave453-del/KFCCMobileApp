@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.content.Context
@@ -130,7 +131,8 @@ fun BibleChapterScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         }
@@ -251,11 +253,11 @@ private fun BibleReader(
 
             start = 20.dp,
 
-            top = 20.dp,
+            top = 18.dp,
 
             end = 20.dp,
 
-            bottom = 110.dp
+            bottom = 120.dp
 
         )
 
@@ -397,31 +399,29 @@ private fun BibleReader(
         translationId: String
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                .padding(22.dp)
         ) {
             Text(
-                text = translationId.uppercase(),
+                text = "HOLY SCRIPTURE",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
-
             Text(
                 text = "Chapter ${chapter.chapterNumber}",
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 5.dp)
+                modifier = Modifier.padding(top = 6.dp)
             )
-
             Text(
-                text = "Holy Scripture",
+                text = "${translationId.uppercase()} • ${chapter.verses.size} verses",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 18.dp)
             )
         }
     }
@@ -434,45 +434,32 @@ private fun BibleReader(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(18.dp))
                 .clickable(onClick = onClick),
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        horizontal = 6.dp,
-                        vertical = 12.dp
-                    ),
+                    .padding(horizontal = 10.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Surface(
-                    modifier = Modifier.size(30.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = verse.number.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
+                Text(
+                    text = verse.number.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.width(30.dp).padding(top = 3.dp)
+                )
                 Text(
                     text = verse.text,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.45
+                        fontFamily = FontFamily.Serif,
+                        fontSize = MaterialTheme.typography.bodyLarge.fontSize * 1.08f,
+                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.55f
                     ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp)
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
