@@ -62,7 +62,15 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
                     listOf(
                         SiteContentEntity("churchName", savedIdentity.churchName),
                         SiteContentEntity("logoUrl", savedIdentity.logoUrl),
-                        SiteContentEntity("officialLogo", savedIdentity.officialLogo)
+                        SiteContentEntity("officialLogo", savedIdentity.officialLogo),
+                        SiteContentEntity("splashBranding", kotlinx.serialization.json.Json.encodeToString(
+                            com.example.helloworld.data.SplashBranding(
+                                theme = savedIdentity.splashTheme,
+                                phrase = savedIdentity.splashPhrase,
+                                contactDetails = savedIdentity.splashContactDetails,
+                                showContactDetails = savedIdentity.splashShowContactDetails
+                            )
+                        ))
                     )
                 )
 
