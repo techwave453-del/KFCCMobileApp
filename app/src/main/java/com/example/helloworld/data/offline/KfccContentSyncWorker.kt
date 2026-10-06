@@ -209,13 +209,17 @@ class KfccContentSyncWorker(
         val identity = SupabaseProvider.client.from("church_identity")
             .select(Columns.list("church_name", "official_name", "logo_url", "official_logo"))
             .decodeSingle<ChurchIdentitySyncRow>()
+        val brandingRows = SupabaseProvider.client.from("site_content")
+            .select(Columns.list("key", "value"))
+            .decodeList<SiteContentRow>()
+        val branding = brandingRows.associate { it.key to it.value }
         db.siteContentDao().upsertAll(
             listOf(
                 SiteContentEntity("churchName", identity.church_name),
                 SiteContentEntity("officialName", identity.official_name),
-                SiteContentEntity("splashBackgroundImageUrl", ""),
                 SiteContentEntity("logoUrl", identity.logo_url),
-                SiteContentEntity("officialLogo", identity.official_logo)
+                SiteContentEntity("officialLogo", identity.official_logo),
+                SiteContentEntity("splashBackgroundImageUrl", branding["splashBackgroundImageUrl"].orEmpty())
             )
         )
     }
