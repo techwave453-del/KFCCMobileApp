@@ -71,7 +71,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
         return runCatching {
             val rows = SupabaseProvider.client.from("app_notifications")
                 .select().decodeList<AppNotification>()
-                .filter { it.userId == null || it.userId == userId }
+                .filter { it.isEnabled && (it.userId == null || it.userId == userId) }
                 .sortedByDescending { it.createdAt }
             db.notificationDao().upsertAll(rows.map(::toNotificationEntity))
             rows
@@ -134,7 +134,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
     )
 
     private fun toNotificationEntity(x: AppNotification) =
-        NotificationEntity(x.id, x.userId, x.title, x.message, x.type, x.createdAt, x.isEnabled)
+        NotificationEntity(x.id, x.userId, x.title, x.message, x.type, x.createdAt, x.isEnabled, x.imageUrl)
 
     private fun toNotification(x: NotificationEntity) =
         AppNotification(
@@ -144,6 +144,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
             type = x.type,
             createdAt = x.createdAt,
             userId = x.userId,
-            isEnabled = x.isEnabled
+            isEnabled = x.isEnabled,
+            imageUrl = x.imageUrl
         )
 }
