@@ -28,7 +28,8 @@ data class SplashBranding(
     val theme: String = "sunrise",
     val phrase: String = "Grow • Connect • Serve",
     val contactDetails: String = "",
-    val showContactDetails: Boolean = false
+    val showContactDetails: Boolean = false,
+    val backgroundImageUrl: String = ""
 )
 
 @Serializable
