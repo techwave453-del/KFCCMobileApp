@@ -168,6 +168,11 @@ class NotificationRepository {
     }
 
     private suspend fun cache(rows: List<AppNotification>) {
+        // The server is authoritative for approval. Remove the previous
+        // server-backed cache before inserting the current approved set so a
+        // notification disabled/deleted by an administrator cannot remain
+        // visible from stale offline data.
+        offlineCache().notificationDao().clearServerBacked()
         offlineCache().notificationDao().upsertAll(rows.map {
             com.example.helloworld.data.offline.NotificationEntity(
                 it.id, it.userId, it.title, it.message, it.type, it.createdAt, it.isEnabled
