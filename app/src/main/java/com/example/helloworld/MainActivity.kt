@@ -49,6 +49,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -493,37 +494,59 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
             .fillMaxSize()
             .background(Brush.verticalGradient(palette))
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            drawCircle(
-                color = accent.copy(alpha = 0.88f),
-                radius = w * 0.11f,
-                center = androidx.compose.ui.geometry.Offset(w * 0.78f, h * 0.57f)
+        if (splash.backgroundImageUrl.isNotBlank()) {
+            AsyncImage(
+                model = splash.backgroundImageUrl,
+                contentDescription = "Splash background",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
-            val far = Path().apply {
-                moveTo(0f, h * 0.64f)
-                lineTo(w * 0.20f, h * 0.57f)
-                lineTo(w * 0.36f, h * 0.63f)
-                lineTo(w * 0.56f, h * 0.54f)
-                lineTo(w * 0.76f, h * 0.62f)
-                lineTo(w, h * 0.55f)
-                lineTo(w, h)
-                lineTo(0f, h)
-                close()
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                palette[0].copy(alpha = 0.68f),
+                                palette[1].copy(alpha = 0.42f),
+                                palette[3].copy(alpha = 0.86f)
+                            )
+                        )
+                    )
+            )
+        } else {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                drawCircle(
+                    color = accent.copy(alpha = 0.88f),
+                    radius = w * 0.11f,
+                    center = androidx.compose.ui.geometry.Offset(w * 0.78f, h * 0.57f)
+                )
+                val far = Path().apply {
+                    moveTo(0f, h * 0.64f)
+                    lineTo(w * 0.20f, h * 0.57f)
+                    lineTo(w * 0.36f, h * 0.63f)
+                    lineTo(w * 0.56f, h * 0.54f)
+                    lineTo(w * 0.76f, h * 0.62f)
+                    lineTo(w, h * 0.55f)
+                    lineTo(w, h)
+                    lineTo(0f, h)
+                    close()
+                }
+                drawPath(far, Color(0xFF31527B).copy(alpha = if (splash.theme == "light") 0.35f else 0.85f))
+                val near = Path().apply {
+                    moveTo(0f, h * 0.74f)
+                    lineTo(w * 0.22f, h * 0.66f)
+                    lineTo(w * 0.42f, h * 0.75f)
+                    lineTo(w * 0.66f, h * 0.63f)
+                    lineTo(w, h * 0.72f)
+                    lineTo(w, h)
+                    lineTo(0f, h)
+                    close()
+                }
+                drawPath(near, Color(0xFF071B3A).copy(alpha = if (splash.theme == "light") 0.25f else 1f))
             }
-            drawPath(far, Color(0xFF31527B).copy(alpha = if (splash.theme == "light") 0.35f else 0.85f))
-            val near = Path().apply {
-                moveTo(0f, h * 0.74f)
-                lineTo(w * 0.22f, h * 0.66f)
-                lineTo(w * 0.42f, h * 0.75f)
-                lineTo(w * 0.66f, h * 0.63f)
-                lineTo(w, h * 0.72f)
-                lineTo(w, h)
-                lineTo(0f, h)
-                close()
-            }
-            drawPath(near, Color(0xFF071B3A).copy(alpha = if (splash.theme == "light") 0.25f else 1f))
         }
 
         Column(
