@@ -47,6 +47,7 @@ import com.example.helloworld.admin.AdminShell
 import com.example.helloworld.ui.screens.*
 import com.example.helloworld.ui.theme.KFCCTheme
 import com.example.helloworld.ui.PreferencesViewModel
+import com.example.helloworld.ui.NotificationViewModel
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -130,7 +131,8 @@ fun KFCCApp(
     onNotificationOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
-    adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application))
+    adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
+    notificationViewModel: NotificationViewModel = viewModel()
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -153,6 +155,12 @@ fun KFCCApp(
     LaunchedEffect(Unit) {
         delay(1200)
         showBrandSplash = false
+    }
+
+    LaunchedEffect(chatSignedIn, adminUser?.id) {
+        if (chatSignedIn || adminUser != null) {
+            notificationViewModel.onAuthenticated()
+        }
     }
 
     LaunchedEffect(openNotifications) {
