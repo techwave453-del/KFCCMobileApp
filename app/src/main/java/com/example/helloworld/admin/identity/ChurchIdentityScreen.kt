@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,30 @@ fun ChurchIdentityScreen(
         OutlinedTextField(identity.email, { viewModel.update(identity.copy(email = it)) }, label = { Text("Official email") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.logoUrl, { viewModel.update(identity.copy(logoUrl = it)) }, label = { Text("Logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         OutlinedTextField(identity.officialLogo, { viewModel.update(identity.copy(officialLogo = it)) }, label = { Text("Official logo URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
+
+        Text("Splash Screen Branding", style = MaterialTheme.typography.titleMedium)
+        Text("Choose the visual theme and text shown while the app starts. These settings are controlled here and applied dynamically.", style = MaterialTheme.typography.bodySmall)
+        Text("Theme", style = MaterialTheme.typography.labelLarge)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("sunrise" to "Sunrise", "royal" to "Royal Blue", "light" to "Light", "midnight" to "Midnight").forEach { (value, label) ->
+                FilterChip(
+                    selected = identity.splashTheme == value,
+                    onClick = { viewModel.update(identity.copy(splashTheme = value)) },
+                    label = { Text(label) },
+                    enabled = !saving
+                )
+            }
+        }
+        OutlinedTextField(identity.splashPhrase, { viewModel.update(identity.copy(splashPhrase = it)) }, label = { Text("Splash phrase") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, singleLine = true)
+        OutlinedTextField(identity.splashContactDetails, { viewModel.update(identity.copy(splashContactDetails = it)) }, label = { Text("Splash details line") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, minLines = 2)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            androidx.compose.material3.Checkbox(
+                checked = identity.splashShowContactDetails,
+                onCheckedChange = { viewModel.update(identity.copy(splashShowContactDetails = it)) },
+                enabled = !saving
+            )
+            Text("Show details on splash")
+        }
         OutlinedTextField(identity.logo, { viewModel.update(identity.copy(logo = it)) }, label = { Text("Legacy logo value") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         error?.let { message -> AdminErrorMessage(message = message, modifier = Modifier.padding(vertical = 8.dp)) }
         if (saved) Text("Church Identity saved successfully.", color = MaterialTheme.colorScheme.primary)
