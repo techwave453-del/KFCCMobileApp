@@ -15,7 +15,8 @@ data class ChurchIdentity(
     val splashTheme: String = "sunrise",
     val splashPhrase: String = "Grow • Connect • Serve",
     val splashContactDetails: String = "",
-    val splashShowContactDetails: Boolean = false
+    val splashShowContactDetails: Boolean = false,
+    val splashBackgroundImageUrl: String = ""
 )
 
 @Serializable
