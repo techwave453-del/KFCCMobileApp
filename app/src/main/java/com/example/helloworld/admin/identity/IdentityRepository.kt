@@ -27,7 +27,8 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
             splashTheme = values["splashTheme"].orEmpty().ifBlank { "sunrise" },
             splashPhrase = values["splashPhrase"].orEmpty().ifBlank { "Grow • Connect • Serve" },
             splashContactDetails = values["splashContactDetails"].orEmpty(),
-            splashShowContactDetails = values["splashShowContactDetails"].equals("true", ignoreCase = true)
+            splashShowContactDetails = values["splashShowContactDetails"].equals("true", ignoreCase = true),
+            splashBackgroundImageUrl = values["splashBackgroundImageUrl"].orEmpty()
         )
     }
 
@@ -49,7 +50,8 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
             mapOf("key" to "splashTheme", "value" to identity.splashTheme.trim()),
             mapOf("key" to "splashPhrase", "value" to identity.splashPhrase.trim()),
             mapOf("key" to "splashContactDetails", "value" to identity.splashContactDetails.trim()),
-            mapOf("key" to "splashShowContactDetails", "value" to identity.splashShowContactDetails.toString())
+            mapOf("key" to "splashShowContactDetails", "value" to identity.splashShowContactDetails.toString()),
+            mapOf("key" to "splashBackgroundImageUrl", "value" to identity.splashBackgroundImageUrl.trim())
         ))
 
         // The legacy logo field is not part of the new direct Supabase schema.
