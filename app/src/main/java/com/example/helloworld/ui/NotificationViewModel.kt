@@ -68,6 +68,7 @@ class NotificationViewModel : ViewModel() {
                                 compareBy<AppNotification> { it.readAt != null }
                                     .thenByDescending { it.createdAt }
                             )
+                            KfccNotificationScheduler.syncNow(KfccDataContext.appContext)
                         }
                 }
             }
