@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NotificationReadEntity::class,
         SyncOperationEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class KfccDatabase : RoomDatabase() {
@@ -71,6 +71,12 @@ abstract class KfccDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notifications_cache ADD COLUMN imageUrl TEXT")
+            }
+        }
+
         @Volatile private var INSTANCE: KfccDatabase? = null
 
         fun getInstance(context: Context): KfccDatabase =
@@ -80,7 +86,7 @@ abstract class KfccDatabase : RoomDatabase() {
                     KfccDatabase::class.java,
                     "kfcc_offline.db"
                 )
-                                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }
