@@ -566,7 +566,7 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
                     text = details,
                     color = foreground.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, bottom = 72.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 72.dp),
                     textAlign = TextAlign.Center
                 )
             }
@@ -576,7 +576,7 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
             text = churchInfo.officialName.ifBlank { churchInfo.churchName },
             color = foreground.copy(alpha = 0.68f),
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, bottom = 38.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 38.dp),
             textAlign = TextAlign.Center
         )
     }
