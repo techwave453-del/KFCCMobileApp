@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonPrimitive
 @Serializable
 private data class ChurchIdentitySyncRow(
     val church_name: String = "",
+    val official_name: String = "",
     val logo_url: String = "",
     val official_logo: String = ""
 )
@@ -206,11 +207,12 @@ class KfccContentSyncWorker(
 
     private suspend fun syncChurchIdentity() {
         val identity = SupabaseProvider.client.from("church_identity")
-            .select(Columns.list("church_name", "logo_url", "official_logo"))
+            .select(Columns.list("church_name", "official_name", "logo_url", "official_logo"))
             .decodeSingle<ChurchIdentitySyncRow>()
         db.siteContentDao().upsertAll(
             listOf(
                 SiteContentEntity("churchName", identity.church_name),
+                SiteContentEntity("officialName", identity.official_name),
                 SiteContentEntity("logoUrl", identity.logo_url),
                 SiteContentEntity("officialLogo", identity.official_logo)
             )
