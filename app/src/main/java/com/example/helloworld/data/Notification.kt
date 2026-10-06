@@ -13,6 +13,7 @@ data class AppNotification(
     @SerialName("user_id") val userId: String? = null,
     val readAt: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = true,
+    @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("show_on_install") val showOnInstall: Boolean = false,
     @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false,
     @SerialName("updated_at") val updatedAt: String? = null
