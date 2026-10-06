@@ -1,6 +1,7 @@
 package com.example.helloworld.notifications
 
 import android.app.NotificationChannel
+import androidx.core.graphics.drawable.toBitmap
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -189,12 +190,32 @@ class KfccNotificationWorker(
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(notification.title)
                 .setContentText(notification.message)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(notification.message))
+                .setStyle(
+                    if (!notification.imageUrl.isNullOrBlank()) {
+                        loadNotificationBitmap(notification.imageUrl)?.let { bitmap ->
+                            NotificationCompat.BigPictureStyle()
+                                .bigPicture(bitmap)
+                                .bigLargeIcon(null)
+                        } ?: NotificationCompat.BigTextStyle().bigText(notification.message)
+                    } else {
+                        NotificationCompat.BigTextStyle().bigText(notification.message)
+                    }
+                )
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build()
         )
+    }
+
+    private suspend fun loadNotificationBitmap(url: String): android.graphics.Bitmap? {
+        return runCatching {
+            val request = ImageRequest.Builder(applicationContext)
+                .data(url)
+                .allowHardware(false)
+                .build()
+            ImageLoader(applicationContext).execute(request).drawable?.toBitmap()
+        }.getOrNull()
     }
 
     private fun saveDelivered(
