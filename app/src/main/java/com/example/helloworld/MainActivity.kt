@@ -549,9 +549,21 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
             }
         }
 
+        // Keep the complete church identity block together in the visual center of the splash.
+        // This makes the name, phrase, contact details, and official name easy to read at a glance.
+        val details = splash.contactDetails.ifBlank {
+            listOf(churchInfo.phone, churchInfo.email)
+                .filter { it.isNotBlank() }
+                .joinToString(" • ")
+        }
+
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp).align(Alignment.TopCenter).padding(top = 92.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 28.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             if (churchInfo.logoUrl.isNotBlank()) {
                 AsyncImage(
@@ -559,8 +571,9 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
                     contentDescription = "Church logo",
                     modifier = Modifier.size(92.dp)
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(18.dp))
             }
+
             Text(
                 text = churchInfo.churchName.ifBlank { "Kanisa" },
                 color = foreground,
@@ -568,40 +581,44 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
+
             if (splash.phrase.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Box(Modifier.width(36.dp).height(2.dp).background(accent))
                     Spacer(Modifier.width(10.dp))
-                    Text(splash.phrase, color = foreground.copy(alpha = 0.94f), fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Text(
+                        splash.phrase,
+                        color = foreground.copy(alpha = 0.94f),
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(Modifier.width(10.dp))
                     Box(Modifier.width(36.dp).height(2.dp).background(accent))
                 }
             }
-        }
 
-        if (splash.showContactDetails) {
-            val details = splash.contactDetails.ifBlank {
-                listOf(churchInfo.phone, churchInfo.email).filter { it.isNotBlank() }.joinToString(" • ")
-            }
-            if (details.isNotBlank()) {
+            if (splash.showContactDetails && details.isNotBlank()) {
+                Spacer(Modifier.height(22.dp))
                 Text(
                     text = details,
-                    color = foreground.copy(alpha = 0.82f),
+                    color = foreground.copy(alpha = 0.84f),
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 72.dp),
                     textAlign = TextAlign.Center
                 )
             }
-        }
 
-        Text(
-            text = churchInfo.officialName.ifBlank { churchInfo.churchName },
-            color = foreground.copy(alpha = 0.68f),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 38.dp),
-            textAlign = TextAlign.Center
-        )
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = churchInfo.officialName.ifBlank { churchInfo.churchName },
+                color = foreground.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
