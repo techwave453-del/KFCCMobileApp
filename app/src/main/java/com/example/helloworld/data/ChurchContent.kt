@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChurchInfo(
     val churchName: String = "",
+    val officialName: String = "",
     val logoUrl: String = "",
     val tagline: String = "",
     val title: String = "",
