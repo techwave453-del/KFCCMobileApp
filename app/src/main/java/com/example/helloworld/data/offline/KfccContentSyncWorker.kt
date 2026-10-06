@@ -213,6 +213,7 @@ class KfccContentSyncWorker(
             listOf(
                 SiteContentEntity("churchName", identity.church_name),
                 SiteContentEntity("officialName", identity.official_name),
+                SiteContentEntity("splashBackgroundImageUrl", ""),
                 SiteContentEntity("logoUrl", identity.logo_url),
                 SiteContentEntity("officialLogo", identity.official_logo)
             )
