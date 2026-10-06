@@ -69,7 +69,8 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
                                 theme = savedIdentity.splashTheme,
                                 phrase = savedIdentity.splashPhrase,
                                 contactDetails = savedIdentity.splashContactDetails,
-                                showContactDetails = savedIdentity.splashShowContactDetails
+                                showContactDetails = savedIdentity.splashShowContactDetails,
+                                backgroundImageUrl = savedIdentity.splashBackgroundImageUrl
                             )
                         ))
                     )
