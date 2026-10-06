@@ -92,7 +92,9 @@ class KfccContentRepository(private val db: KfccDatabase) {
             services = decode(values["services"], emptyList()), links = decode(values["links"], emptyList()),
             membershipClasses = decode(values["membershipClasses"], emptyList()),
             liveStream = decode(values["liveStream"], com.example.helloworld.data.LiveStream()),
-            splash = decode(values["splashBranding"], com.example.helloworld.data.SplashBranding())
+            splash = decode(values["splashBranding"], com.example.helloworld.data.SplashBranding()).copy(
+                backgroundImageUrl = values["splashBackgroundImageUrl"].orEmpty()
+            )
         )
     }
 
