@@ -60,6 +60,8 @@ interface NotificationDao {
     suspend fun upsertAll(items: List<NotificationEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertRead(item: NotificationReadEntity)
+    @Query("DELETE FROM notifications_cache")
+    suspend fun clearServerBacked()
     @Query("SELECT * FROM notification_reads_cache WHERE userId = :userId")
     suspend fun getReads(userId: String): List<NotificationReadEntity>
 }
