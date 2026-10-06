@@ -17,6 +17,8 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.storage.upload.UploadData
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -42,7 +44,8 @@ private data class NotificationSyncPayload(
     @SerialName("user_id") val userId: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = true,
     @SerialName("show_on_install") val showOnInstall: Boolean = false,
-    @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false
+    @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false,
+    @SerialName("image_url") val imageUrl: String? = null
 )
 
 @Serializable
@@ -53,6 +56,7 @@ private data class NotificationManagementUpdate(
     @SerialName("is_enabled") val isEnabled: Boolean? = null,
     @SerialName("show_on_install") val showOnInstall: Boolean? = null,
     @SerialName("show_on_sign_in") val showOnSignIn: Boolean? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
 
@@ -369,7 +373,8 @@ class AdminRepository(context: Context) {
         type: String,
         isEnabled: Boolean,
         showOnInstall: Boolean,
-        showOnSignIn: Boolean
+        showOnSignIn: Boolean,
+        imageUrl: String? = null
     ): Result<Unit> = runCatching {
         client.from("app_notifications").update(
             NotificationManagementUpdate(
@@ -379,6 +384,7 @@ class AdminRepository(context: Context) {
                 isEnabled = isEnabled,
                 showOnInstall = showOnInstall,
                 showOnSignIn = showOnSignIn,
+                imageUrl = imageUrl,
                 updatedAt = java.time.Instant.now().toString()
             )
         ) {
@@ -397,7 +403,8 @@ class AdminRepository(context: Context) {
         message: String,
         type: String,
         showOnInstall: Boolean = false,
-        showOnSignIn: Boolean = false
+        showOnSignIn: Boolean = false,
+        imageUrl: String? = null
     ): Result<Boolean> = runCatching {
         val id = UUID.randomUUID().toString()
         val createdAt = java.time.Instant.now().toString()
@@ -408,7 +415,8 @@ class AdminRepository(context: Context) {
             type = type,
             createdAt = createdAt,
             showOnInstall = showOnInstall,
-            showOnSignIn = showOnSignIn
+            showOnSignIn = showOnSignIn,
+            imageUrl = imageUrl
         )
 
         if (isNetworkAvailable()) {
@@ -429,6 +437,26 @@ class AdminRepository(context: Context) {
             )
             false
         }
+    }
+
+    suspend fun uploadNotificationImage(bytes: ByteArray, contentType: String): Result<String> = runCatching {
+        require(bytes.isNotEmpty()) { "The selected image is empty." }
+        require(bytes.size <= 8 * 1024 * 1024) { "Notification images must be 8 MB or smaller." }
+        require(contentType.lowercase().startsWith("image/")) { "Please select an image file." }
+
+        val extension = when (contentType.lowercase()) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            "image/gif" -> "gif"
+            else -> "jpg"
+        }
+        val path = "notifications/" + UUID.randomUUID().toString() + "." + extension
+        val bucket = client.storage["notification-images"]
+        bucket.upload(path, UploadData(ByteReadChannel(bytes), bytes.size.toLong())) {
+            upsert = false
+            this.contentType = ContentType.parse(contentType)
+        }
+        bucket.publicUrl(path)
     }
 
     suspend fun setInstallDefault(id: String, enabled: Boolean): Result<Unit> = runCatching {
