@@ -38,7 +38,7 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    fun send(title: String, body: String, type: String) {
+    fun send(title: String, body: String, type: String, imageUrl: String? = null) {
         viewModelScope.launch {
             _sending.value = true
             _message.value = null
@@ -46,7 +46,8 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
             repository.postAnnouncement(
                 title.trim(),
                 body.trim(),
-                type.trim().ifBlank { "general" }
+                type.trim().ifBlank { "general" },
+                imageUrl = imageUrl?.trim()?.ifBlank { null }
             ).onSuccess { sentDirectly ->
                 _message.value = if (sentDirectly) {
                     "Notification sent successfully. It is now in notification history."
