@@ -18,7 +18,16 @@ data class ChurchInfo(
     val services: List<ChurchService> = emptyList(),
     val links: List<ChurchLink> = emptyList(),
     val membershipClasses: List<MembershipClass> = emptyList(),
-    val liveStream: LiveStream = LiveStream()
+    val liveStream: LiveStream = LiveStream(),
+    val splash: SplashBranding = SplashBranding()
+)
+
+@Serializable
+data class SplashBranding(
+    val theme: String = "sunrise",
+    val phrase: String = "Grow • Connect • Serve",
+    val contactDetails: String = "",
+    val showContactDetails: Boolean = false
 )
 
 @Serializable
@@ -39,7 +48,6 @@ data class MediaItem(val id: Long, val title: String, val type: String, val cate
 @Serializable
 data class SiteContentRow(val key: String, val value: String)
 
-/** Empty fallback prevents branding one church as another when Supabase is unavailable. */
 object ChurchContent {
     val default = ChurchInfo()
 }
