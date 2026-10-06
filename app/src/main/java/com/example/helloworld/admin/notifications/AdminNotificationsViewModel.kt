@@ -1,6 +1,7 @@
 package com.example.helloworld.admin.notifications
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.admin.AdminRepositoryProvider
@@ -35,6 +36,23 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
                 .onSuccess { _notifications.value = it }
                 .onFailure { _error.value = it.message ?: "Unable to load notifications." }
             _loading.value = false
+        }
+    }
+
+    fun uploadImage(uri: Uri, contentType: String, onComplete: (String?, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val bytes = getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: error("Unable to read the selected picture.")
+                repository.uploadNotificationImage(bytes, contentType).getOrThrow()
+            }
+            result.onSuccess { url ->
+                _message.value = "Picture uploaded."
+                onComplete(url, uri.lastPathSegment ?: "Picture selected")
+            }.onFailure {
+                _error.value = it.message ?: "Unable to upload the notification picture."
+                onComplete(null, null)
+            }
         }
     }
 
