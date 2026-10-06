@@ -50,8 +50,13 @@ class NotificationRepository {
             .filter { it.userId == userId }
             .associateBy { it.notificationId }
 
+        val username = resolveUsername(userId)
         val resolved = rows.map { notification ->
-            notification.copy(readAt = reads[notification.id]?.readAt)
+            notification.copy(
+                title = personalize(notification.title, username),
+                message = personalize(notification.message, username),
+                readAt = reads[notification.id]?.readAt
+            )
         }
 
         val dailyScripture = getTodayScriptureNotification(userId)
@@ -175,9 +180,31 @@ class NotificationRepository {
         offlineCache().notificationDao().clearServerBacked()
         offlineCache().notificationDao().upsertAll(rows.map {
             com.example.helloworld.data.offline.NotificationEntity(
-                it.id, it.userId, it.title, it.message, it.type, it.createdAt, it.isEnabled
+                it.id, it.userId, it.title, it.message, it.type, it.createdAt, it.isEnabled, it.imageUrl
             )
         })
+    }
+
+    private suspend fun resolveUsername(userId: String): String {
+        return runCatching {
+            client.from("chat_profiles")
+                .select(Columns.list("username", "display_name"))
+                .decodeList<ChatProfile>()
+                .firstOrNull()
+                ?.let { profile ->
+                    profile.display_name?.takeIf { it.isNotBlank() }
+                        ?: profile.username
+                }
+                ?.trim()
+                .orEmpty()
+        }.getOrDefault("")
+    }
+
+    private fun personalize(value: String, username: String): String {
+        if (username.isBlank()) return value
+        return value
+            .replace("{{username}}", username, ignoreCase = true)
+            .replace("{username}", username, ignoreCase = true)
     }
 
     private fun offlineCache() = KfccDatabase.getInstance(KfccDataContext.appContext)
