@@ -60,7 +60,7 @@ data class EventEntity(
 
 @Entity(
     tableName = "notifications_cache",
-    indices = [Index(value = ["userId"]), Index(value = ["createdAt"])]
+    indices = [Index(value = ["userId"]), Index(value = ["createdAt"]), Index(value = ["isEnabled"])]
 )
 data class NotificationEntity(
     @androidx.room.PrimaryKey val id: String,
@@ -68,7 +68,8 @@ data class NotificationEntity(
     val title: String,
     val message: String,
     val type: String,
-    val createdAt: String
+    val createdAt: String,
+    val isEnabled: Boolean = true
 )
 
 @Entity(
