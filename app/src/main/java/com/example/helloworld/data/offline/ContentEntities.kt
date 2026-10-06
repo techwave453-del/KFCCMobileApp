@@ -69,7 +69,8 @@ data class NotificationEntity(
     val message: String,
     val type: String,
     val createdAt: String,
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
+    val imageUrl: String? = null
 )
 
 @Entity(
