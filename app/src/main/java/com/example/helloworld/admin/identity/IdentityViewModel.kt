@@ -61,6 +61,7 @@ class IdentityViewModel(application: Application) : AndroidViewModel(application
                 db.siteContentDao().upsertAll(
                     listOf(
                         SiteContentEntity("churchName", savedIdentity.churchName),
+                        SiteContentEntity("officialName", savedIdentity.officialName),
                         SiteContentEntity("logoUrl", savedIdentity.logoUrl),
                         SiteContentEntity("officialLogo", savedIdentity.officialLogo),
                         SiteContentEntity("splashBranding", kotlinx.serialization.json.Json.encodeToString(
