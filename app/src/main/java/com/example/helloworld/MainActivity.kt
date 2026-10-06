@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import coil.compose.AsyncImage
@@ -145,6 +146,8 @@ fun KFCCApp(
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
     val activity = LocalContext.current as? MainActivity
     val context = LocalContext.current
+    val chatAuthRepository = remember { com.example.helloworld.data.ChatAuthRepository() }
+    var menuProfile by remember { mutableStateOf<com.example.helloworld.data.ChatProfile?>(null) }
 
     LaunchedEffect(Unit) {
         delay(1200)
@@ -176,6 +179,13 @@ fun KFCCApp(
         activity?.title = churchInfo.churchName.ifBlank { "KFCC" }
     }
 
+    LaunchedEffect(drawerOpen, chatSignedIn, adminUser?.id) {
+        if (drawerOpen || chatSignedIn || adminUser != null) {
+            chatAuthRepository.getProfile().onSuccess { menuProfile = it }
+        } else {
+            menuProfile = null
+        }
+    }
     LaunchedEffect(drawerOpen) {
         if (drawerOpen) drawerState.open() else drawerState.close()
     }
@@ -215,6 +225,7 @@ fun KFCCApp(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { navigate(AppDestinations.PROFILE) }
                             .padding(horizontal = 18.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -224,18 +235,27 @@ fun KFCCApp(
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.AccountCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(44.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                if (!menuProfile?.avatar_url.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = menuProfile?.avatar_url,
+                                        contentDescription = "Profile picture",
+                                        modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.AccountCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(44.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                if (adminUser != null) adminUser!!.username else "My Profile",
+                                adminUser?.username ?: menuProfile?.display_name ?: menuProfile?.username ?: "My Profile",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
@@ -246,9 +266,11 @@ fun KFCCApp(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = { navigate(AppDestinations.PROFILE) }) {
-                            Icon(Icons.Default.ChevronRight, "Open profile")
-                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = "Open profile",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     HorizontalDivider()
