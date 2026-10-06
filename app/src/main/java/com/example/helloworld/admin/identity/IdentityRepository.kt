@@ -21,7 +21,14 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
 
         val contacts = client.from("site_content").select(Columns.list("key", "value")).decodeList<SiteContentRow>()
         val values = contacts.associate { it.key to it.value }
-        row.toDomain().copy(phone = values["phone"].orEmpty(), email = values["email"].orEmpty())
+        row.toDomain().copy(
+            phone = values["phone"].orEmpty(),
+            email = values["email"].orEmpty(),
+            splashTheme = values["splashTheme"].orEmpty().ifBlank { "sunrise" },
+            splashPhrase = values["splashPhrase"].orEmpty().ifBlank { "Grow • Connect • Serve" },
+            splashContactDetails = values["splashContactDetails"].orEmpty(),
+            splashShowContactDetails = values["splashShowContactDetails"].equals("true", ignoreCase = true)
+        )
     }
 
     suspend fun save(identity: ChurchIdentity): Result<ChurchIdentity> = runCatching {
@@ -38,7 +45,11 @@ class IdentityRepository(private val adminRepository: AdminRepository) {
 
         client.from("site_content").upsert(listOf(
             mapOf("key" to "phone", "value" to identity.phone.trim()),
-            mapOf("key" to "email", "value" to identity.email.trim())
+            mapOf("key" to "email", "value" to identity.email.trim()),
+            mapOf("key" to "splashTheme", "value" to identity.splashTheme.trim()),
+            mapOf("key" to "splashPhrase", "value" to identity.splashPhrase.trim()),
+            mapOf("key" to "splashContactDetails", "value" to identity.splashContactDetails.trim()),
+            mapOf("key" to "splashShowContactDetails", "value" to identity.splashShowContactDetails.toString())
         ))
 
         // The legacy logo field is not part of the new direct Supabase schema.
