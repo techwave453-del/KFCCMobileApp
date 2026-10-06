@@ -54,6 +54,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.helloworld.data.LiveStream
+import com.example.helloworld.data.ChurchInfo
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
@@ -467,7 +468,7 @@ fun KFCCApp(
     }
 
     if (showBrandSplash) {
-        KanisaBrandSplash()
+        KanisaBrandSplash(churchInfo)
     }
 
     if (showLivePlayer) {
@@ -476,31 +477,30 @@ fun KFCCApp(
 }
 
 @Composable
-private fun KanisaBrandSplash() {
+private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
+    val splash = churchInfo.splash
+    val palette = when (splash.theme.lowercase()) {
+        "royal" -> listOf(Color(0xFF061A4F), Color(0xFF0B55B7), Color(0xFF2B8BD8), Color(0xFF061A4F))
+        "light" -> listOf(Color(0xFFF7FAFF), Color(0xFFE7F0FF), Color(0xFFFFD76A), Color(0xFFFFFFFF))
+        "midnight" -> listOf(Color(0xFF020817), Color(0xFF0B1E3A), Color(0xFF163A66), Color(0xFF020817))
+        else -> listOf(Color(0xFF041B45), Color(0xFF0B4B91), Color(0xFFF0A83A), Color(0xFF071B3A))
+    }
+    val foreground = if (splash.theme == "light") Color(0xFF071B3A) else Color.White
+    val accent = Color(0xFFFFC12F)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF041B45),
-                        Color(0xFF0B4B91),
-                        Color(0xFFF0A83A),
-                        Color(0xFF071B3A)
-                    )
-                )
-            )
+            .background(Brush.verticalGradient(palette))
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-
             drawCircle(
-                color = Color(0xFFFFC85A).copy(alpha = 0.9f),
+                color = accent.copy(alpha = 0.88f),
                 radius = w * 0.11f,
                 center = androidx.compose.ui.geometry.Offset(w * 0.78f, h * 0.57f)
             )
-
             val far = Path().apply {
                 moveTo(0f, h * 0.64f)
                 lineTo(w * 0.20f, h * 0.57f)
@@ -512,8 +512,7 @@ private fun KanisaBrandSplash() {
                 lineTo(0f, h)
                 close()
             }
-            drawPath(far, Color(0xFF31527B).copy(alpha = 0.85f))
-
+            drawPath(far, Color(0xFF31527B).copy(alpha = if (splash.theme == "light") 0.35f else 0.85f))
             val near = Path().apply {
                 moveTo(0f, h * 0.74f)
                 lineTo(w * 0.22f, h * 0.66f)
@@ -524,60 +523,60 @@ private fun KanisaBrandSplash() {
                 lineTo(0f, h)
                 close()
             }
-            drawPath(near, Color(0xFF071B3A))
-
-            val crossX = w * 0.78f
-            val crossTop = h * 0.46f
-            val crossBottom = h * 0.72f
-            drawRect(
-                color = Color(0xFF2A2118),
-                topLeft = androidx.compose.ui.geometry.Offset(crossX - w * 0.018f, crossTop),
-                size = androidx.compose.ui.geometry.Size(w * 0.036f, crossBottom - crossTop)
-            )
-            drawRect(
-                color = Color(0xFF2A2118),
-                topLeft = androidx.compose.ui.geometry.Offset(crossX - w * 0.075f, h * 0.51f),
-                size = androidx.compose.ui.geometry.Size(w * 0.15f, w * 0.032f)
-            )
+            drawPath(near, Color(0xFF071B3A).copy(alpha = if (splash.theme == "light") 0.25f else 1f))
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp)
-                .align(Alignment.TopCenter)
-                .padding(top = 118.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp).align(Alignment.TopCenter).padding(top = 92.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Kanisa",
-                color = Color.White,
-                fontSize = 54.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-1.5).sp
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(42.dp).height(2.dp).background(Color(0xFFFFC12F)))
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Grow  •  Connect  •  Serve",
-                    color = Color.White.copy(alpha = 0.95f),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+            if (churchInfo.logoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = churchInfo.logoUrl,
+                    contentDescription = "Church logo",
+                    modifier = Modifier.size(92.dp)
                 )
-                Spacer(Modifier.width(12.dp))
-                Box(Modifier.width(42.dp).height(2.dp).background(Color(0xFFFFC12F)))
+                Spacer(Modifier.height(14.dp))
+            }
+            Text(
+                text = churchInfo.churchName.ifBlank { "Kanisa" },
+                color = foreground,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            if (splash.phrase.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(36.dp).height(2.dp).background(accent))
+                    Spacer(Modifier.width(10.dp))
+                    Text(splash.phrase, color = foreground.copy(alpha = 0.94f), fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.width(36.dp).height(2.dp).background(accent))
+                }
+            }
+        }
+
+        if (splash.showContactDetails) {
+            val details = splash.contactDetails.ifBlank {
+                listOf(churchInfo.phone, churchInfo.email).filter { it.isNotBlank() }.joinToString(" • ")
+            }
+            if (details.isNotBlank()) {
+                Text(
+                    text = details,
+                    color = foreground.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, bottom = 72.dp),
+                    textAlign = TextAlign.Center
+                )
             }
         }
 
         Text(
-            text = "Kingdom Fellowship Christian Church",
-            color = Color.White.copy(alpha = 0.72f),
+            text = churchInfo.officialName.ifBlank { churchInfo.churchName },
+            color = foreground.copy(alpha = 0.68f),
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 42.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, bottom = 38.dp),
             textAlign = TextAlign.Center
         )
     }
