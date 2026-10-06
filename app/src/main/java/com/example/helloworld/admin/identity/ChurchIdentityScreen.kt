@@ -70,6 +70,7 @@ fun ChurchIdentityScreen(
             }
         }
         OutlinedTextField(identity.splashPhrase, { viewModel.update(identity.copy(splashPhrase = it)) }, label = { Text("Splash phrase") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, singleLine = true)
+        OutlinedTextField(identity.splashBackgroundImageUrl, { viewModel.update(identity.copy(splashBackgroundImageUrl = it)) }, label = { Text("Splash background image URL") }, supportingText = { Text("Use a church image from your media library. It appears behind the church name and details.") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, singleLine = true)
         OutlinedTextField(identity.splashContactDetails, { viewModel.update(identity.copy(splashContactDetails = it)) }, label = { Text("Splash details line") }, modifier = Modifier.fillMaxWidth(), enabled = !saving, minLines = 2)
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.material3.Checkbox(
