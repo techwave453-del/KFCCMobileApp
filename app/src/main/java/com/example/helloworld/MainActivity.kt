@@ -574,12 +574,23 @@ private fun KanisaBrandSplash(churchInfo: ChurchInfo) {
                 Spacer(Modifier.height(18.dp))
             }
 
+            val churchName = churchInfo.churchName.ifBlank { "Kanisa" }
+            val churchNameFontSize = when {
+                churchName.length > 34 -> 30.sp
+                churchName.length > 26 -> 34.sp
+                churchName.length > 20 -> 38.sp
+                else -> 42.sp
+            }
+
             Text(
-                text = churchInfo.churchName.ifBlank { "Kanisa" },
+                text = churchName,
                 color = foreground,
-                fontSize = 42.sp,
+                fontSize = churchNameFontSize,
+                lineHeight = (churchNameFontSize.value * 1.12f).sp,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 2
             )
 
             if (splash.phrase.isNotBlank()) {
