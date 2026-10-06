@@ -422,7 +422,7 @@ class AdminRepository(context: Context) {
         if (isNetworkAvailable()) {
             client.from("app_notifications").insert(payload)
             offlineDb.notificationDao().upsertAll(
-                listOf(NotificationEntity(id, null, title, message, type, createdAt))
+                listOf(NotificationEntity(id, null, title, message, type, createdAt, true, imageUrl))
             )
             true
         } else {
