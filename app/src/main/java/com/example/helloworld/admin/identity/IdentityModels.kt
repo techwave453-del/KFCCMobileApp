@@ -11,7 +11,11 @@ data class ChurchIdentity(
     val officialLogo: String = "",
     val registrationDetails: String = "",
     val phone: String = "",
-    val email: String = ""
+    val email: String = "",
+    val splashTheme: String = "sunrise",
+    val splashPhrase: String = "Grow • Connect • Serve",
+    val splashContactDetails: String = "",
+    val splashShowContactDetails: Boolean = false
 )
 
 @Serializable
