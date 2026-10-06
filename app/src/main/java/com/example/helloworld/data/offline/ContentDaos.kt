@@ -52,7 +52,7 @@ interface EventDao {
 
 @Dao
 interface NotificationDao {
-    @Query("SELECT * FROM notifications_cache WHERE userId IS NULL OR userId = :userId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM notifications_cache WHERE isEnabled = 1 AND (userId IS NULL OR userId = :userId) ORDER BY createdAt DESC")
     suspend fun getForUser(userId: String?): List<NotificationEntity>
     @Query("SELECT * FROM notifications_cache WHERE userId IS NULL OR userId = :userId ORDER BY createdAt DESC")
     fun observeForUser(userId: String?): Flow<List<NotificationEntity>>
