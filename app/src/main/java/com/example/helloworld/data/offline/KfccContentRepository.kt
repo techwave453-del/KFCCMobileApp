@@ -83,6 +83,7 @@ class KfccContentRepository(private val db: KfccDatabase) {
         if (values.isEmpty()) return null
         return ChurchInfo(
             churchName = values["churchName"].orEmpty(),
+            officialName = values["officialName"].orEmpty(),
             logoUrl = values["logoUrl"] ?: values["logo"] ?: values["churchLogo"].orEmpty(),
             tagline = values["tagline"].orEmpty(), title = values["title"].orEmpty(),
             subtitle = values["subtitle"].orEmpty(), aboutTitle = values["aboutTitle"].orEmpty(),
