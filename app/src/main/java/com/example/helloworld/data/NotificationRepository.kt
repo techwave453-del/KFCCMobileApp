@@ -32,7 +32,7 @@ class NotificationRepository {
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         syncFromServer().getOrElse {
             val userId = client.auth.currentUserOrNull()?.id
-            offline.getNotifications(userId)
+            offline.getNotifications(userId).filter { it.isEnabled }
         }
     }
 
@@ -170,7 +170,7 @@ class NotificationRepository {
     private suspend fun cache(rows: List<AppNotification>) {
         offlineCache().notificationDao().upsertAll(rows.map {
             com.example.helloworld.data.offline.NotificationEntity(
-                it.id, it.userId, it.title, it.message, it.type, it.createdAt
+                it.id, it.userId, it.title, it.message, it.type, it.createdAt, it.isEnabled
             )
         })
     }
