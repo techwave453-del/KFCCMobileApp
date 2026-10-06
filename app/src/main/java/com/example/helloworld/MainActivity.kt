@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import coil.compose.AsyncImage
@@ -28,8 +29,11 @@ import com.example.helloworld.ui.screens.bible.BibleSearchScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.helloworld.data.LocalCache
@@ -57,6 +61,7 @@ import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
 
 class MainActivity : ComponentActivity() {
@@ -135,8 +140,14 @@ fun KFCCApp(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
+    var showBrandSplash by rememberSaveable { mutableStateOf(true) }
     val activity = LocalContext.current as? MainActivity
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        delay(1200)
+        showBrandSplash = false
+    }
 
     LaunchedEffect(openNotifications) {
         if (openNotifications) {
@@ -455,8 +466,120 @@ fun KFCCApp(
         }
     }
 
+    if (showBrandSplash) {
+        KanisaBrandSplash()
+    }
+
     if (showLivePlayer) {
         LivePlayerDialog(liveStream = churchInfo.liveStream, onDismiss = { showLivePlayer = false })
+    }
+}
+
+@Composable
+private fun KanisaBrandSplash() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF041B45),
+                        Color(0xFF0B4B91),
+                        Color(0xFFF0A83A),
+                        Color(0xFF071B3A)
+                    )
+                )
+            )
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+
+            drawCircle(
+                color = Color(0xFFFFC85A).copy(alpha = 0.9f),
+                radius = w * 0.11f,
+                center = androidx.compose.ui.geometry.Offset(w * 0.78f, h * 0.57f)
+            )
+
+            val far = Path().apply {
+                moveTo(0f, h * 0.64f)
+                lineTo(w * 0.20f, h * 0.57f)
+                lineTo(w * 0.36f, h * 0.63f)
+                lineTo(w * 0.56f, h * 0.54f)
+                lineTo(w * 0.76f, h * 0.62f)
+                lineTo(w, h * 0.55f)
+                lineTo(w, h)
+                lineTo(0f, h)
+                close()
+            }
+            drawPath(far, Color(0xFF31527B).copy(alpha = 0.85f))
+
+            val near = Path().apply {
+                moveTo(0f, h * 0.74f)
+                lineTo(w * 0.22f, h * 0.66f)
+                lineTo(w * 0.42f, h * 0.75f)
+                lineTo(w * 0.66f, h * 0.63f)
+                lineTo(w, h * 0.72f)
+                lineTo(w, h)
+                lineTo(0f, h)
+                close()
+            }
+            drawPath(near, Color(0xFF071B3A))
+
+            val crossX = w * 0.78f
+            val crossTop = h * 0.46f
+            val crossBottom = h * 0.72f
+            drawRect(
+                color = Color(0xFF2A2118),
+                topLeft = androidx.compose.ui.geometry.Offset(crossX - w * 0.018f, crossTop),
+                size = androidx.compose.ui.geometry.Size(w * 0.036f, crossBottom - crossTop)
+            )
+            drawRect(
+                color = Color(0xFF2A2118),
+                topLeft = androidx.compose.ui.geometry.Offset(crossX - w * 0.075f, h * 0.51f),
+                size = androidx.compose.ui.geometry.Size(w * 0.15f, w * 0.032f)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+                .align(Alignment.TopCenter)
+                .padding(top = 118.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Kanisa",
+                color = Color.White,
+                fontSize = 54.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-1.5).sp
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(42.dp).height(2.dp).background(Color(0xFFFFC12F)))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "Grow  •  Connect  •  Serve",
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.width(12.dp))
+                Box(Modifier.width(42.dp).height(2.dp).background(Color(0xFFFFC12F)))
+            }
+        }
+
+        Text(
+            text = "Kingdom Fellowship Christian Church",
+            color = Color.White.copy(alpha = 0.72f),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 42.dp),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
