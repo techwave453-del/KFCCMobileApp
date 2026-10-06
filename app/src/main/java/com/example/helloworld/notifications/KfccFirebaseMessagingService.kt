@@ -8,6 +8,9 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.toBitmap
+import coil.ImageLoader
+import coil.request.ImageRequest
 import androidx.core.app.NotificationManagerCompat
 import com.example.helloworld.MainActivity
 import com.example.helloworld.R
@@ -62,18 +65,40 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val builder = NotificationCompat.Builder(this, KfccNotificationWorker.CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        val imageUrl = message.data["image_url"]
+        val image = imageUrl?.let { loadNotificationBitmap(it) }
+        if (image != null) {
+            builder.setStyle(
+                NotificationCompat.BigPictureStyle()
+                    .bigPicture(image)
+                    .bigLargeIcon(null)
+            )
+        } else {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        }
+
         NotificationManagerCompat.from(this).notify(
             (message.data["notification_id"] ?: body).hashCode(),
-            NotificationCompat.Builder(this, KfccNotificationWorker.CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .build()
+            builder.build()
         )
+    }
+
+    private suspend fun loadNotificationBitmap(url: String): android.graphics.Bitmap? {
+        return runCatching {
+            val request = ImageRequest.Builder(this)
+                .data(url)
+                .allowHardware(false)
+                .build()
+            ImageLoader(this).execute(request).drawable?.toBitmap()
+        }.getOrNull()
     }
 
     private fun ensureChannel(churchName: String) {
