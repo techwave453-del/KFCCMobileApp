@@ -50,6 +50,11 @@ class NotificationViewModel : ViewModel() {
 
     fun onAuthenticated() {
         startRealtimeNotifications()
+        viewModelScope.launch(Dispatchers.IO) {
+            com.example.helloworld.notifications.DeviceTokenRepository()
+                .registerCurrentToken()
+            KfccNotificationScheduler.deliverSignInDefault(KfccDataContext.appContext)
+        }
         refresh()
     }
 
