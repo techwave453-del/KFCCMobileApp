@@ -33,6 +33,7 @@ class KfccNotificationWorker(
             val repository = NotificationRepository()
             val preferences = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val delivered = preferences.getStringSet(KEY_DELIVERED, emptySet()).orEmpty().toMutableSet()
+            val signInDelivered = preferences.getStringSet(KEY_SIGN_IN_DELIVERED, emptySet()).orEmpty().toMutableSet()
             val mode = inputData.getString(KfccNotificationScheduler.KEY_MODE)
 
             val churchName = NotificationBrandRepository().getChurchName().ifBlank { "Church" }
@@ -243,6 +244,14 @@ class KfccNotificationWorker(
         preferences.edit().putStringSet(KEY_DELIVERED, trimmed).apply()
     }
 
+    private fun saveSignInDelivered(
+        preferences: android.content.SharedPreferences,
+        ids: MutableSet<String>
+    ) {
+        val trimmed = ids.toList().takeLast(MAX_DELIVERED_IDS).toSet()
+        preferences.edit().putStringSet(KEY_SIGN_IN_DELIVERED, trimmed).apply()
+    }
+
     private fun saveServerDelivered(
         preferences: android.content.SharedPreferences,
         ids: MutableSet<String>
@@ -256,6 +265,7 @@ class KfccNotificationWorker(
         private const val PREFS = "kfcc_notification_delivery"
         private const val KEY_DELIVERED = "delivered_ids"
         private const val KEY_SERVER_DELIVERED = "server_delivered_ids"
+        private const val KEY_SIGN_IN_DELIVERED = "sign_in_delivered_ids"
         private const val KEY_INITIALIZED = "initialized"
         private const val KEY_DAILY_SCRIPTURE_SIGNATURE = "daily_scripture_signature"
         private const val MAX_DELIVERED_IDS = 200
