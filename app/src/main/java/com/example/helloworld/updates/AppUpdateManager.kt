@@ -42,7 +42,22 @@ object AppUpdateManager {
         val existingId = prefs.getLong(KEY_DOWNLOAD_ID, -1L)
         val existingVersion = prefs.getInt(KEY_VERSION_CODE, -1)
 
-        if (existingId != -1L && existingVersion == config.versionCode) return
+        if (existingId != -1L && existingVersion == config.versionCode) {
+            val manager = context.getSystemService(DownloadManager::class.java)
+            val query = DownloadManager.Query().setFilterById(existingId)
+            manager.query(query).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    when (status) {
+                        DownloadManager.STATUS_PENDING,
+                        DownloadManager.STATUS_RUNNING,
+                        DownloadManager.STATUS_PAUSED,
+                        DownloadManager.STATUS_SUCCESSFUL -> return
+                    }
+                }
+            }
+            clearTrackedDownload(context)
+        }
 
         val url = normalizeDownloadUrl(config.downloadUrl)
         require(url.isNotBlank()) { "The published update does not have a download URL." }
