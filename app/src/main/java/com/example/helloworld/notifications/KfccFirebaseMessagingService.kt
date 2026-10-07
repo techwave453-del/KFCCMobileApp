@@ -1,7 +1,6 @@
 package com.example.helloworld.notifications
 
 import android.app.NotificationChannel
-import androidx.core.graphics.drawable.toBitmap
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
