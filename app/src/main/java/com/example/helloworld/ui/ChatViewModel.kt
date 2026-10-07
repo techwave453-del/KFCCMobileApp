@@ -136,6 +136,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             chatRepository.joinCommunity()
                 .onSuccess { id ->
                     _roomId.value = id
+                    chatRepository.markChatNotificationsRead(id, context)
                     loadMessages(id)
                     observeMessages(id)
                     observeKanisaMessages(id)
@@ -157,6 +158,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun selectRoom(id: String) {
         if (_roomId.value == id) return
         _roomId.value = id
+        chatRepository.markChatNotificationsRead(id, context)
         loadMessages(id)
         observeMessages(id)
         observeKanisaMessages(id)
