@@ -25,6 +25,30 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Prepare Kanisa release signing
+        env:
+          KANISA_RELEASE_KEYSTORE_BASE64: ${{ secrets.KANISA_RELEASE_KEYSTORE_BASE64 }}
+          KANISA_KEYSTORE_PASSWORD: ${{ secrets.KANISA_KEYSTORE_PASSWORD }}
+          KANISA_KEY_ALIAS: ${{ secrets.KANISA_KEY_ALIAS }}
+          KANISA_KEY_PASSWORD: ${{ secrets.KANISA_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$KANISA_RELEASE_KEYSTORE_BASE64"
+          test -n "$KANISA_KEYSTORE_PASSWORD"
+          test -n "$KANISA_KEY_ALIAS"
+          test -n "$KANISA_KEY_PASSWORD"
+
+          KEYSTORE_PATH="$RUNNER_TEMP/kanisa-release.jks"
+          printf '%s' "$KANISA_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+
+          {
+            echo "KANISA_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "KANISA_KEYSTORE_PASSWORD=$KANISA_KEYSTORE_PASSWORD"
+            echo "KANISA_KEY_ALIAS=$KANISA_KEY_ALIAS"
+            echo "KANISA_KEY_PASSWORD=$KANISA_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Grant execute permission
         run: chmod +x gradlew
 
@@ -32,6 +56,15 @@ jobs:
         env:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: ./gradlew :app:assembleRelease --no-configuration-cache --no-daemon
+
+      - name: Verify release APK signature
+        shell: bash
+        run: |
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK_PATH"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK_PATH"
 
       - name: Read version from successful release output
         id: version
