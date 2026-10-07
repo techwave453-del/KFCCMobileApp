@@ -181,7 +181,7 @@ class KfccNotificationWorker(
                 NotificationChannel(
                     CHANNEL_ID,
                     "$churchName Notifications",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Announcements and important updates from $churchName."
                 }
@@ -205,7 +205,7 @@ class KfccNotificationWorker(
         NotificationManagerCompat.from(applicationContext).notify(
             notification.id.hashCode(),
             NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_notification)
                 .setContentTitle(notification.title)
                 .setContentText(notification.message)
                 .setStyle(
@@ -261,7 +261,7 @@ class KfccNotificationWorker(
     }
 
     companion object {
-        const val CHANNEL_ID = "kfcc_church_notifications"
+        const val CHANNEL_ID = "kfcc_church_notifications_v2"
         private const val PREFS = "kfcc_notification_delivery"
         private const val KEY_DELIVERED = "delivered_ids"
         private const val KEY_SERVER_DELIVERED = "server_delivered_ids"
