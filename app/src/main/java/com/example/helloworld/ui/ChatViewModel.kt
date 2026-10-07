@@ -71,6 +71,23 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private var kanisaObserveJob: Job? = null
     private var sessionInitialized = false
 
+    private fun deliverAuthenticatedNotifications() {
+        viewModelScope.launch {
+            // Associate the current FCM installation with the authenticated
+            // community identity first. This is required for server-side FCM
+            // delivery to reach the device immediately after sign-in.
+            com.example.helloworld.notifications.DeviceTokenRepository()
+                .registerCurrentToken()
+                .onFailure { /* FCM registration can recover on token refresh/retry. */ }
+
+            // Deliver sign-in notifications and today's Scripture immediately.
+            // The worker is network-constrained so public/default content is
+            // delivered as soon as an internet connection is available.
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverSignInDefault(context)
+        }
+    }
+
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
@@ -89,6 +106,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         _signedIn.value = true
                         if (!sessionInitialized) {
                             sessionInitialized = true
+                            deliverAuthenticatedNotifications()
                             initChat()
                         }
                     }
@@ -112,6 +130,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (authRepository.isSignedIn()) {
             _signedIn.value = true
             sessionInitialized = true
+            deliverAuthenticatedNotifications()
             initChat()
         }
     }
