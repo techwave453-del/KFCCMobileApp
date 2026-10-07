@@ -68,6 +68,7 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import com.example.helloworld.updates.AppUpdateManager
 
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
@@ -164,6 +165,10 @@ fun KFCCApp(
     LaunchedEffect(Unit) {
         delay(1200)
         showBrandSplash = false
+    }
+
+    LaunchedEffect(Unit) {
+        AppUpdateManager.checkAndSchedule(context)
     }
 
     LaunchedEffect(chatSignedIn, adminUser?.id) {
