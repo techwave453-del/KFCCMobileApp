@@ -16,6 +16,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KFCC.Splash">
 
+        <receiver
+            android:name=".notifications.ChatNotificationReplyReceiver"
+            android:exported="false" />
+
         <service
             android:name=".notifications.KfccFirebaseMessagingService"
             android:exported="false">
