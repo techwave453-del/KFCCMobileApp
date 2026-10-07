@@ -11,6 +11,7 @@ import androidx.core.graphics.drawable.toBitmap
 import coil.ImageLoader
 import coil.request.ImageRequest
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 import com.example.helloworld.MainActivity
 import com.example.helloworld.R
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -51,9 +52,17 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
 
         ensureChannel(title)
 
+        val isChat = message.data["type"].equals("chat", true) || message.data["type"].equals("chat_message", true)
+        val roomId = message.data["room_id"].orEmpty()
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            if (isChat && roomId.isNotBlank()) {
+                putExtra(MainActivity.EXTRA_OPEN_CHAT, true)
+                putExtra(MainActivity.EXTRA_CHAT_ROOM_ID, roomId)
+            } else {
+                putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            }
+            putExtra(MainActivity.EXTRA_NOTIFICATION_ID, message.data["notification_id"] ?: body)
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -65,6 +74,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
         val builder = NotificationCompat.Builder(this, KfccNotificationWorker.CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
+            .setLargeIcon(null as android.graphics.Bitmap?)
             .setContentText(body)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -72,6 +82,31 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
 
         val imageUrl = message.data["image_url"]
         val image = imageUrl?.let { loadNotificationBitmap(it) }
+        val senderAvatar = message.data["sender_avatar_url"]?.let { loadNotificationBitmap(it) }
+        if (senderAvatar != null) builder.setLargeIcon(senderAvatar)
+        if (isChat && roomId.isNotBlank()) {
+            val replyIntent = Intent(this, ChatNotificationReplyReceiver::class.java).apply {
+                putExtra(ChatNotificationReplyReceiver.EXTRA_ROOM_ID, roomId)
+                putExtra(ChatNotificationReplyReceiver.EXTRA_NOTIFICATION_ID, message.data["notification_id"] ?: body)
+            }
+            val replyPendingIntent = PendingIntent.getBroadcast(
+                this,
+                ("reply:" + (message.data["notification_id"] ?: body)).hashCode(),
+                replyIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            val remoteInput = RemoteInput.Builder(ChatNotificationReplyReceiver.EXTRA_REPLY)
+                .setLabel("Reply")
+                .build()
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_menu_send,
+                    "Reply",
+                    replyPendingIntent
+                ).addRemoteInput(remoteInput).build()
+            )
+        }
+
         if (image != null) {
             builder.setStyle(
                 NotificationCompat.BigPictureStyle()
