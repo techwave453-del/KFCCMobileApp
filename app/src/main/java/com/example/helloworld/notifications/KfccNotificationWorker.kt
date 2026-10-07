@@ -144,8 +144,16 @@ class KfccNotificationWorker(
                     serverDelivered.remove(id)
                 }
 
+            // Chat messages are delivered by FCM so the notification can carry
+            // the sender avatar and exact room deep link. Do not let the periodic
+            // worker create a second generic notification for the same chat row.
             notifications.asReversed()
-                .filter { it.id !in delivered && it.readAt == null }
+                .filter {
+                    it.id !in delivered &&
+                        it.readAt == null &&
+                        !it.type.equals("chat", true) &&
+                        !it.type.equals("chat_message", true)
+                }
                 .forEach { notification ->
                     postNotification(notification)
                     delivered.add(notification.id)
