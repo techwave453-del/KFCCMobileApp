@@ -15,8 +15,6 @@ import androidx.core.app.NotificationManagerCompat
 import com.example.helloworld.MainActivity
 import com.example.helloworld.R
 import com.google.firebase.messaging.FirebaseMessagingService
-import coil.ImageLoader
-import coil.request.ImageRequest
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
