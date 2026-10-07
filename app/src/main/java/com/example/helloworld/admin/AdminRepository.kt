@@ -41,6 +41,7 @@ private data class NotificationSyncPayload(
     val type: String,
     @SerialName("created_at") val createdAt: String,
     @SerialName("user_id") val userId: String? = null,
+    @SerialName("sender_id") val senderId: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = true,
     @SerialName("show_on_install") val showOnInstall: Boolean = false,
     @SerialName("show_on_sign_in") val showOnSignIn: Boolean = false,
@@ -416,7 +417,8 @@ class AdminRepository(context: Context) {
             createdAt = createdAt,
             showOnInstall = showOnInstall,
             showOnSignIn = showOnSignIn,
-            imageUrl = imageUrl
+            imageUrl = imageUrl,
+            senderId = client.auth.currentUserOrNull()?.id
         )
 
         if (isNetworkAvailable()) {
