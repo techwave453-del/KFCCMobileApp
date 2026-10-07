@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import com.example.helloworld.data.ChatRepository
+import com.example.helloworld.data.SupabaseProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,6 +26,8 @@ class ChatNotificationReplyReceiver : BroadcastReceiver() {
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                SupabaseProvider.client.auth.awaitInitialization()
+                if (!SupabaseProvider.ensureSession()) return@launch
                 ChatRepository().sendMessage(roomId, reply)
                 if (notificationId.isNotBlank()) {
                     NotificationManagerCompat.from(appContext).cancel(notificationId.hashCode())
