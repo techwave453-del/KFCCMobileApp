@@ -76,7 +76,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
             builder.setStyle(
                 NotificationCompat.BigPictureStyle()
                     .bigPicture(image)
-                    .bigLargeIcon(null)
+                    .bigLargeIcon(null as android.graphics.Bitmap?)
             )
         } else {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
