@@ -136,7 +136,8 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
                 notification.type,
                 notification.isEnabled,
                 notification.showOnInstall,
-                notification.showOnSignIn
+                notification.showOnSignIn,
+                notification.imageUrl
             ).onSuccess {
                 _message.value = "Notification updated."
                 refresh()
