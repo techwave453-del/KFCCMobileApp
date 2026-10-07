@@ -109,17 +109,16 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
         val notificationId = intent?.getStringExtra(EXTRA_NOTIFICATION_ID).orEmpty()
-        if (notificationId.isBlank()) return
-
-        // A notification opened from the Android tray is immediately considered read.
-        NotificationManagerCompat.from(this).cancel(notificationId.hashCode())
-        lifecycleScope.launch {
-            NotificationRepository().markAsRead(notificationId)
+        if (notificationId.isNotBlank()) {
+            NotificationManagerCompat.from(this).cancel(notificationId.hashCode())
+            lifecycleScope.launch { NotificationRepository().markAsRead(notificationId) }
         }
     }
 
     companion object {
         const val EXTRA_OPEN_NOTIFICATIONS = "kfcc.open_notifications"
+        const val EXTRA_OPEN_CHAT = "kfcc.open_chat"
+        const val EXTRA_CHAT_ROOM_ID = "kfcc.chat_room_id"
         const val EXTRA_NOTIFICATION_ID = "kfcc.notification_id"
     }
 }
@@ -135,6 +134,7 @@ fun KFCCApp(
     notificationViewModel: NotificationViewModel = viewModel()
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var pendingChatRoomId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleChapter by rememberSaveable { mutableStateOf(1) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
