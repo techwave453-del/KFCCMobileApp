@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleNotificationIntent(intent)
         openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
+        openChatRoomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
