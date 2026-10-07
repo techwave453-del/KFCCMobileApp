@@ -43,7 +43,6 @@ fun ProfileScreen(
 ) {
     val repository = remember { ChatAuthRepository() }
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val adminUser by adminViewModel.user.collectAsState()
     val signedIn by chatViewModel.signedIn.collectAsState()
     val churchViewModel: ChurchViewModel = viewModel()
@@ -298,11 +297,12 @@ fun ProfileScreen(
             InfoSection(title = "Security & Sessions", icon = Icons.Default.Settings) {
                 OutlinedButton(
                     onClick = {
-                        scope.launch {
-                            chatViewModel.signOut()
-                            adminViewModel.logout()
-                            message = "You have been signed out."
-                        }
+                        // Sign-out changes authentication state and can remove
+                        // this composable from the composition. Do not launch
+                        // work from rememberCoroutineScope and then update local
+                        // UI state after the composable has been forgotten.
+                        chatViewModel.signOut()
+                        adminViewModel.logout()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
