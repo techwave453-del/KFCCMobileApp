@@ -63,7 +63,7 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
         val source = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
             ?: error("Unable to read the selected picture.")
 
-        source.use {
+        try {
             val maxDimension = 1280
             val scale = minOf(
                 1f,
@@ -98,6 +98,8 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
             } finally {
                 if (bitmap !== source) bitmap.recycle()
             }
+        } finally {
+            source.recycle()
         }
     }
 
