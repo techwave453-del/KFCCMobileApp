@@ -363,6 +363,7 @@ class AdminRepository(context: Context) {
         client.from("app_notifications")
             .select()
             .decodeList<AppNotification>()
+            .filter { it.userId == null }
             .sortedByDescending { it.createdAt }
     }
 
