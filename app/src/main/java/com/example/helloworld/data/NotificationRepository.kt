@@ -51,10 +51,12 @@ class NotificationRepository {
             .associateBy { it.notificationId }
 
         val username = resolveUsername(userId)
+        val senderProfiles = resolveSenderProfiles(rows.mapNotNull { it.senderId })
         val resolved = rows.map { notification ->
             notification.copy(
                 title = personalize(notification.title, username),
                 message = personalize(notification.message, username),
+                senderAvatarUrl = notification.senderId?.let { senderProfiles[it]?.avatarUrl },
                 readAt = reads[notification.id]?.readAt
             )
         }
@@ -194,13 +196,34 @@ class NotificationRepository {
                 .decodeList<ChatProfile>()
                 .firstOrNull()
                 ?.let { profile ->
-                    profile.display_name?.takeIf { it.isNotBlank() }
-                        ?: profile.username
+                    profile.username
+                        .trim()
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
                 ?.trim()
                 .orEmpty()
         }.getOrDefault("")
     }
+
+    private data class SenderProfile(val avatarUrl: String?)
+
+    private suspend fun resolveSenderProfiles(userIds: List<String>): Map<String, SenderProfile> {
+        val ids = userIds.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        return runCatching {
+            client.from("chat_profiles")
+                .select(Columns.list("user_id", "avatar_url"))
+                .decodeList<ChatProfileRow>()
+                .filter { it.userId in ids }
+                .associate { it.userId to SenderProfile(it.avatarUrl) }
+        }.getOrDefault(emptyMap())
+    }
+
+    @kotlinx.serialization.Serializable
+    private data class ChatProfileRow(
+        @SerialName("user_id") val userId: String,
+        @SerialName("avatar_url") val avatarUrl: String? = null
+    )
 
     private fun personalize(value: String, username: String): String {
         if (username.isBlank()) return value
