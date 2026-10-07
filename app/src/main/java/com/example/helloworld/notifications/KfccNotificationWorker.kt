@@ -173,7 +173,7 @@ class KfccNotificationWorker(
         }
     }
 
-    private fun postNotification(notification: AppNotification) {
+    private suspend fun postNotification(notification: AppNotification) {
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
@@ -197,7 +197,7 @@ class KfccNotificationWorker(
                         loadNotificationBitmap(notification.imageUrl)?.let { bitmap ->
                             NotificationCompat.BigPictureStyle()
                                 .bigPicture(bitmap)
-                                .bigLargeIcon(null)
+                                .bigLargeIcon(null as android.graphics.Bitmap?)
                         } ?: NotificationCompat.BigTextStyle().bigText(notification.message)
                     } else {
                         NotificationCompat.BigTextStyle().bigText(notification.message)
