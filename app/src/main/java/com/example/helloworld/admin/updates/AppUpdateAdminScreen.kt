@@ -9,21 +9,20 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.helloworld.BuildConfig
 import com.example.helloworld.admin.AdminRepositoryProvider
 import com.example.helloworld.admin.AppUpdateConfig
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppUpdateAdminScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val repository = remember(application) { AdminRepositoryProvider.get(application) }
+    val scope = rememberCoroutineScope()
 
-    var versionCode by remember { mutableStateOf("") }
-    var versionName by remember { mutableStateOf("") }
+    var config by remember { mutableStateOf<AppUpdateConfig?>(null) }
     var downloadUrl by remember { mutableStateOf("") }
     var releaseNotes by remember { mutableStateOf("") }
     var enabled by remember { mutableStateOf(false) }
@@ -32,17 +31,19 @@ fun AppUpdateAdminScreen(modifier: Modifier = Modifier) {
     var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        repository.getAppUpdateConfig().onSuccess { config ->
-            versionCode = config.versionCode.toString()
-            versionName = config.versionName
-            downloadUrl = config.downloadUrl
-            releaseNotes = config.releaseNotes
-            enabled = config.isEnabled
+        repository.getAppUpdateConfig().onSuccess { loaded ->
+            config = loaded
+            downloadUrl = loaded.downloadUrl
+            releaseNotes = loaded.releaseNotes
+            enabled = loaded.isEnabled
         }.onFailure {
             message = it.message ?: "Unable to load app update configuration."
         }
         loading = false
     }
+
+    val latestBuildCode = config?.latestBuildVersionCode
+    val latestBuildName = config?.latestBuildVersionName
 
     Column(
         modifier = modifier
@@ -54,39 +55,58 @@ fun AppUpdateAdminScreen(modifier: Modifier = Modifier) {
             Icon(Icons.Default.SystemUpdate, contentDescription = null)
             Column {
                 Text("App Updates", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Current installed version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                Text("Configure which successful Android build is published to members.")
             }
         }
-
-        Text(
-            "Set the APK version and download URL here. Users do not need to update the app code when you publish a new release.",
-            style = MaterialTheme.typography.bodyMedium
-        )
 
         if (loading) {
             CircularProgressIndicator()
         } else {
-            OutlinedTextField(
-                value = versionCode,
-                onValueChange = { versionCode = it.filter(Char::isDigit) },
-                label = { Text("Release version code") },
-                supportingText = { Text("Must be higher than the installed version code.") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = versionName,
-                onValueChange = { versionName = it },
-                label = { Text("Release version name") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Latest successful build", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (latestBuildCode == null || latestBuildName.isNullOrBlank()) {
+                        Text("No successful release build has been recorded yet.")
+                        Text("Run the release-build workflow after creating a new production version.")
+                    } else {
+                        Text("$latestBuildName (version code $latestBuildCode)")
+                        config?.latestBuildAt?.let { Text("Built: $it") }
+                        config?.latestBuildCommit?.let { Text("Commit: $it") }
+                        if (latestBuildCode > (config?.versionCode ?: 0)) {
+                            Text(
+                                "Ready to publish. The APK URL below will be used for this build.",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text(
+                                "This build is already published or is not newer than the published version.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Currently published update", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${config?.versionName ?: "—"} (version code ${config?.versionCode ?: "—"})")
+                    Text(if (config?.isEnabled == true) "Automatic updates are enabled." else "Automatic updates are disabled.")
+                    Text("The published version is what member devices will compare against.")
+                }
+            }
+
             OutlinedTextField(
                 value = downloadUrl,
                 onValueChange = { downloadUrl = it },
                 label = { Text("APK download URL") },
-                supportingText = { Text("Google Drive shared links are supported when the APK is downloadable by anyone with the link.") },
+                supportingText = {
+                    Text("Enter the APK URL for the latest successful build. Google Drive shared links are supported.")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2
             )
+
             OutlinedTextField(
                 value = releaseNotes,
                 onValueChange = { releaseNotes = it },
@@ -94,6 +114,7 @@ fun AppUpdateAdminScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Switch(checked = enabled, onCheckedChange = { enabled = it })
                 Text(
@@ -104,47 +125,64 @@ fun AppUpdateAdminScreen(modifier: Modifier = Modifier) {
 
             Button(
                 onClick = {
-                    val code = versionCode.toIntOrNull()
-                    if (code == null || code <= 0) {
-                        message = "Enter a valid version code."
+                    if (latestBuildCode == null || latestBuildName.isNullOrBlank()) {
+                        message = "There is no successful release build to publish yet."
                         return@Button
                     }
-                    if (code <= BuildConfig.VERSION_CODE) {
-                        message = "The release version code must be greater than ${BuildConfig.VERSION_CODE}."
+                    if (latestBuildCode <= (config?.versionCode ?: 0)) {
+                        message = "The latest successful build is not newer than the currently published version."
                         return@Button
                     }
                     if (downloadUrl.isBlank()) {
-                        message = "Enter the APK download URL."
+                        message = "Enter the APK download URL for this build."
                         return@Button
                     }
 
                     saving = true
                     message = null
-                    repository.saveAppUpdateConfig(
-                        AppUpdateConfig(
-                            versionCode = code,
-                            versionName = versionName.trim(),
+                    scope.launch {
+                        repository.publishLatestSuccessfulBuild(
                             downloadUrl = downloadUrl.trim(),
                             releaseNotes = releaseNotes.trim(),
                             isEnabled = enabled
-                        )
-                    ).onSuccess {
-                        message = "App update configuration saved."
-                    }.onFailure {
-                        message = it.message ?: "Unable to save app update configuration."
+                        ).onSuccess {
+                            message = "Version $latestBuildName has been published."
+                            repository.getAppUpdateConfig().onSuccess { config = it }
+                        }.onFailure {
+                            message = it.message ?: "Unable to publish the update."
+                        }
+                        saving = false
                     }
-                    saving = false
                 },
-                enabled = !saving,
+                enabled = !saving && latestBuildCode != null && latestBuildCode > (config?.versionCode ?: 0),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (saving) CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                else Text("Save Update Configuration")
+                else Text("Publish Latest Successful Build")
+            }
+
+            config?.let {
+                Text(
+                    "Current release URL: ${it.downloadUrl.ifBlank { "Not configured" }}",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             message?.let {
-                Text(it, color = if (it.contains("saved", ignoreCase = true)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                Text(
+                    it,
+                    color = if (
+                        it.contains("published", ignoreCase = true) ||
+                        it.contains("saved", ignoreCase = true)
+                    ) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
             }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Release process: build a production APK → the successful build is recorded automatically → upload that APK to your chosen host → paste its URL here → publish it. Debug builds never change the public update version.",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
