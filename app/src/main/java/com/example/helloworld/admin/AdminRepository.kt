@@ -442,7 +442,7 @@ class AdminRepository(context: Context) {
 
     suspend fun uploadNotificationImage(bytes: ByteArray, contentType: String): Result<String> = runCatching {
         require(bytes.isNotEmpty()) { "The selected image is empty." }
-        require(bytes.size <= 8 * 1024 * 1024) { "Notification images must be 8 MB or smaller." }
+        require(bytes.size <= 1024 * 1024) { "Notification images must be 1 MB or smaller so they can be delivered reliably by FCM." }
         require(contentType.lowercase().startsWith("image/")) { "Please select an image file." }
 
         val extension = when (contentType.lowercase()) {
