@@ -46,7 +46,7 @@ object KfccNotificationScheduler {
     fun scheduleInstallDelivery(context: Context) {
         WorkManager.getInstance(context).enqueueUniqueWork(
             INSTALL_WORK,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<KfccNotificationWorker>()
                 .setInputData(
                     Data.Builder()
