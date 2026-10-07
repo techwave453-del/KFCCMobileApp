@@ -188,7 +188,7 @@ class NotificationRepository {
     private suspend fun resolveUsername(userId: String): String {
         return runCatching {
             client.from("chat_profiles")
-                .select(Columns.list("username", "display_name")) {
+                .select(Columns.list("user_id", "username", "display_name")) {
                     filter { eq("user_id", userId) }
                 }
                 .decodeList<ChatProfile>()
