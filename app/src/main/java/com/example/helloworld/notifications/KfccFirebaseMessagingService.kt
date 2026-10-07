@@ -65,7 +65,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val builder = NotificationCompat.Builder(this, KfccNotificationWorker.CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setContentIntent(pendingIntent)
@@ -106,7 +106,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
     private fun ensureChannel(churchName: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(KfccNotificationWorker.CHANNEL_ID, "$churchName Notifications", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(KfccNotificationWorker.CHANNEL_ID, "$churchName Notifications", NotificationManager.IMPORTANCE_HIGH)
             )
         }
     }
