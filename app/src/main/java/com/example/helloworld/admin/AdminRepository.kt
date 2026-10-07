@@ -382,6 +382,32 @@ class AdminRepository(context: Context) {
         }
     }
 
+    suspend fun publishLatestSuccessfulBuild(
+        downloadUrl: String,
+        releaseNotes: String,
+        isEnabled: Boolean
+    ): Result<Unit> = runCatching {
+        val latest = getAppUpdateConfig().getOrThrow()
+        require(latest.latestBuildVersionCode != null) { "No successful release build has been recorded yet." }
+        require(latest.latestBuildVersionName?.isNotBlank() == true) { "The latest successful build has no version name." }
+        require(downloadUrl.isNotBlank()) { "APK download URL is required." }
+        require(latest.latestBuildVersionCode > latest.versionCode) {
+            "The latest successful build must have a higher version code than the currently published version."
+        }
+
+        client.from("app_update_config").update(
+            mapOf(
+                "version_code" to latest.latestBuildVersionCode,
+                "version_name" to latest.latestBuildVersionName,
+                "download_url" to downloadUrl.trim(),
+                "release_notes" to releaseNotes.trim(),
+                "is_enabled" to isEnabled
+            )
+        ) {
+            filter { eq("id", AppUpdateConfig.SINGLETON_ID) }
+        }
+    }
+
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         client.from("app_notifications")
             .select()
@@ -539,7 +565,11 @@ data class AppUpdateConfig(
     @SerialName("version_name") val versionName: String = "1.0.0",
     @SerialName("download_url") val downloadUrl: String = "",
     @SerialName("release_notes") val releaseNotes: String = "",
-    @SerialName("is_enabled") val isEnabled: Boolean = false
+    @SerialName("is_enabled") val isEnabled: Boolean = false,
+    @SerialName("latest_build_version_code") val latestBuildVersionCode: Int? = null,
+    @SerialName("latest_build_version_name") val latestBuildVersionName: String? = null,
+    @SerialName("latest_build_at") val latestBuildAt: String? = null,
+    @SerialName("latest_build_commit") val latestBuildCommit: String? = null
 ) {
     companion object {
         const val SINGLETON_ID = "android"
