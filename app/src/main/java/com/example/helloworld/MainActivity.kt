@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.helloworld.ui.screens.bible.BibleChapterScreen
@@ -68,6 +69,8 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.helloworld.updates.AppUpdateManager
 
 class MainActivity : ComponentActivity() {
@@ -131,6 +134,109 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+private fun RequiredAppUpdateScreen(
+    update: com.example.helloworld.admin.AppUpdateConfig,
+    checking: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onInstall: () -> Unit
+) {
+    val context = LocalContext.current
+    val downloadId = AppUpdateManager.getTrackedDownloadId(context)
+    var downloadComplete by remember(downloadId) { mutableStateOf(false) }
+
+    LaunchedEffect(downloadId, update.versionCode) {
+        while (downloadId != -1L) {
+            val manager = context.getSystemService(android.app.DownloadManager::class.java)
+            val query = android.app.DownloadManager.Query().setFilterById(downloadId)
+            manager.query(query).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val status = cursor.getInt(
+                        cursor.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_STATUS)
+                    )
+                    downloadComplete = status == android.app.DownloadManager.STATUS_SUCCESSFUL
+                }
+            }
+            if (downloadComplete) break
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.SystemUpdate,
+                contentDescription = null,
+                modifier = Modifier.size(72.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Required app update",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Kanisa ${update.versionName} is available. You must install this update before continuing to use the app.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            if (update.releaseNotes.isNotBlank()) {
+                Text(
+                    update.releaseNotes,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(Modifier.height(28.dp))
+
+            when {
+                downloadComplete -> {
+                    Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.InstallMobile, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Install update")
+                    }
+                }
+                checking -> {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text("Checking the required update…")
+                }
+                error != null -> {
+                    Text(error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = onRetry) { Text("Retry") }
+                }
+                else -> {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text("Downloading required update…", textAlign = TextAlign.Center)
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "There is no Skip option. After installation, Kanisa will reopen on the new version.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KFCCApp(
@@ -167,8 +273,37 @@ fun KFCCApp(
         showBrandSplash = false
     }
 
+    var mandatoryUpdate by remember { mutableStateOf<com.example.helloworld.admin.AppUpdateConfig?>(null) }
+    var updateChecking by remember { mutableStateOf(true) }
+    var updateError by remember { mutableStateOf<String?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    suspend fun checkMandatoryUpdate() {
+        updateChecking = true
+        updateError = null
+        runCatching {
+            AppUpdateManager.checkAndSchedule(context)
+        }.onSuccess {
+            mandatoryUpdate = it
+            if (it != null) AppUpdateManager.installTrackedDownload(context)
+        }.onFailure {
+            updateError = it.message ?: "Unable to check for required app updates."
+        }
+        updateChecking = false
+    }
+
     LaunchedEffect(Unit) {
-        AppUpdateManager.checkAndSchedule(context)
+        checkMandatoryUpdate()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch { checkMandatoryUpdate() }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(chatSignedIn, adminUser?.id) {
@@ -257,6 +392,19 @@ fun KFCCApp(
         bibleBookId = bookId
         bibleChapter = chapter
         navigate(AppDestinations.BIBLE_CHAPTER)
+    }
+
+    if (mandatoryUpdate != null) {
+        BackHandler(enabled = true) {}
+
+        RequiredAppUpdateScreen(
+            update = mandatoryUpdate!!,
+            checking = updateChecking,
+            error = updateError,
+            onRetry = { scope.launch { checkMandatoryUpdate() } },
+            onInstall = { AppUpdateManager.installTrackedDownload(context) }
+        )
+        return
     }
 
     ModalNavigationDrawer(
