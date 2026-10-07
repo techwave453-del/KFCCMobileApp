@@ -179,8 +179,12 @@ fun KFCCApp(
         }
     }
 
-    LaunchedEffect(openChatRoomId) {
+    LaunchedEffect(openChatRoomId, chatSignedIn, adminUser?.id) {
         val roomId = openChatRoomId ?: return@LaunchedEffect
+        // Wait until the unified chat/admin session is restored. Otherwise a
+        // notification tap during cold start can select the room before ChatViewModel
+        // has an authenticated session and the navigation appears to do nothing.
+        if (!chatSignedIn && adminUser == null) return@LaunchedEffect
         currentDestination = AppDestinations.CHAT
         chatViewModel.selectRoom(roomId)
         onChatOpened()
