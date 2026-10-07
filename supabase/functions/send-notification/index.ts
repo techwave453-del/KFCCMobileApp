@@ -71,6 +71,7 @@ async function sendToToken(
   notificationId: string,
   type: string,
   imageUrl: string | null = null,
+  senderAvatarUrl: string | null = null,
 ) {
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
@@ -94,6 +95,7 @@ async function sendToToken(
             message,
             type,
             ...(imageUrl ? { image_url: imageUrl } : {}),
+            ...(senderAvatarUrl ? { sender_avatar_url: senderAvatarUrl } : {}),
           },
           android: {
             priority: "HIGH",
@@ -184,7 +186,7 @@ function personalize(value: string, username: string) {
     .replace(/\{username\}/gi, username);
 }
 
-async function getChatNotification(payload: any) {
+async function getSenderAvatar(senderId: string | null | undefined) {\n  if (!senderId) return null;\n  const response = await supabaseRequest(`chat_profiles?select=avatar_url&user_id=eq.${encodeURIComponent(senderId)}&limit=1`);\n  const rows = await response.json();\n  if (!response.ok) return null;\n  return rows?.[0]?.avatar_url?.trim() || null;\n}\n\nasync function getChatNotification(payload: any) {
   const message = payload.record;
   if (!message?.id || !message?.room_id || !message?.sender_id || !message?.message) {
     throw new Error("Invalid chat message payload");
@@ -247,7 +249,7 @@ Deno.serve(async (req) => {
     let message: string;
     let type: string;
     let targets: { token: string; userId: string }[];
-    let imageUrl: string | null = null;
+    let imageUrl: string | null = null;\n    let senderAvatarUrl: string | null = null;
 
     if (
       payload?.type === "INSERT" &&
