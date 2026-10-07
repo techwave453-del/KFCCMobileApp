@@ -181,6 +181,12 @@ async function getUsernames(userIds: string[]) {
   );
 }
 
+function formatCommunityUsername(username: string) {
+  const value = username.trim();
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function personalize(value: string, username: string) {
   if (!username) return value;
   return value
@@ -234,7 +240,7 @@ async function getChatNotification(payload: any) {
 
   return {
     id: message.id,
-    title: `${senderName} · ${roomTitle}`,
+    title: senderName,
     body: message.message,
     type: "chat",
     targets: (await getNotificationTargets({ user_id: null })).filter((target) => userIds.includes(target.userId)),
