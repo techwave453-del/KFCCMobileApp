@@ -2,10 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { SignJWT, importPKCS8 } from "npm:jose@6";
 
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 const required = (name: string) => {
   const value = Deno.env.get(name)?.trim();
@@ -17,125 +14,53 @@ async function getFcmAccessToken() {
   const projectId = required("FIREBASE_PROJECT_ID");
   const clientEmail = required("FIREBASE_CLIENT_EMAIL");
   const privateKey = required("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
-
   const key = await importPKCS8(privateKey, "RS256");
-  const assertion = await new SignJWT({
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
-  })
+  const assertion = await new SignJWT({ scope: "https://www.googleapis.com/auth/firebase.messaging" })
     .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-    .setIssuer(clientEmail)
-    .setSubject(clientEmail)
-    .setAudience("https://oauth2.googleapis.com/token")
-    .setIssuedAt()
-    .setExpirationTime("1h")
-    .sign(key);
-
+    .setIssuer(clientEmail).setSubject(clientEmail)
+    .setAudience("https://oauth2.googleapis.com/token").setIssuedAt()
+    .setExpirationTime("1h").sign(key);
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
-    }),
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
   });
-
   const body = await response.json();
-  if (!response.ok || !body.access_token) {
-    throw new Error(`Google OAuth token request failed: ${JSON.stringify(body)}`);
-  }
-
+  if (!response.ok || !body.access_token) throw new Error(`Google OAuth token request failed: ${JSON.stringify(body)}`);
   return { projectId, accessToken: body.access_token as string };
 }
 
 async function supabaseRequest(path: string, init: RequestInit = {}) {
   const baseUrl = required("SUPABASE_URL");
   const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
-
   return fetch(`${baseUrl}/rest/v1/${path}`, {
     ...init,
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
+    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
 }
 
-async function sendToToken(
-  projectId: string,
-  accessToken: string,
-  token: string,
-  title: string,
-  message: string,
-  notificationId: string,
-  type: string,
-  imageUrl: string | null = null,
-  senderAvatarUrl: string | null = null,
-  roomId: string | null = null,
-) {
-  const response = await fetch(
-    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: {
-          token,
-          notification: {
-            title,
-            body: message,
-            ...(imageUrl ? { image: imageUrl } : {}),
-          },
-          data: {
-            notification_id: notificationId,
-            title,
-            message,
-            type,
-            ...(imageUrl ? { image_url: imageUrl } : {}),
-            ...(senderAvatarUrl ? { sender_avatar_url: senderAvatarUrl } : {}),
-            ...(roomId ? { room_id: roomId } : {}),
-          },
-          android: {
-            priority: "HIGH",
-            notification: {
-              channel_id: "kfcc_church_notifications",
-              ...(imageUrl ? { image: imageUrl } : {}),
-            },
-          },
+async function sendToToken(projectId: string, accessToken: string, token: string, title: string, message: string, notificationId: string, type: string, imageUrl: string | null = null, senderAvatarUrl: string | null = null, roomId: string | null = null) {
+  const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: {
+        token,
+        // Data-only delivery is intentional. It guarantees Kanisa's service
+        // creates the notification in both foreground and background, so the
+        // avatar and exact-chat PendingIntent are always under app control.
+        data: {
+          notification_id: notificationId, title, message, type,
+          ...(imageUrl ? { image_url: imageUrl } : {}),
+          ...(senderAvatarUrl ? { sender_avatar_url: senderAvatarUrl } : {}),
+          ...(roomId ? { room_id: roomId } : {}),
         },
-      }),
-    },
-  );
-
+        android: { priority: "HIGH" },
+      },
+    }),
+  });
   const body = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, body };
-}
-
-async function getTokensForUserIds(userIds: string[]) {
-  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
-  if (uniqueUserIds.length === 0) return [];
-
-  const encodedIds = uniqueUserIds.map((id) => encodeURIComponent(id)).join(",");
-  const response = await supabaseRequest(
-    `device_tokens?select=token&user_id=in.(${encodedIds})`,
-  );
-  const rows = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`Failed to load device tokens: ${JSON.stringify(rows)}`);
-  }
-
-  return [
-    ...new Set(
-      (rows ?? [])
-        .map((row: { token?: string }) => row.token?.trim())
-        .filter((token: string | undefined): token is string => Boolean(token)),
-    ),
-  ];
 }
 
 async function getNotificationTargets(notification: any) {
@@ -144,20 +69,13 @@ async function getNotificationTargets(notification: any) {
     : "device_tokens?select=token,user_id";
   const response = await supabaseRequest(query);
   const rows = await response.json();
-  if (!response.ok) {
-    throw new Error(`Failed to load device tokens: ${JSON.stringify(rows)}`);
-  }
-
+  if (!response.ok) throw new Error(`Failed to load device tokens: ${JSON.stringify(rows)}`);
   const seen = new Set<string>();
   return (rows ?? [])
-    .map((row: { token?: string; user_id?: string }) => ({
-      token: row.token?.trim() || "",
-      userId: row.user_id || "",
-    }))
+    .map((row: { token?: string; user_id?: string }) => ({ token: row.token?.trim() || "", userId: row.user_id || "" }))
     .filter((target: { token: string }) => {
       if (!target.token || seen.has(target.token)) return false;
-      seen.add(target.token);
-      return true;
+      seen.add(target.token); return true;
     });
 }
 
@@ -165,166 +83,59 @@ async function getUsernames(userIds: string[]) {
   const ids = [...new Set(userIds.filter(Boolean))];
   if (ids.length === 0) return new Map<string, string>();
   const encoded = ids.map(encodeURIComponent).join(",");
-  const response = await supabaseRequest(
-    `chat_profiles?select=user_id,username,display_name&user_id=in.(${encoded})`,
-  );
+  const response = await supabaseRequest(`chat_profiles?select=user_id,username,display_name&user_id=in.(${encoded})`);
   const rows = await response.json();
-  if (!response.ok) {
-    throw new Error(`Failed to load notification profiles: ${JSON.stringify(rows)}`);
-  }
-
-  return new Map(
-    (rows ?? []).map((row: { user_id?: string; username?: string; display_name?: string }) => [
-      row.user_id || "",
-      row.username?.trim() || row.display_name?.trim() || "",
-    ]),
-  );
-}
-
-function typeIsChat(type: string | null | undefined) {
-  return type === "chat" || type === "chat_message";
+  if (!response.ok) throw new Error(`Failed to load notification profiles: ${JSON.stringify(rows)}`);
+  return new Map((rows ?? []).map((row: { user_id?: string; username?: string; display_name?: string }) => [
+    row.user_id || "", row.username?.trim() || row.display_name?.trim() || "",
+  ]));
 }
 
 function formatCommunityUsername(username: string) {
   const value = username.trim();
-  if (!value) return "";
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
 }
 
 function personalize(value: string, username: string) {
   if (!username) return value;
-  return value
-    .replace(/\{\{username\}\}/gi, username)
-    .replace(/\{username\}/gi, username);
+  return value.replace(/\{\{username\}\}/gi, username).replace(/\{username\}/gi, username);
 }
 
 async function getSenderAvatar(senderId: string | null | undefined) {
   if (!senderId) return null;
   const response = await supabaseRequest(`chat_profiles?select=avatar_url&user_id=eq.${encodeURIComponent(senderId)}&limit=1`);
   const rows = await response.json();
-  if (!response.ok) return null;
-  return rows?.[0]?.avatar_url?.trim() || null;
-}
-
-async function getChatNotification(payload: any) {
-  const message = payload.record;
-  if (!message?.id || !message?.room_id || !message?.sender_id || !message?.message) {
-    throw new Error("Invalid chat message payload");
-  }
-
-  const membersResponse = await supabaseRequest(
-    `chat_room_members?select=user_id&room_id=eq.${encodeURIComponent(message.room_id)}&user_id=neq.${encodeURIComponent(message.sender_id)}`,
-  );
-  const members = await membersResponse.json();
-  if (!membersResponse.ok) {
-    throw new Error(`Failed to load chat members: ${JSON.stringify(members)}`);
-  }
-
-  const senderResponse = await supabaseRequest(
-    `chat_profiles?select=username,display_name&user_id=eq.${encodeURIComponent(message.sender_id)}&limit=1`,
-  );
-  const senderRows = await senderResponse.json();
-  if (!senderResponse.ok) {
-    throw new Error(`Failed to load sender profile: ${JSON.stringify(senderRows)}`);
-  }
-
-  const roomResponse = await supabaseRequest(
-    `chat_rooms?select=title& id=eq.${encodeURIComponent(message.room_id)}&limit=1`.replace("title& id", "title&id"),
-  );
-  const roomRows = await roomResponse.json();
-  if (!roomResponse.ok) {
-    throw new Error(`Failed to load chat room: ${JSON.stringify(roomRows)}`);
-  }
-
-  const sender = senderRows?.[0];
-  const room = roomRows?.[0];
-  const senderName = formatCommunityUsername(sender?.username?.trim() || sender?.display_name?.trim() || "Member");
-  const roomTitle = room?.title?.trim() || "Community Chat";
-  const userIds = (members ?? []).map((row: { user_id?: string }) => row.user_id).filter(Boolean);
-
-  return {
-    id: message.id,
-    title: senderName,
-    body: message.message,
-    type: "chat",
-    targets: (await getNotificationTargets({ user_id: null })).filter((target) => userIds.includes(target.userId)),
-    senderAvatarUrl: await getSenderAvatar(message.sender_id),
-    roomId: message.room_id,
-  };
+  return response.ok ? rows?.[0]?.avatar_url?.trim() || null : null;
 }
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-
   try {
     const webhookSecret = required("FCM_WEBHOOK_SECRET");
-    if (req.headers.get("x-kfcc-webhook-secret") !== webhookSecret) {
-      return json({ error: "Unauthorized webhook" }, 401);
-    }
-
+    if (req.headers.get("x-kfcc-webhook-secret") !== webhookSecret) return json({ error: "Unauthorized webhook" }, 401);
     const payload = await req.json();
-
     const { projectId, accessToken } = await getFcmAccessToken();
 
-    let notificationId: string;
-    let title: string;
-    let message: string;
-    let type: string;
-    let targets: { token: string; userId: string }[];
-    let imageUrl: string | null = null;
-    let senderAvatarUrl: string | null = null;
-  let roomId: string | null = null;
+    let notificationId: string, title: string, message: string, type: string;
+    let targets: { token: string; userId: string }[], imageUrl: string | null = null;
+    let senderAvatarUrl: string | null = null, roomId: string | null = null;
 
-    if (
-      payload?.type === "INSERT" &&
-      payload?.schema === "public" &&
-      payload?.table === "app_notifications"
-    ) {
+    if (payload?.type === "INSERT" && payload?.schema === "public" && payload?.table === "app_notifications") {
       const notification = payload.record;
-      if (!notification?.id || !notification?.title || !notification?.message) {
-        return json({ error: "Invalid notification payload" }, 400);
-      }
-
+      if (!notification?.id || !notification?.title || !notification?.message) return json({ error: "Invalid notification payload" }, 400);
       notificationId = notification.id;
       title = notification.title;
       message = notification.message;
       type = notification.type ?? "general";
       imageUrl = notification.image_url ?? null;
+      roomId = notification.room_id ?? null;
       targets = await getNotificationTargets(notification);
       senderAvatarUrl = await getSenderAvatar(notification.sender_id);
-
-      if (typeIsChat(notification.type)) {
-        const chatResponse = await supabaseRequest(
-          `chat_messages?select=room_id,sender_id&id=eq.${encodeURIComponent(notification.id)}&limit=1`,
-        );
-        const chatRows = await chatResponse.json();
-        if (chatResponse.ok && chatRows?.[0]?.room_id) {
-          roomId = chatRows[0].room_id;
-          if (!senderAvatarUrl && chatRows[0].sender_id) {
-            senderAvatarUrl = await getSenderAvatar(chatRows[0].sender_id);
-          }
-        }
-      }
-    } else if (
-      payload?.type === "INSERT" &&
-      payload?.schema === "public" &&
-      payload?.table === "chat_messages"
-    ) {
-      const chat = await getChatNotification(payload);
-      notificationId = chat.id;
-      title = chat.title;
-      message = chat.body;
-      type = chat.type;
-      targets = chat.targets;
-      senderAvatarUrl = chat.senderAvatarUrl;
-      roomId = chat.roomId;
     } else {
       return json({ ok: true, ignored: true });
     }
 
-    if (targets.length === 0) {
-      return json({ ok: true, sent: 0, targeted: 0, message: "No registered devices" });
-    }
+    if (targets.length === 0) return json({ ok: true, sent: 0, targeted: 0, message: "No registered devices" });
 
     const usernames = await getUsernames(targets.map((target) => target.userId));
     let sent = 0;
@@ -332,57 +143,30 @@ Deno.serve(async (req) => {
 
     for (const target of targets) {
       const username = formatCommunityUsername(usernames.get(target.userId) || "");
-      const personalizedTitle = personalize(title, username);
-      const personalizedMessage = personalize(message, username);
       const result = await sendToToken(
-        projectId,
-        accessToken,
-        target.token,
-        personalizedTitle,
-        personalizedMessage,
-        notificationId,
-        type,
-        imageUrl,
-        senderAvatarUrl,
-        roomId,
+        projectId, accessToken, target.token,
+        personalize(title, username), personalize(message, username),
+        notificationId, type, imageUrl, senderAvatarUrl, roomId,
       );
-
       if (result.ok) {
         sent++;
-        continue;
-      }
-
-      const errorText = JSON.stringify(result.body);
-      if (
-        result.status === 404 ||
-        errorText.includes("UNREGISTERED") ||
-        errorText.includes("registration-token-not-registered")
-      ) {
-        invalidTokens.push(target.token);
       } else {
-        console.error("FCM send failed", result.status, result.body);
+        const errorText = JSON.stringify(result.body);
+        if (result.status === 404 || errorText.includes("UNREGISTERED") || errorText.includes("registration-token-not-registered")) {
+          invalidTokens.push(target.token);
+        } else {
+          console.error("FCM send failed", result.status, result.body);
+        }
       }
     }
 
     for (const token of invalidTokens) {
-      await supabaseRequest(
-        `device_tokens?token=eq.${encodeURIComponent(token)}`,
-        { method: "DELETE" },
-      );
+      await supabaseRequest(`device_tokens?token=eq.${encodeURIComponent(token)}`, { method: "DELETE" });
     }
 
-    return json({
-      ok: true,
-      notification_id: notificationId,
-      targeted: targets.length,
-      sent,
-      removed_invalid_tokens: invalidTokens.length,
-    });
+    return json({ ok: true, notification_id: notificationId, targeted: targets.length, sent, removed_invalid_tokens: invalidTokens.length });
   } catch (error) {
     console.error(error);
-    return json(
-      { error: error instanceof Error ? error.message : "FCM delivery failed" },
-      500,
-    );
+    return json({ error: error instanceof Error ? error.message : "FCM delivery failed" }, 500);
   }
 });
