@@ -8,8 +8,6 @@ import com.google.firebase.messaging.FirebaseMessaging
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
