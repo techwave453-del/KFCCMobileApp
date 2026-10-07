@@ -19,6 +19,7 @@ object KfccNotificationScheduler {
     private const val INSTALL_WORK = "kfcc_install_notification"
     private const val SIGN_UP_WORK = "kfcc_sign_up_notification"
     private const val DAILY_SCRIPTURE_WORK = "kfcc_daily_scripture_notification"
+    private const val DAILY_SCRIPTURE_NOW_WORK = "kfcc_daily_scripture_now"
     const val KEY_MODE = "notification_mode"
     const val KEY_USERNAME = "notification_username"
     const val MODE_SIGN_IN = "sign_in"
@@ -26,16 +27,16 @@ object KfccNotificationScheduler {
     const val MODE_SIGN_UP = "sign_up"
     const val MODE_DAILY_SCRIPTURE = "daily_scripture"
 
-    fun schedule(context: Context) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+    private fun connectedConstraints() = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .build()
 
+    fun schedule(context: Context) {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             PERIODIC_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<KfccNotificationWorker>(15, TimeUnit.MINUTES)
-                .setConstraints(constraints)
+                .setConstraints(connectedConstraints())
                 .build()
         )
 
@@ -48,16 +49,8 @@ object KfccNotificationScheduler {
             INSTALL_WORK,
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<KfccNotificationWorker>()
-                .setInputData(
-                    Data.Builder()
-                        .putString(KEY_MODE, MODE_INSTALL)
-                        .build()
-                )
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
+                .setInputData(Data.Builder().putString(KEY_MODE, MODE_INSTALL).build())
+                .setConstraints(connectedConstraints())
                 .build()
         )
     }
@@ -66,23 +59,31 @@ object KfccNotificationScheduler {
         val now = LocalDateTime.now()
         var next = now.withHour(8).withMinute(0).withSecond(0).withNano(0)
         if (!next.isAfter(now)) next = next.plusDays(1)
-
         val delay = Duration.between(now, next).toMillis()
+
         WorkManager.getInstance(context).enqueueUniqueWork(
             DAILY_SCRIPTURE_WORK,
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<KfccNotificationWorker>()
-                .setInputData(
-                    Data.Builder()
-                        .putString(KEY_MODE, MODE_DAILY_SCRIPTURE)
-                        .build()
-                )
+                .setInputData(Data.Builder().putString(KEY_MODE, MODE_DAILY_SCRIPTURE).build())
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
+                .setConstraints(connectedConstraints())
+                .build()
+        )
+    }
+
+    /**
+     * Deliver today's scripture immediately when authentication succeeds.
+     * The worker still requires internet, so an offline device waits until it
+     * reconnects instead of silently losing the delivery.
+     */
+    fun deliverDailyScriptureNow(context: Context) {
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            DAILY_SCRIPTURE_NOW_WORK,
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<KfccNotificationWorker>()
+                .setInputData(Data.Builder().putString(KEY_MODE, MODE_DAILY_SCRIPTURE).build())
+                .setConstraints(connectedConstraints())
                 .build()
         )
     }
@@ -106,6 +107,7 @@ object KfccNotificationScheduler {
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<KfccNotificationWorker>()
                 .setInputData(data)
+                .setConstraints(connectedConstraints())
                 .build()
         )
     }
@@ -115,13 +117,7 @@ object KfccNotificationScheduler {
         if (mode != null) {
             builder.setInputData(Data.Builder().putString(KEY_MODE, mode).build())
         }
-        if (requireNetwork) {
-            builder.setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-        }
+        if (requireNetwork) builder.setConstraints(connectedConstraints())
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             when (mode) {
