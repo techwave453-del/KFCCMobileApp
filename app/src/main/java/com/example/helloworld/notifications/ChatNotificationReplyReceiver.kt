@@ -26,7 +26,6 @@ class ChatNotificationReplyReceiver : BroadcastReceiver() {
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                SupabaseProvider.client.auth.awaitInitialization()
                 if (!SupabaseProvider.ensureSession()) return@launch
                 ChatRepository().sendMessage(roomId, reply)
                 if (notificationId.isNotBlank()) {
