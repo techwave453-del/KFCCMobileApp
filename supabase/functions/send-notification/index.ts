@@ -16,9 +16,7 @@ const required = (name: string) => {
 async function getFcmAccessToken() {
   const projectId = required("FIREBASE_PROJECT_ID");
   const clientEmail = required("FIREBASE_CLIENT_EMAIL");
-  const privateKey = required("FIREBASE_PRIVATE_KEY").replace(/\
-/g, "
-");
+  const privateKey = required("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
 
   const key = await importPKCS8(privateKey, "RS256");
   const assertion = await new SignJWT({
