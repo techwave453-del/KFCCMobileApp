@@ -20,6 +20,8 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4.0.2
       - name: Locate Android SDK tools
         shell: bash
         run: |
@@ -66,7 +68,6 @@ jobs:
         run: |
           set -euo pipefail
           sdkmanager --licenses < /dev/null || true
-
       - name: Grant execute permission
         run: chmod +x gradlew
 
