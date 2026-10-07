@@ -32,9 +32,15 @@ class NotificationRepository {
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         syncFromServer().getOrElse {
             val userId = client.auth.currentUserOrNull()?.id
+            val username = userId?.let { resolveUsername(it) }.orEmpty()
             offline.getNotifications(userId).filter {
                 it.isEnabled &&
                     (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
+            }.map {
+                it.copy(
+                    title = personalize(it.title, username),
+                    message = personalize(it.message, username)
+                )
             }
         }
     }
@@ -170,6 +176,8 @@ class NotificationRepository {
     }
 
     suspend fun getPublicDefaults(onInstall: Boolean): Result<List<AppNotification>> = runCatching {
+        val userId = client.auth.currentUserOrNull()?.id
+        val username = userId?.let { resolveUsername(it) }.orEmpty()
         val rows = client.from("app_notifications")
             .select()
             .decodeList<AppNotification>()
@@ -180,7 +188,12 @@ class NotificationRepository {
         }.sortedWith(
             compareByDescending<AppNotification> { it.updatedAt ?: it.createdAt }
                 .thenByDescending { it.createdAt }
-        )
+        ).map {
+            it.copy(
+                title = personalize(it.title, username),
+                message = personalize(it.message, username)
+            )
+        }
     }
 
     suspend fun getPublicDefault(onInstall: Boolean): Result<AppNotification?> =
@@ -230,6 +243,7 @@ class NotificationRepository {
             if (it.isLowerCase()) it.titlecase() else it.toString()
         }
     }
+
     private data class SenderProfile(val avatarUrl: String?)
 
     private suspend fun resolveSenderProfiles(userIds: List<String>): Map<String, SenderProfile> {
