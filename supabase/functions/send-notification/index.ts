@@ -72,6 +72,7 @@ async function sendToToken(
   type: string,
   imageUrl: string | null = null,
   senderAvatarUrl: string | null = null,
+  roomId: string | null = null,
 ) {
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
@@ -96,6 +97,7 @@ async function sendToToken(
             type,
             ...(imageUrl ? { image_url: imageUrl } : {}),
             ...(senderAvatarUrl ? { sender_avatar_url: senderAvatarUrl } : {}),
+            ...(roomId ? { room_id: roomId } : {}),
           },
           android: {
             priority: "HIGH",
@@ -235,7 +237,9 @@ async function getChatNotification(payload: any) {
     title: `${senderName} · ${roomTitle}`,
     body: message.message,
     type: "chat",
-    tokens: await getTokensForUserIds(userIds),
+    targets: (await getNotificationTargets({ user_id: null })).filter((target) => userIds.includes(target.userId)),
+    senderAvatarUrl: await getSenderAvatar(message.sender_id),
+    roomId: message.room_id,
   };
 }
 
@@ -259,6 +263,7 @@ Deno.serve(async (req) => {
     let targets: { token: string; userId: string }[];
     let imageUrl: string | null = null;
     let senderAvatarUrl: string | null = null;
+  let roomId: string | null = null;
 
     if (
       payload?.type === "INSERT" &&
@@ -276,6 +281,7 @@ Deno.serve(async (req) => {
       type = notification.type ?? "general";
       imageUrl = notification.image_url ?? null;
       targets = await getNotificationTargets(notification);
+      senderAvatarUrl = await getSenderAvatar(notification.sender_id);
     } else if (
       payload?.type === "INSERT" &&
       payload?.schema === "public" &&
@@ -286,7 +292,9 @@ Deno.serve(async (req) => {
       title = chat.title;
       message = chat.body;
       type = chat.type;
-      targets = chat.tokens.map((token) => ({ token, userId: "" }));
+      targets = chat.targets;
+      senderAvatarUrl = chat.senderAvatarUrl;
+      roomId = chat.roomId;
     } else {
       return json({ ok: true, ignored: true });
     }
@@ -312,6 +320,8 @@ Deno.serve(async (req) => {
         notificationId,
         type,
         imageUrl,
+        senderAvatarUrl,
+        roomId,
       );
 
       if (result.ok) {
@@ -325,7 +335,7 @@ Deno.serve(async (req) => {
         errorText.includes("UNREGISTERED") ||
         errorText.includes("registration-token-not-registered")
       ) {
-        invalidTokens.push(token);
+        invalidTokens.push(target.token);
       } else {
         console.error("FCM send failed", result.status, result.body);
       }
