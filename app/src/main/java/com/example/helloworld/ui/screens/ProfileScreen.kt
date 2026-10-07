@@ -33,7 +33,6 @@ import com.example.helloworld.data.ChatAuthRepository
 import com.example.helloworld.data.ChatProfile
 import com.example.helloworld.ui.ChatViewModel
 import com.example.helloworld.ui.ChurchViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
