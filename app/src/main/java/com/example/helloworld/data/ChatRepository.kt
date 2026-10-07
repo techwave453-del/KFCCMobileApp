@@ -196,6 +196,43 @@ class ChatRepository {
         client.from("chat_messages").insert(data)
     }
 
+    suspend fun markChatNotificationsRead(roomId: String, context: Context): Result<Unit> = runCatching {
+        val userId = client.auth.currentUserOrNull()?.id ?: error("No signed-in user")
+        val messageIds = client.from("chat_messages")
+            .select(Columns.list("id")) {
+                filter {
+                    eq("room_id", roomId)
+                    exact("deleted_at", null)
+                }
+            }
+            .decodeList<ChatMessageId>()
+            .map { it.id }
+
+        if (messageIds.isEmpty()) return@runCatching Unit
+
+        val now = java.time.Instant.now().toString()
+        val rows = messageIds.map { messageId ->
+            NotificationReadEntity(messageId, userId, now)
+        }
+        rows.forEach { offlineNotificationDatabase(context).notificationDao().upsertRead(it) }
+
+        client.from("notification_reads").upsert(
+            rows.map {
+                mapOf(
+                    "notification_id" to it.notificationId,
+                    "user_id" to it.userId,
+                    "read_at" to it.readAt
+                )
+            }
+        )
+    }
+
+    @Serializable
+    private data class ChatMessageId(val id: String)
+
+    private fun offlineNotificationDatabase(context: Context) =
+        KfccDatabase.getInstance(context)
+
     suspend fun editMessage(messageId: String, message: String): Result<Unit> = runCatching {
         val text = message.trim()
         require(text.isNotEmpty()) { "Message cannot be empty." }
