@@ -181,6 +181,10 @@ async function getUsernames(userIds: string[]) {
   );
 }
 
+function typeIsChat(type: string | null | undefined) {
+  return type === "chat" || type === "chat_message";
+}
+
 function formatCommunityUsername(username: string) {
   const value = username.trim();
   if (!value) return "";
@@ -288,6 +292,19 @@ Deno.serve(async (req) => {
       imageUrl = notification.image_url ?? null;
       targets = await getNotificationTargets(notification);
       senderAvatarUrl = await getSenderAvatar(notification.sender_id);
+
+      if (typeIsChat(notification.type)) {
+        const chatResponse = await supabaseRequest(
+          `chat_messages?select=room_id,sender_id&id=eq.${encodeURIComponent(notification.id)}&limit=1`,
+        );
+        const chatRows = await chatResponse.json();
+        if (chatResponse.ok && chatRows?.[0]?.room_id) {
+          roomId = chatRows[0].room_id;
+          if (!senderAvatarUrl && chatRows[0].sender_id) {
+            senderAvatarUrl = await getSenderAvatar(chatRows[0].sender_id);
+          }
+        }
+      }
     } else if (
       payload?.type === "INSERT" &&
       payload?.schema === "public" &&
