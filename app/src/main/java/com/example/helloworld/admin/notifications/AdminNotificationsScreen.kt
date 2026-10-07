@@ -167,7 +167,7 @@ fun AdminNotificationsScreen(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                "The selected install and sign-in notifications are applied automatically.",
+                "Only notifications marked approved are visible to members. Install and sign-in defaults are applied automatically.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -244,7 +244,7 @@ private fun NotificationHistoryCard(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Enabled")
+                Text("Approved for members")
                 Switch(checked = notification.isEnabled, onCheckedChange = onEnabledChanged)
             }
             Row(
