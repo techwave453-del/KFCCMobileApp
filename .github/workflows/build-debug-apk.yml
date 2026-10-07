@@ -1,77 +1,44 @@
-
 name: Build Debug APK
 
-
-
 on:
-
   workflow_dispatch:
-
   push:
-
     branches:
-
       - feature/admin-configurable-app-updates-20261007
 
-
-
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-
       - name: Checkout
-
         uses: actions/checkout@v4
 
-
-
       - name: Set up JDK 17
-
         uses: actions/setup-java@v4
-
         with:
-
           distribution: temurin
-
           java-version: '17'
 
-
-
       - name: Set up Android SDK
-
         uses: android-actions/setup-android@v4.0.2
 
-
+      - name: Configure Firebase
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.KANISA_GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
 
       - name: Grant execute permission
-
         run: chmod +x gradlew
 
-
-
       - name: Build debug APK
-
         env:
-
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-
         run: ./gradlew :app:assembleDebug --no-configuration-cache
 
-
-
       - name: Upload debug APK
-
         uses: actions/upload-artifact@v4
-
         with:
-
           name: kanisa-debug-apk
-
           path: app/build/outputs/apk/debug/app-debug.apk
-
           if-no-files-found: error
-
