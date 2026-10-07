@@ -71,6 +71,7 @@ import androidx.lifecycle.lifecycleScope
 
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
+    private var openChatRoomId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -92,7 +93,9 @@ class MainActivity : ComponentActivity() {
             ) {
                 KFCCApp(
                     openNotifications = openNotifications,
-                    onNotificationOpened = { openNotifications = false }
+                    openChatRoomId = openChatRoomId,
+                    onNotificationOpened = { openNotifications = false },
+                    onChatOpened = { openChatRoomId = null }
                 )
             }
         }
@@ -104,6 +107,9 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
         if (intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)) {
             openNotifications = true
+        }
+        intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }?.let {
+            openChatRoomId = it
         }
     }
 
@@ -127,7 +133,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun KFCCApp(
     openNotifications: Boolean = false,
+    openChatRoomId: String? = null,
     onNotificationOpened: () -> Unit = {},
+    onChatOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
@@ -168,6 +176,13 @@ fun KFCCApp(
             currentDestination = AppDestinations.NOTIFICATIONS
             onNotificationOpened()
         }
+    }
+
+    LaunchedEffect(openChatRoomId) {
+        val roomId = openChatRoomId ?: return@LaunchedEffect
+        currentDestination = AppDestinations.CHAT
+        chatViewModel.selectRoom(roomId)
+        onChatOpened()
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
