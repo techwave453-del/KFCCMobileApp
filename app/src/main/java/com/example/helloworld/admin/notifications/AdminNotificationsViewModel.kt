@@ -1,7 +1,10 @@
 package com.example.helloworld.admin.notifications
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import java.io.ByteArrayOutputStream
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.admin.AdminRepositoryProvider
@@ -42,9 +45,8 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
     fun uploadImage(uri: Uri, contentType: String, onComplete: (String?, String?) -> Unit) {
         viewModelScope.launch {
             val result = runCatching {
-                val bytes = getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: error("Unable to read the selected picture.")
-                repository.uploadNotificationImage(bytes, contentType).getOrThrow()
+                val bytes = compressNotificationImage(uri)
+                repository.uploadNotificationImage(bytes, "image/jpeg").getOrThrow()
             }
             result.onSuccess { url ->
                 _message.value = "Picture uploaded."
@@ -52,6 +54,49 @@ class AdminNotificationsViewModel(application: Application) : AndroidViewModel(a
             }.onFailure {
                 _error.value = it.message ?: "Unable to upload the notification picture."
                 onComplete(null, null)
+            }
+        }
+    }
+
+    private fun compressNotificationImage(uri: Uri): ByteArray {
+        val resolver = getApplication<Application>().contentResolver
+        val source = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            ?: error("Unable to read the selected picture.")
+
+        source.use {
+            val maxDimension = 1280
+            val scale = minOf(
+                1f,
+                maxDimension.toFloat() / maxOf(source.width, source.height).toFloat()
+            )
+            val bitmap = if (scale < 1f) {
+                Bitmap.createScaledBitmap(
+                    source,
+                    (source.width * scale).toInt().coerceAtLeast(1),
+                    (source.height * scale).toInt().coerceAtLeast(1),
+                    true
+                )
+            } else {
+                source
+            }
+
+            try {
+                var quality = 88
+                var output: ByteArray
+                do {
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream)
+                    output = stream.toByteArray()
+                    stream.close()
+                    quality -= 8
+                } while (output.size > 900 * 1024 && quality >= 40)
+
+                require(output.size <= 900 * 1024) {
+                    "The selected picture could not be compressed enough for notification delivery."
+                }
+                return output
+            } finally {
+                if (bitmap !== source) bitmap.recycle()
             }
         }
     }
