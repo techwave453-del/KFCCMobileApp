@@ -200,23 +200,36 @@ class NotificationRepository {
     }
 
     private suspend fun resolveUsername(userId: String): String {
-        return runCatching {
+        // The community identity is authoritative: chat_profiles.username.
+        // Auth metadata is only a fallback while the community profile is
+        // being materialized or when the profile read is temporarily unavailable.
+        val profileUsername = runCatching {
             client.from("chat_profiles")
                 .select(Columns.list("user_id", "username", "display_name")) {
                     filter { eq("user_id", userId) }
                 }
                 .decodeList<ChatProfile>()
                 .firstOrNull()
-                ?.let { profile ->
-                    profile.username
-                        .trim()
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-                ?.trim()
-                .orEmpty()
-        }.getOrDefault("")
-    }
+                ?.username
+        }.getOrNull()
 
+        val metadataUsername = runCatching {
+            client.auth.currentUserOrNull()
+                ?.userMetadata
+                ?.get("chat_username")
+                ?.toString()
+                ?.trim('"')
+        }.getOrNull()
+
+        val username = sequenceOf(profileUsername, metadataUsername)
+            .mapNotNull { it?.trim()?.removePrefix("@")?.takeIf { value -> value.isNotBlank() } }
+            .firstOrNull()
+            ?: return ""
+
+        return username.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase() else it.toString()
+        }
+    }
     private data class SenderProfile(val avatarUrl: String?)
 
     private suspend fun resolveSenderProfiles(userIds: List<String>): Map<String, SenderProfile> {
