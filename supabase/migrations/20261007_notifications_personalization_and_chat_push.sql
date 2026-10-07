@@ -3,6 +3,9 @@
 alter table public.app_notifications
     add column if not exists image_url text;
 
+alter table public.app_notifications
+    add column if not exists sender_id uuid references auth.users(id);
+
 insert into storage.buckets (id, name, public)
 values ('notification-images', 'notification-images', true)
 on conflict (id) do update set public = true;
@@ -60,8 +63,8 @@ begin
     end if;
 
     select coalesce(
-        nullif(cp.display_name, ''),
         nullif(cp.username, ''),
+        nullif(cp.display_name, ''),
         'A church member'
     )
     into sender_name
@@ -81,6 +84,7 @@ begin
     loop
         insert into public.app_notifications (
             user_id,
+            sender_id,
             title,
             message,
             type,
@@ -90,6 +94,7 @@ begin
         )
         values (
             recipient_id,
+            new.sender_id,
             'New message from ' || coalesce(sender_name, 'a member'),
             case
                 when coalesce(room_title, '') <> ''
