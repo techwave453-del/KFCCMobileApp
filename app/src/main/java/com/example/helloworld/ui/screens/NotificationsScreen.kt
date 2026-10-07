@@ -36,6 +36,9 @@ fun NotificationsScreen(
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
+    // Chat messages are handled by the Android notification tray, not the in-app history.
+    // This screen is reserved for church/admin notifications.
+    val adminNotifications = notifications.filterNot { it.type.equals("chat", true) || it.type.equals("chat_message", true) }
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
@@ -74,11 +77,11 @@ fun NotificationsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        } else if (isLoading && notifications.isEmpty()) {
+        } else if (isLoading && adminNotifications.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else if (error != null && notifications.isEmpty()) {
+        } else if (error != null && adminNotifications.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -90,7 +93,7 @@ fun NotificationsScreen(
                     onRetry = viewModel::refresh
                 )
             }
-        } else if (notifications.isEmpty()) {
+        } else if (adminNotifications.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -122,7 +125,7 @@ fun NotificationsScreen(
                         }
                         Spacer(Modifier.height(12.dp))
                     }
-                    val unreadCount = notifications.count { it.readAt == null }
+                    val unreadCount = adminNotifications.count { it.readAt == null }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -151,7 +154,7 @@ fun NotificationsScreen(
                     )
                 }
                 items(
-                    notifications.sortedWith(
+                    adminNotifications.sortedWith(
                         compareBy<AppNotification> { it.readAt != null }
                             .thenByDescending { it.createdAt }
                     ),
