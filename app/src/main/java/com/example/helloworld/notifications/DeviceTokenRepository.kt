@@ -7,6 +7,7 @@ import com.example.helloworld.data.SupabaseProvider
 import com.google.firebase.messaging.FirebaseMessaging
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.SerialName
