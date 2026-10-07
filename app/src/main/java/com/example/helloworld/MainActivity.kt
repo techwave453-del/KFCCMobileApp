@@ -237,6 +237,45 @@ private fun RequiredAppUpdateScreen(
     }
 }
 
+@Composable
+private fun RequiredUpdateCheckFailedScreen(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.CloudOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Update verification required",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Kanisa could not verify whether this installation is current. For security, the app will not continue until the update check succeeds.",
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KFCCApp(
@@ -274,6 +313,7 @@ fun KFCCApp(
     }
 
     var mandatoryUpdate by remember { mutableStateOf<com.example.helloworld.admin.AppUpdateConfig?>(null) }
+    var updateCheckFailed by remember { mutableStateOf(false) }
     var updateChecking by remember { mutableStateOf(true) }
     var updateError by remember { mutableStateOf<String?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -281,6 +321,7 @@ fun KFCCApp(
     suspend fun checkMandatoryUpdate() {
         updateChecking = true
         updateError = null
+        updateCheckFailed = false
         runCatching {
             AppUpdateManager.checkAndSchedule(context)
         }.onSuccess {
@@ -288,6 +329,7 @@ fun KFCCApp(
             if (it != null) AppUpdateManager.installTrackedDownload(context)
         }.onFailure {
             updateError = it.message ?: "Unable to check for required app updates."
+            updateCheckFailed = true
         }
         updateChecking = false
     }
@@ -392,6 +434,15 @@ fun KFCCApp(
         bibleBookId = bookId
         bibleChapter = chapter
         navigate(AppDestinations.BIBLE_CHAPTER)
+    }
+
+    if (updateCheckFailed) {
+        BackHandler(enabled = true) {}
+        RequiredUpdateCheckFailedScreen(
+            message = updateError ?: "Unable to verify the current app version.",
+            onRetry = { scope.launch { checkMandatoryUpdate() } }
+        )
+        return
     }
 
     if (mandatoryUpdate != null) {
