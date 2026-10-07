@@ -221,7 +221,7 @@ class KfccNotificationWorker(
                 )
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         )
     }
