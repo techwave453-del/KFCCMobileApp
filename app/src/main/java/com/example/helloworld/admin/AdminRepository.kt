@@ -17,8 +17,6 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.storage.upload.UploadData
-import io.ktor.utils.io.ByteReadChannel
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -452,8 +450,8 @@ class AdminRepository(context: Context) {
             else -> "jpg"
         }
         val path = "notifications/" + UUID.randomUUID().toString() + "." + extension
-        val bucket = client.storage["notification-images"]
-        bucket.upload(path, UploadData(ByteReadChannel(bytes), bytes.size.toLong())) {
+        val bucket = client.storage.from("notification-images")
+        bucket.upload(path, bytes) {
             upsert = false
             this.contentType = ContentType.parse(contentType)
         }
