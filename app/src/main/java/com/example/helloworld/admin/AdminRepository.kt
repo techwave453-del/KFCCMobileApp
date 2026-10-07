@@ -534,7 +534,7 @@ class AdminRepository(context: Context) {
 
 @Serializable
 data class AppUpdateConfig(
-    @SerialName("id") val id: String = SINGLETON_ID,
+    @SerialName("id") val id: String = "android",
     @SerialName("version_code") val versionCode: Int = 1,
     @SerialName("version_name") val versionName: String = "1.0.0",
     @SerialName("download_url") val downloadUrl: String = "",
