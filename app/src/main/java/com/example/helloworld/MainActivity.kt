@@ -152,6 +152,10 @@ fun KFCCApp(
     val events by viewModel.events.collectAsState()
     val chatSignedIn by chatViewModel.signedIn.collectAsState()
     val adminUser by adminViewModel.user.collectAsState()
+    val notifications by notificationViewModel.notifications.collectAsState()
+    val unreadNotificationCount = remember(notifications) {
+        notifications.count { it.readAt == null }
+    }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
@@ -395,8 +399,20 @@ fun KFCCApp(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { navigate(AppDestinations.BIBLE) }) {
-                            Icon(Icons.Default.MenuBook, "Bible")
+                        IconButton(onClick = { navigate(AppDestinations.NOTIFICATIONS) }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadNotificationCount > 0) {
+                                        Badge {
+                                            Text(
+                                                text = if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString()
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Notifications, "Notifications")
+                            }
                         }
                         IconButton(onClick = { navigate(AppDestinations.SEARCH) }) {
                             Icon(Icons.Default.Search, "Search")
