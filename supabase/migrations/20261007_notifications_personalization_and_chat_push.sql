@@ -110,6 +110,7 @@ $$;
 revoke all on function private.create_chat_message_notifications()
 from public, anon, authenticated;
 
+drop trigger if exists "kfcc-fcm-chat-message" on public.chat_messages;
 drop trigger if exists chat_message_notification_trigger on public.chat_messages;
 create trigger chat_message_notification_trigger
 after insert on public.chat_messages
