@@ -359,6 +359,29 @@ class AdminRepository(context: Context) {
         )
     }
 
+    suspend fun getAppUpdateConfig(): Result<AppUpdateConfig> = runCatching {
+        client.from("app_update_config")
+            .select()
+            .decodeSingle<AppUpdateConfig>()
+    }
+
+    suspend fun saveAppUpdateConfig(config: AppUpdateConfig): Result<Unit> = runCatching {
+        require(config.versionCode > 0) { "Version code must be greater than zero." }
+        require(config.versionName.isNotBlank()) { "Version name is required." }
+        require(config.downloadUrl.isNotBlank()) { "APK download URL is required." }
+        client.from("app_update_config").update(
+            mapOf(
+                "version_code" to config.versionCode,
+                "version_name" to config.versionName.trim(),
+                "download_url" to config.downloadUrl.trim(),
+                "release_notes" to config.releaseNotes.trim(),
+                "is_enabled" to config.isEnabled
+            )
+        ) {
+            filter { eq("id", AppUpdateConfig.SINGLETON_ID) }
+        }
+    }
+
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         client.from("app_notifications")
             .select()
@@ -506,6 +529,20 @@ class AdminRepository(context: Context) {
         private const val SUPABASE_FUNCTIONS_URL =
             "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
 
+    }
+}
+
+@Serializable
+data class AppUpdateConfig(
+    @SerialName("id") val id: String = SINGLETON_ID,
+    @SerialName("version_code") val versionCode: Int = 1,
+    @SerialName("version_name") val versionName: String = "1.0.0",
+    @SerialName("download_url") val downloadUrl: String = "",
+    @SerialName("release_notes") val releaseNotes: String = "",
+    @SerialName("is_enabled") val isEnabled: Boolean = false
+) {
+    companion object {
+        const val SINGLETON_ID = "android"
     }
 }
 
