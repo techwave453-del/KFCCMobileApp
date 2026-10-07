@@ -11,6 +11,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import coil.ImageLoader
+import coil.request.ImageRequest
 import com.example.helloworld.MainActivity
 import com.example.helloworld.R
 import com.example.helloworld.data.AppNotification
