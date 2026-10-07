@@ -32,10 +32,18 @@ class NotificationRepository {
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         syncFromServer().getOrElse {
             val userId = client.auth.currentUserOrNull()?.id
-            offline.getNotifications(userId).filter {
-                it.isEnabled &&
-                    (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
-            }
+            val username = userId?.let { resolveUsername(it) }.orEmpty()
+            offline.getNotifications(userId)
+                .filter {
+                    it.isEnabled &&
+                        (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
+                }
+                .map { notification ->
+                    notification.copy(
+                        title = personalize(notification.title, username),
+                        message = personalize(notification.message, username)
+                    )
+                }
         }
     }
 
@@ -199,22 +207,47 @@ class NotificationRepository {
         })
     }
 
+    @Serializable
+    private data class CommunityIdentityRow(
+        @SerialName("username") val username: String? = null
+    )
+
     private suspend fun resolveUsername(userId: String): String {
-        return runCatching {
+        // Community identity is authoritative in chat_profiles.username.
+        // Read only the canonical username field so unrelated profile fields
+        // cannot prevent personalization when the schema evolves.
+        val profileUsername = runCatching {
             client.from("chat_profiles")
-                .select(Columns.list("user_id", "username", "display_name")) {
+                .select(Columns.list("username")) {
                     filter { eq("user_id", userId) }
                 }
-                .decodeList<ChatProfile>()
+                .decodeList<CommunityIdentityRow>()
                 .firstOrNull()
-                ?.let { profile ->
-                    profile.username
-                        .trim()
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
+                ?.username
                 ?.trim()
                 .orEmpty()
         }.getOrDefault("")
+
+        // Username-login sessions also carry the canonical community username
+        // in Supabase Auth metadata. Use it only as a recovery path when the
+        // profile row is temporarily unavailable.
+        val metadataUsername = runCatching {
+            client.auth.currentUserOrNull()
+                ?.userMetadata
+                ?.get("chat_username")
+                ?.toString()
+                ?.trim()
+                ?.trim('"')
+                ?.removePrefix("@")
+                ?.trim()
+        }.getOrNull().orEmpty()
+
+        val username = profileUsername.ifBlank { metadataUsername }
+        return username
+            .trim()
+            .removePrefix("@")
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            .trim()
     }
 
     private data class SenderProfile(val avatarUrl: String?)
