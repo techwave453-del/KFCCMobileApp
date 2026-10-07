@@ -16,11 +16,13 @@ import java.time.LocalDateTime
 object KfccNotificationScheduler {
     private const val PERIODIC_NAME = "kfcc_notification_poll"
     private const val SIGN_IN_WORK = "kfcc_sign_in_notification"
+    private const val INSTALL_WORK = "kfcc_install_notification"
     private const val SIGN_UP_WORK = "kfcc_sign_up_notification"
     private const val DAILY_SCRIPTURE_WORK = "kfcc_daily_scripture_notification"
     const val KEY_MODE = "notification_mode"
     const val KEY_USERNAME = "notification_username"
     const val MODE_SIGN_IN = "sign_in"
+    const val MODE_INSTALL = "install"
     const val MODE_SIGN_UP = "sign_up"
     const val MODE_DAILY_SCRIPTURE = "daily_scripture"
 
@@ -37,7 +39,27 @@ object KfccNotificationScheduler {
                 .build()
         )
 
+        scheduleInstallDelivery(context)
         scheduleDailyScripture(context)
+    }
+
+    fun scheduleInstallDelivery(context: Context) {
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            INSTALL_WORK,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<KfccNotificationWorker>()
+                .setInputData(
+                    Data.Builder()
+                        .putString(KEY_MODE, MODE_INSTALL)
+                        .build()
+                )
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+        )
     }
 
     fun scheduleDailyScripture(context: Context) {
