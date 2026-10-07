@@ -32,7 +32,10 @@ class NotificationRepository {
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         syncFromServer().getOrElse {
             val userId = client.auth.currentUserOrNull()?.id
-            offline.getNotifications(userId).filter { it.isEnabled }
+            offline.getNotifications(userId).filter {
+                it.isEnabled &&
+                    (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
+            }
         }
     }
 
