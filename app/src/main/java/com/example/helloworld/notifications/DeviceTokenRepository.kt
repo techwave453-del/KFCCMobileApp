@@ -7,7 +7,12 @@ import com.example.helloworld.data.SupabaseProvider
 import com.google.firebase.messaging.FirebaseMessaging
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -110,19 +115,18 @@ class DeviceTokenRepository {
 
     private suspend fun registerTokenForUser(userId: String, token: String) {
         require(token.isNotBlank()) { "FCM token is blank" }
+        require(userId.isNotBlank()) { "Supabase user id is blank" }
 
-        client.from("device_tokens").upsert(
-            DeviceTokenUpsert(
-                userId = userId,
-                token = token,
-                platform = "android"
-            )
-        ) {
-            // token is the stable Firebase installation identifier. Upserting on
-            // this unique key reassigns a token when the same device signs into
-            // another account instead of failing with a duplicate-key error.
-            onConflict = "token"
-        }
+        // The database function uses auth.uid() and performs an atomic
+        // INSERT ... ON CONFLICT(token) DO UPDATE, avoiding the 23505 race
+        // when the same installation changes accounts.
+        client.postgrest.rpc(
+            "claim_device_token",
+            parameters = buildJsonObject {
+                put("p_token", token)
+                put("p_platform", "android")
+            }
+        )
     }
 
     @Serializable
