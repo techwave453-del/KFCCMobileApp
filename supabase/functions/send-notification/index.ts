@@ -16,7 +16,9 @@ const required = (name: string) => {
 async function getFcmAccessToken() {
   const projectId = required("FIREBASE_PROJECT_ID");
   const clientEmail = required("FIREBASE_CLIENT_EMAIL");
-  const privateKey = required("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = required("FIREBASE_PRIVATE_KEY").replace(/\
+/g, "
+");
 
   const key = await importPKCS8(privateKey, "RS256");
   const assertion = await new SignJWT({
@@ -186,7 +188,15 @@ function personalize(value: string, username: string) {
     .replace(/\{username\}/gi, username);
 }
 
-async function getSenderAvatar(senderId: string | null | undefined) {\n  if (!senderId) return null;\n  const response = await supabaseRequest(`chat_profiles?select=avatar_url&user_id=eq.${encodeURIComponent(senderId)}&limit=1`);\n  const rows = await response.json();\n  if (!response.ok) return null;\n  return rows?.[0]?.avatar_url?.trim() || null;\n}\n\nasync function getChatNotification(payload: any) {
+async function getSenderAvatar(senderId: string | null | undefined) {
+  if (!senderId) return null;
+  const response = await supabaseRequest(`chat_profiles?select=avatar_url&user_id=eq.${encodeURIComponent(senderId)}&limit=1`);
+  const rows = await response.json();
+  if (!response.ok) return null;
+  return rows?.[0]?.avatar_url?.trim() || null;
+}
+
+async function getChatNotification(payload: any) {
   const message = payload.record;
   if (!message?.id || !message?.room_id || !message?.sender_id || !message?.message) {
     throw new Error("Invalid chat message payload");
@@ -249,7 +259,8 @@ Deno.serve(async (req) => {
     let message: string;
     let type: string;
     let targets: { token: string; userId: string }[];
-    let imageUrl: string | null = null;\n    let senderAvatarUrl: string | null = null;
+    let imageUrl: string | null = null;
+    let senderAvatarUrl: string | null = null;
 
     if (
       payload?.type === "INSERT" &&
