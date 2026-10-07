@@ -158,7 +158,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun selectRoom(id: String) {
         if (_roomId.value == id) return
         _roomId.value = id
-        chatRepository.markChatNotificationsRead(id, context)
+        viewModelScope.launch {
+            chatRepository.markChatNotificationsRead(id, context)
+        }
         loadMessages(id)
         observeMessages(id)
         observeKanisaMessages(id)
