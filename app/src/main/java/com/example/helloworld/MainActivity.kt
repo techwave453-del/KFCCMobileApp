@@ -191,7 +191,12 @@ fun KFCCApp(
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { }
+    ) { granted ->
+        if (granted) {
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .scheduleInstallDelivery(context)
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -201,6 +206,9 @@ fun KFCCApp(
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .scheduleInstallDelivery(context)
         }
     }
 
