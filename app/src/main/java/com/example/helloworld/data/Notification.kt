@@ -12,6 +12,7 @@ data class AppNotification(
     @SerialName("created_at") val createdAt: String,
     @SerialName("user_id") val userId: String? = null,
     @SerialName("sender_id") val senderId: String? = null,
+    @SerialName("room_id") val roomId: String? = null,
     @SerialName("sender_avatar_url") val senderAvatarUrl: String? = null,
     val readAt: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = true,
