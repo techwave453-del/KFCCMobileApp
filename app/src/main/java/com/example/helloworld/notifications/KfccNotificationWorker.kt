@@ -83,37 +83,44 @@ class KfccNotificationWorker(
                 return@runCatching Result.success()
             }
 
+            if (mode == KfccNotificationScheduler.MODE_INSTALL) {
+                val installNotifications = repository.getPublicDefaults(onInstall = true).getOrThrow()
+                installNotifications
+                    .filter { it.id !in delivered }
+                    .forEach { notification ->
+                        postNotification(notification)
+                        delivered.add(notification.id)
+                    }
+                saveDelivered(preferences, delivered)
+                preferences.edit().putBoolean(KEY_INITIALIZED, true).apply()
+                return@runCatching Result.success()
+            }
+
             if (mode == KfccNotificationScheduler.MODE_SIGN_IN) {
                 if (SupabaseProvider.client.auth.currentUserOrNull() != null) {
-                    // Sign-in delivery is intentionally limited to the notification
-                    // selected by the administrator as the sign-in default. Its
-                    // per-user read state prevents the same default from being
-                    // repeatedly shown after it has been viewed.
-                    val signInDefault = repository.getPublicDefault(onInstall = false).getOrNull()
-                    if (signInDefault != null) {
-                        val resolved = repository.syncFromServer().getOrThrow()
-                            .firstOrNull { it.id == signInDefault.id }
-                        if (resolved?.readAt == null) {
-                            postNotification(resolved ?: signInDefault)
+                    val signInNotifications = repository.getPublicDefaults(onInstall = false).getOrThrow()
+                    signInNotifications
+                        .filter { it.id !in delivered }
+                        .forEach { notification ->
+                            postNotification(notification)
+                            delivered.add(notification.id)
                         }
-                    }
+                    saveDelivered(preferences, delivered)
                 }
                 return@runCatching Result.success()
             }
 
             val initialized = preferences.getBoolean(KEY_INITIALIZED, false)
             if (!initialized) {
-                val installDefault = repository.getPublicDefault(onInstall = true).getOrNull()
-                if (installDefault != null && installDefault.id !in delivered) {
-                    postNotification(installDefault)
-                    delivered.add(installDefault.id)
-                    val serverDelivered = preferences
-                        .getStringSet(KEY_SERVER_DELIVERED, emptySet())
-                        .orEmpty()
-                        .toMutableSet()
-                    serverDelivered.add(installDefault.id)
-                    saveServerDelivered(preferences, serverDelivered)
-                }
+                // Defensive fallback for installations upgraded before explicit
+                // install-delivery work existed.
+                val installNotifications = repository.getPublicDefaults(onInstall = true).getOrThrow()
+                installNotifications
+                    .filter { it.id !in delivered }
+                    .forEach { notification ->
+                        postNotification(notification)
+                        delivered.add(notification.id)
+                    }
                 saveDelivered(preferences, delivered)
                 preferences.edit().putBoolean(KEY_INITIALIZED, true).apply()
             }
