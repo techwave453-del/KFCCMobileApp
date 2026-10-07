@@ -212,6 +212,17 @@ private fun NotificationCard(
                     }
                 }
                 Spacer(Modifier.height(4.dp))
+                if (!notification.imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = notification.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(190.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 Text(notification.message, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Text(
