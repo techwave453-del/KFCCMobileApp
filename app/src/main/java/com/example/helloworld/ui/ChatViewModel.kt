@@ -146,6 +146,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            // Associate this installation with the authenticated account before
+            // requesting sign-in push delivery. This also covers administrator sessions.
+            com.example.helloworld.notifications.DeviceTokenRepository()
+                .registerCurrentToken()
+                .onFailure { cause -> _error.value = cause.message }
+
+            // Sign-in notifications and today's Scripture are device notifications.
+            // Both workers require internet and wait for connectivity if offline.
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverSignInDefault(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
+
             // Do not retrieve the Auth user here. Imported administrator sessions
             // already have a valid JWT, and ChatAuthRepository can resolve the user
             // ID from the session/JWT. Keeping chat startup free of user/session
