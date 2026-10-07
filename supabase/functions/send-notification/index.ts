@@ -172,7 +172,7 @@ async function getUsernames(userIds: string[]) {
   return new Map(
     (rows ?? []).map((row: { user_id?: string; username?: string; display_name?: string }) => [
       row.user_id || "",
-      row.display_name?.trim() || row.username?.trim() || "",
+      row.username?.trim() || row.display_name?.trim() || "",
     ]),
   );
 }
@@ -216,7 +216,7 @@ async function getChatNotification(payload: any) {
 
   const sender = senderRows?.[0];
   const room = roomRows?.[0];
-  const senderName = sender?.display_name?.trim() || sender?.username?.trim() || "Member";
+  const senderName = formatCommunityUsername(sender?.username?.trim() || sender?.display_name?.trim() || "Member");
   const roomTitle = room?.title?.trim() || "Community Chat";
   const userIds = (members ?? []).map((row: { user_id?: string }) => row.user_id).filter(Boolean);
 
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
     const invalidTokens: string[] = [];
 
     for (const target of targets) {
-      const username = usernames.get(target.userId) || "";
+      const username = formatCommunityUsername(usernames.get(target.userId) || "");
       const personalizedTitle = personalize(title, username);
       const personalizedMessage = personalize(message, username);
       const result = await sendToToken(
