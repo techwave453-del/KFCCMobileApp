@@ -55,6 +55,24 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      - name: Verify successful build is newer than the published release
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        shell: bash
+        run: |
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          PUBLISHED_CODE=$(curl --fail-with-body --silent --show-error \
+            --url "$SUPABASE_URL/rest/v1/app_update_config?id=eq.android&select=version_code" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | jq -r '.[0].version_code // 0')
+          if [ "$VERSION_CODE" -le "$PUBLISHED_CODE" ]; then
+            echo "Successful build versionCode $VERSION_CODE is not newer than published versionCode $PUBLISHED_CODE."
+            exit 1
+          fi
+
       - name: Record successful build in Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
