@@ -41,7 +41,10 @@ class NotificationRepository {
         val rows = client.from("app_notifications")
             .select()
             .decodeList<AppNotification>()
-            .filter { it.isEnabled && (it.userId == null || it.userId == userId) }
+            .filter {
+                it.isEnabled &&
+                    (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
+            }
             .sortedByDescending { it.createdAt }
 
         val reads = client.from("notification_reads")
@@ -163,16 +166,22 @@ class NotificationRepository {
         }
     }
 
-    suspend fun getPublicDefault(onInstall: Boolean): Result<AppNotification?> = runCatching {
+    suspend fun getPublicDefaults(onInstall: Boolean): Result<List<AppNotification>> = runCatching {
         val rows = client.from("app_notifications")
-            .select(Columns.list("id", "title", "message", "type", "created_at", "user_id", "is_enabled", "show_on_install", "show_on_sign_in", "updated_at"))
+            .select()
             .decodeList<AppNotification>()
-        rows.firstOrNull {
+        rows.filter {
             it.userId == null &&
                 it.isEnabled &&
                 if (onInstall) it.showOnInstall else it.showOnSignIn
-        }
+        }.sortedWith(
+            compareByDescending<AppNotification> { it.updatedAt ?: it.createdAt }
+                .thenByDescending { it.createdAt }
+        )
     }
+
+    suspend fun getPublicDefault(onInstall: Boolean): Result<AppNotification?> =
+        getPublicDefaults(onInstall).map { it.firstOrNull() }
 
     private suspend fun cache(rows: List<AppNotification>) {
         // The server is authoritative for approval. Remove the previous
