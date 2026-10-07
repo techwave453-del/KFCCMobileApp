@@ -119,7 +119,12 @@ class DeviceTokenRepository {
                 token = token,
                 platform = "android"
             )
-        )
+        ) {
+            // token is the stable Firebase installation identifier. Upserting on
+            // this unique key reassigns a token when the same device signs into
+            // another account instead of failing with a duplicate-key error.
+            onConflict = "token"
+        }
     }
 
     @Serializable
