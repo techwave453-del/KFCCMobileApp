@@ -36,9 +36,24 @@ fun NotificationsScreen(
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
-    // Chat messages are handled by the Android notification tray, not the in-app history.
-    // This screen is reserved for church/admin notifications.
-    val adminNotifications = notifications.filterNot { it.type.equals("chat", true) || it.type.equals("chat_message", true) }
+    // The notification center follows the same order as the Android notification tray:
+    // Today's Scripture first, approved church/admin notifications next, then unread
+    // chat messages. Read chat messages are not repeated here.
+    val orderedNotifications = notifications
+        .filterNot { notification ->
+            notification.type.equals("chat_message", true) && notification.readAt != null
+        }
+        .sortedWith(
+            compareBy<AppNotification> {
+                when {
+                    it.type.equals("daily_scripture", true) -> 0
+                    it.type.equals("chat_message", true) -> 2
+                    else -> 1
+                }
+            }.thenBy { it.readAt != null }
+             .thenByDescending { it.createdAt }
+        )
+    val adminNotifications = orderedNotifications
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
@@ -125,7 +140,7 @@ fun NotificationsScreen(
                         }
                         Spacer(Modifier.height(12.dp))
                     }
-                    val unreadCount = adminNotifications.count { it.readAt == null }
+                    val unreadCount = orderedNotifications.count { it.readAt == null }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -146,18 +161,15 @@ fun NotificationsScreen(
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (unreadCount > 0) "Unread notifications are highlighted. Open one to mark it as viewed."
-                        else "You have viewed all available notifications.",
+                        if (unreadCount > 0) "Today's Scripture, church updates and unread messages are shown here."
+                        else "Today's Scripture and the latest approved church updates are shown here.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
                 items(
-                    adminNotifications.sortedWith(
-                        compareBy<AppNotification> { it.readAt != null }
-                            .thenByDescending { it.createdAt }
-                    ),
+                    orderedNotifications,
                     key = { it.id }
                 ) { notification ->
                     NotificationCard(
