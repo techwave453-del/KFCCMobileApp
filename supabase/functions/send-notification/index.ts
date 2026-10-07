@@ -134,24 +134,54 @@ async function getTokensForUserIds(userIds: string[]) {
   ];
 }
 
-async function getTokensForNotification(notification: any) {
-  if (notification.user_id) {
-    return getTokensForUserIds([notification.user_id]);
-  }
-
-  const response = await supabaseRequest("device_tokens?select=token");
+async function getNotificationTargets(notification: any) {
+  const query = notification.user_id
+    ? `device_tokens?select=token,user_id&user_id=eq.${encodeURIComponent(notification.user_id)}`
+    : "device_tokens?select=token,user_id";
+  const response = await supabaseRequest(query);
   const rows = await response.json();
   if (!response.ok) {
     throw new Error(`Failed to load device tokens: ${JSON.stringify(rows)}`);
   }
 
-  return [
-    ...new Set(
-      (rows ?? [])
-        .map((row: { token?: string }) => row.token?.trim())
-        .filter((token: string | undefined): token is string => Boolean(token)),
-    ),
-  ];
+  const seen = new Set<string>();
+  return (rows ?? [])
+    .map((row: { token?: string; user_id?: string }) => ({
+      token: row.token?.trim() || "",
+      userId: row.user_id || "",
+    }))
+    .filter((target: { token: string }) => {
+      if (!target.token || seen.has(target.token)) return false;
+      seen.add(target.token);
+      return true;
+    });
+}
+
+async function getUsernames(userIds: string[]) {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return new Map<string, string>();
+  const encoded = ids.map(encodeURIComponent).join(",");
+  const response = await supabaseRequest(
+    `chat_profiles?select=user_id,username,display_name&user_id=in.(${encoded})`,
+  );
+  const rows = await response.json();
+  if (!response.ok) {
+    throw new Error(`Failed to load notification profiles: ${JSON.stringify(rows)}`);
+  }
+
+  return new Map(
+    (rows ?? []).map((row: { user_id?: string; username?: string; display_name?: string }) => [
+      row.user_id || "",
+      row.display_name?.trim() || row.username?.trim() || "",
+    ]),
+  );
+}
+
+function personalize(value: string, username: string) {
+  if (!username) return value;
+  return value
+    .replace(/\{\{username\}\}/gi, username)
+    .replace(/\{username\}/gi, username);
 }
 
 async function getChatNotification(payload: any) {
@@ -216,7 +246,7 @@ Deno.serve(async (req) => {
     let title: string;
     let message: string;
     let type: string;
-    let tokens: string[];
+    let targets: { token: string; userId: string }[];
     let imageUrl: string | null = null;
 
     if (
@@ -234,7 +264,7 @@ Deno.serve(async (req) => {
       message = notification.message;
       type = notification.type ?? "general";
       imageUrl = notification.image_url ?? null;
-      tokens = await getTokensForNotification(notification);
+      targets = await getNotificationTargets(notification);
     } else if (
       payload?.type === "INSERT" &&
       payload?.schema === "public" &&
@@ -245,25 +275,29 @@ Deno.serve(async (req) => {
       title = chat.title;
       message = chat.body;
       type = chat.type;
-      tokens = chat.tokens;
+      targets = chat.tokens.map((token) => ({ token, userId: "" }));
     } else {
       return json({ ok: true, ignored: true });
     }
 
-    if (tokens.length === 0) {
+    if (targets.length === 0) {
       return json({ ok: true, sent: 0, targeted: 0, message: "No registered devices" });
     }
 
+    const usernames = await getUsernames(targets.map((target) => target.userId));
     let sent = 0;
     const invalidTokens: string[] = [];
 
-    for (const token of tokens) {
+    for (const target of targets) {
+      const username = usernames.get(target.userId) || "";
+      const personalizedTitle = personalize(title, username);
+      const personalizedMessage = personalize(message, username);
       const result = await sendToToken(
         projectId,
         accessToken,
-        token,
-        title,
-        message,
+        target.token,
+        personalizedTitle,
+        personalizedMessage,
         notificationId,
         type,
         imageUrl,
@@ -296,7 +330,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       notification_id: notificationId,
-      targeted: tokens.length,
+      targeted: targets.length,
       sent,
       removed_invalid_tokens: invalidTokens.length,
     });
