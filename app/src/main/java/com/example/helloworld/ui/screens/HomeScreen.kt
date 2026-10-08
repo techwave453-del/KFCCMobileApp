@@ -61,8 +61,8 @@ fun HomeScreen(
     }
 
     val quickAccessImages = remember(mediaItems) {
-        mediaItems.filter { it.type.equals("image", ignoreCase = true) }
-            .associateBy { it.category.lowercase() }
+        mediaItems
+            .filter { it.type.equals("image", ignoreCase = true) && it.url.isNotBlank() }
     }
 
     var currentQuickAction by remember { mutableIntStateOf(0) }
@@ -76,12 +76,9 @@ fun HomeScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
-        delay(300L)
-        while (true) {
-            delay(8000L)
-            currentQuickAction = (currentQuickAction + 1) % quickActions.size
-        }
+    LaunchedEffect(currentQuickAction, quickActions.size) {
+        delay(8000L)
+        currentQuickAction = (currentQuickAction + 1) % quickActions.size
     }
 
     LazyColumn(
@@ -164,7 +161,10 @@ fun HomeScreen(
                         icon = action.icon,
                         onClick = action.onClick,
                         modifier = Modifier.fillMaxWidth(),
-                        imageUrl = quickAccessImages[action.imageCategory]?.url
+                        imageUrl = quickActionImageUrl(
+                            mediaItems = quickAccessImages,
+                            category = action.imageCategory
+                        )
                     )
                 }
 
@@ -272,6 +272,24 @@ fun HomeScreenPreview() {
     }
 }
 
+
+
+private fun quickActionImageUrl(
+    mediaItems: List<MediaItem>,
+    category: String
+): String? {
+    val aliases = when (category.lowercase()) {
+        "services" -> setOf("services", "service", "worship", "worship services", "quick_services")
+        "sermons" -> setOf("sermons", "sermon", "preaching", "messages", "quick_sermons")
+        "giving" -> setOf("giving", "give", "donation", "donations", "offering", "quick_giving")
+        "events" -> setOf("events", "event", "church events", "quick_events")
+        else -> setOf(category.lowercase())
+    }
+
+    return mediaItems.firstOrNull {
+        it.category.trim().lowercase() in aliases
+    }?.url
+}
 
 private data class QuickAction(
     val title: String,
