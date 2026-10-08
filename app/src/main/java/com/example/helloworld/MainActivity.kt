@@ -461,6 +461,40 @@ fun KFCCApp(
         drawerOpen = false
     }
 
+    fun backDestination(): AppDestinations = when (currentDestination) {
+        AppDestinations.BIBLE_GAMES -> AppDestinations.HOME
+        AppDestinations.BIBLE_GAME_QUIZ,
+        AppDestinations.BIBLE_GAME_MEMORY_VERSE -> AppDestinations.BIBLE_GAMES
+        AppDestinations.BIBLE_CHAPTER,
+        AppDestinations.BIBLE_SEARCH -> AppDestinations.BIBLE
+        AppDestinations.ACCOUNT -> AppDestinations.CHAT
+        AppDestinations.PROFILE,
+        AppDestinations.APPEARANCE,
+        AppDestinations.NOTIFICATIONS,
+        AppDestinations.PREFERENCES,
+        AppDestinations.SETTINGS,
+        AppDestinations.VERSION,
+        AppDestinations.SEARCH,
+        AppDestinations.SERVICES,
+        AppDestinations.EVENTS,
+        AppDestinations.MEDIA,
+        AppDestinations.GIVING -> AppDestinations.HOME
+        else -> AppDestinations.HOME
+    }
+
+    val showBackButton = currentDestination != AppDestinations.HOME &&
+        currentDestination != AppDestinations.BIBLE &&
+        currentDestination != AppDestinations.CHAT &&
+        currentDestination != AppDestinations.ADMIN
+
+    BackHandler(enabled = drawerOpen) {
+        drawerOpen = false
+    }
+
+    BackHandler(enabled = !drawerOpen && showBackButton) {
+        navigate(backDestination())
+    }
+
     if (updateCheckFailed) {
         BackHandler(enabled = true) {}
         RequiredUpdateCheckFailedScreen(
@@ -619,8 +653,23 @@ fun KFCCApp(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, "Open menu")
+                        IconButton(
+                            onClick = {
+                                if (showBackButton) {
+                                    navigate(backDestination())
+                                } else {
+                                    scope.launch { drawerState.open() }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (showBackButton) {
+                                    Icons.AutoMirrored.Filled.ArrowBack
+                                } else {
+                                    Icons.Default.Menu
+                                },
+                                contentDescription = if (showBackButton) "Back" else "Open menu"
+                            )
                         }
                     },
                     actions = {
