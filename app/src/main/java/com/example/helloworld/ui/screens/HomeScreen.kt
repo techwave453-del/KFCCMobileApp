@@ -49,6 +49,7 @@ fun HomeScreen(
     onOpenChat: () -> Unit = {},
     onOpenMedia: () -> Unit = {},
     onOpenBible: () -> Unit = {},
+    onOpenBibleGames: () -> Unit = {},
     onOpenEvents: () -> Unit = {},
     onOpenGiving: () -> Unit = {},
     onOpenSermons: () -> Unit = {},
@@ -235,7 +236,7 @@ fun HomeScreen(
 
             val faithFeatures = listOf(
                 FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false, onOpenBible),
-                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, true, {}),
+                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, false, onOpenBibleGames),
                 FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true, {}),
                 FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false, onOpenMedia),
                 FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false, onOpenChat)
