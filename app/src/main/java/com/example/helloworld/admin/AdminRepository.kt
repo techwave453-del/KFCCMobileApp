@@ -418,6 +418,8 @@ class AdminRepository(context: Context) {
     suspend fun createBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
         client.from("bible_game_questions").insert(
             mapOf(
+                "game_type" to question.gameType,
+                "game_type" to question.gameType,
                 "category" to question.category,
                 "question" to question.question.trim(),
                 "options" to question.options,
@@ -617,6 +619,8 @@ class AdminRepository(context: Context) {
 @kotlinx.serialization.Serializable
 data class BibleGameQuestionAdmin(
     val id: String = "",
+    @kotlinx.serialization.SerialName("game_type")
+    val gameType: String = "quiz",
     val category: String = "FAITH_AND_LIFE",
     val question: String = "",
     val options: List<String> = listOf("", "", "", ""),
