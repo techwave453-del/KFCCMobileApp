@@ -696,6 +696,8 @@ fun KFCCApp(
 
                     AppDestinations.BIBLE_GAMES -> BibleGamesHubScreen(
                         onBack = { navigate(AppDestinations.HOME) },
+                        onOpenQuiz = { navigate(AppDestinations.BIBLE_GAME_QUIZ) },
+                        onOpenMemoryVerse = { navigate(AppDestinations.BIBLE_GAME_MEMORY_VERSE) },
                         innerPadding = innerPadding
                     )
 
