@@ -67,7 +67,10 @@ private enum class GameMode(val label: String, val description: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BibleGamesScreen(onBack: () -> Unit = {}) {
+fun BibleGamesScreen(
+    onBack: () -> Unit = {},
+    innerPadding: PaddingValues = PaddingValues(0.dp)
+) {
     var mode by rememberSaveable { mutableStateOf(GameMode.QUIZ) }
     var category by rememberSaveable { mutableStateOf(BibleGameCategory.ALL) }
     var questions by remember { mutableStateOf<List<BibleGameQuestion>>(emptyList()) }
@@ -112,7 +115,11 @@ fun BibleGamesScreen(onBack: () -> Unit = {}) {
     val timedOut =
         !started && questions.isNotEmpty() && secondsLeft == 0 && answered == null
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+    ) {
         TopAppBar(
             title = { Text("Bible Games") },
             navigationIcon = {
