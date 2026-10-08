@@ -4,6 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.postgrest.from
 
 enum class BibleGameCategory(val label: String) {
     ALL("All"),
