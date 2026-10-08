@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -175,7 +177,7 @@ private fun GameHome(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(190.dp)
+                        .heightIn(min = 170.dp, max = 220.dp)
                         .background(
                             Brush.linearGradient(
                                 listOf(
@@ -210,7 +212,10 @@ private fun GameHome(
         item {
             Text("Game mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 GameMode.values().forEach { option ->
                     FilterChip(
                         selected = mode == option,
@@ -341,7 +346,7 @@ private fun GameQuestionCard(
                 Column(Modifier.padding(20.dp)) {
                     Text(
                         question.question,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(6.dp))
@@ -453,11 +458,13 @@ private fun GameResult(
         else -> "Keep playing and discover more."
     }
 
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp, 24.dp, 24.dp, 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        item {
         Icon(
             if (timedOut) Icons.Default.TimerOff else Icons.Default.EmojiEvents,
             contentDescription = null,
@@ -475,10 +482,11 @@ private fun GameResult(
         Spacer(Modifier.height(6.dp))
         Text(message, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onPlayAgain, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        Button(onClick = onPlayAgain, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
             Icon(Icons.Default.Replay, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("Play Again")
+        }
         }
     }
 }
