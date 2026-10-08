@@ -336,7 +336,7 @@ fun KFCCApp(
         val chapter = match.groupValues[3].toIntOrNull() ?: return
         bibleBookId = bookId
         bibleChapter = chapter
-        navigate(AppDestinations.BIBLE_CHAPTER)
+        currentDestination = AppDestinations.BIBLE_CHAPTER
     }
 
 
