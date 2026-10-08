@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.KfccBibleRepository
+import com.example.helloworld.data.BibleGamePlayerStats
+import com.example.helloworld.data.BibleGameRepository
 import kotlinx.coroutines.launch
 
 private data class MemoryVerseTarget(
@@ -32,6 +34,7 @@ fun MemoryVerseScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val repository = remember { KfccBibleRepository() }
+    val gameRepository = remember { BibleGameRepository() }
     val scope = rememberCoroutineScope()
     val targets = remember {
         listOf(
@@ -50,6 +53,12 @@ fun MemoryVerseScreen(
     var loading by remember { mutableStateOf(true) }
     var revealed by remember { mutableStateOf(false) }
     var completed by remember { mutableIntStateOf(0) }
+    var stats by remember { mutableStateOf<BibleGamePlayerStats?>(null) }
+    var completionRecorded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        stats = gameRepository.loadPlayerStats()
+    }
 
     fun loadTarget(index: Int) {
         val target = targets[index]
@@ -66,6 +75,7 @@ fun MemoryVerseScreen(
     }
 
     LaunchedEffect(targetIndex) {
+        completionRecorded = false
         loadTarget(targetIndex)
     }
 
@@ -115,6 +125,26 @@ fun MemoryVerseScreen(
                             "Read the verse carefully, hide it, then try to recall the key words before revealing it again.",
                             style = MaterialTheme.typography.bodyMedium
                         )
+                    }
+                }
+            }
+
+            item {
+                stats?.let { progress ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Your progress", fontWeight = FontWeight.Bold)
+                                Text(progress.xp.toString() + " XP • " + progress.currentStreak + " day streak", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(completed.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
@@ -180,7 +210,11 @@ fun MemoryVerseScreen(
             item {
                 Button(
                     onClick = {
-                        completed++
+                        if (!completionRecorded) {
+                            completionRecorded = true
+                            completed++
+                            gameRepository.recordMemoryVerseCompleted()?.let { stats = it }
+                        }
                         targetIndex = (targetIndex + 1) % targets.size
                     },
                     enabled = !loading && verseText != null,
