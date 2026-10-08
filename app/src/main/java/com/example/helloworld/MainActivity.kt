@@ -76,6 +76,7 @@ import com.example.helloworld.updates.AppUpdateManager
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
     private var openChatRoomId by mutableStateOf<String?>(null)
+    private var openBibleReference by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
         openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         openChatRoomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
+        openBibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
@@ -99,8 +101,10 @@ class MainActivity : ComponentActivity() {
                 KFCCApp(
                     openNotifications = openNotifications,
                     openChatRoomId = openChatRoomId,
+                    openBibleReference = openBibleReference,
                     onNotificationOpened = { openNotifications = false },
-                    onChatOpened = { openChatRoomId = null }
+                    onChatOpened = { openChatRoomId = null },
+                    onBibleReferenceOpened = { openBibleReference = null }
                 )
             }
         }
@@ -116,6 +120,9 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }?.let {
             openChatRoomId = it
         }
+        intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }?.let {
+            openBibleReference = it
+        }
     }
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
@@ -128,6 +135,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_NOTIFICATIONS = "kfcc.open_notifications"
+        const val EXTRA_BIBLE_REFERENCE = "kfcc.bible_reference"
         const val EXTRA_OPEN_CHAT = "kfcc.open_chat"
         const val EXTRA_CHAT_ROOM_ID = "kfcc.chat_room_id"
         const val EXTRA_NOTIFICATION_ID = "kfcc.notification_id"
@@ -363,6 +371,12 @@ fun KFCCApp(
             currentDestination = AppDestinations.NOTIFICATIONS
             onNotificationOpened()
         }
+    }
+
+    LaunchedEffect(openBibleReference) {
+        val reference = openBibleReference ?: return@LaunchedEffect
+        openBibleReference(reference)
+        onBibleReferenceOpened()
     }
 
     LaunchedEffect(openChatRoomId, chatSignedIn, adminUser?.id) {
