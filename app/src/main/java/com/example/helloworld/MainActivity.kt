@@ -748,6 +748,7 @@ fun KFCCApp(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenQuiz = { navigate(AppDestinations.BIBLE_GAME_QUIZ) },
                         onOpenMemoryVerse = { navigate(AppDestinations.BIBLE_GAME_MEMORY_VERSE) },
+                        onOpenGuessCharacter = { navigate(AppDestinations.BIBLE_GAME_GUESS_CHARACTER) },
                         innerPadding = innerPadding
                     )
 
@@ -756,6 +757,10 @@ fun KFCCApp(
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_MEMORY_VERSE -> MemoryVerseScreen(
+                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         innerPadding = innerPadding
+                     )
+                     AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> GuessCharacterScreen(
                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
                          innerPadding = innerPadding
                      )
