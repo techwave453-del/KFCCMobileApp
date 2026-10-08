@@ -45,7 +45,7 @@ drop policy if exists "Anyone can read published Bible game questions" on public
 create policy "Anyone can read published Bible game questions"
 on public.bible_game_questions
 for select
-to authenticated
+to anon, authenticated
 using (is_published = true);
 
 drop policy if exists "Bible game admins can read all questions" on public.bible_game_questions;
