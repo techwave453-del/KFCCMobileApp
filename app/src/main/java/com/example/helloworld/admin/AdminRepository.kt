@@ -408,6 +408,39 @@ class AdminRepository(context: Context) {
         }
     }
 
+    suspend fun getBibleGameQuestions(): Result<List<BibleGameQuestionAdmin>> = runCatching {
+        client.from("bible_game_questions")
+            .select()
+            .decodeList<BibleGameQuestionAdmin>()
+            .sortedWith(compareBy<BibleGameQuestionAdmin> { !it.isPublished }.thenBy { it.category }.thenBy { it.sortOrder })
+    }
+
+    suspend fun createBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
+        client.from("bible_game_questions").insert(question.copy(id = ""))
+    }
+
+    suspend fun updateBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
+        require(question.id.isNotBlank()) { "Question ID is required." }
+        client.from("bible_game_questions").update(question.copy(id = "")) {
+            filter { eq("id", question.id) }
+        }
+    }
+
+    suspend fun deleteBibleGameQuestion(id: String): Result<Unit> = runCatching {
+        require(id.isNotBlank()) { "Question ID is required." }
+        client.from("bible_game_questions").delete {
+            filter { eq("id", id) }
+        }
+    }
+
+    suspend fun setBibleGameQuestionPublished(id: String, published: Boolean): Result<Unit> = runCatching {
+        client.from("bible_game_questions").update(
+            mapOf("is_published" to published)
+        ) {
+            filter { eq("id", id) }
+        }
+    }
+
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         client.from("app_notifications")
             .select()
@@ -557,6 +590,23 @@ class AdminRepository(context: Context) {
 
     }
 }
+
+
+@kotlinx.serialization.Serializable
+data class BibleGameQuestionAdmin(
+    val id: String = "",
+    val category: String = "FAITH_AND_LIFE",
+    val question: String = "",
+    val options: List<String> = listOf("", "", "", ""),
+    @kotlinx.serialization.SerialName("correct_answer_index")
+    val correctAnswerIndex: Int = 0,
+    val explanation: String = "",
+    val reference: String = "",
+    @kotlinx.serialization.SerialName("is_published")
+    val isPublished: Boolean = false,
+    @kotlinx.serialization.SerialName("sort_order")
+    val sortOrder: Int = 0
+)
 
 @Serializable
 data class AppUpdateConfig(
