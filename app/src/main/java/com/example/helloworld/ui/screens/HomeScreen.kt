@@ -293,6 +293,7 @@ private data class FaithFeature(
 private fun FaithFeatureCard(feature: FaithFeature) {
     Card(
         onClick = feature.onClick,
+        enabled = !feature.comingSoon,
         modifier = Modifier.width(190.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
