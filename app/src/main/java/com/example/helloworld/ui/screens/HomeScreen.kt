@@ -7,7 +7,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -32,6 +31,7 @@ import com.example.helloworld.ui.components.SectionHeader
 import com.example.helloworld.ui.theme.KFCCTheme
 
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.delay
 
@@ -222,13 +222,23 @@ fun HomeScreen(
                 FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false)
             )
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(faithFeatures) { feature ->
-                    FaithFeatureCard(feature)
+            val faithPagerState = rememberPagerState(pageCount = { faithFeatures.size })
+
+            LaunchedEffect(faithFeatures.size) {
+                while (true) {
+                    delay(3500L)
+                    faithPagerState.animateScrollToPage((faithPagerState.currentPage + 1) % faithFeatures.size)
                 }
+            }
+
+            HorizontalPager(
+                state = faithPagerState,
+                pageSize = PageSize.Fixed(190.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                pageSpacing = 12.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                FaithFeatureCard(faithFeatures[page])
             }
         }
 
