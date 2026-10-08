@@ -381,6 +381,8 @@ fun KFCCApp(
         if (granted) {
             com.example.helloworld.notifications.KfccNotificationScheduler
                 .scheduleInstallDelivery(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
         }
     }
 
@@ -395,6 +397,8 @@ fun KFCCApp(
         } else {
             com.example.helloworld.notifications.KfccNotificationScheduler
                 .scheduleInstallDelivery(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
         }
     }
 
