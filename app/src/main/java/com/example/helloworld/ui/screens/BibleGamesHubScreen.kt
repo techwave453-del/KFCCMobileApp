@@ -34,6 +34,7 @@ fun BibleGamesHubScreen(
     onBack: () -> Unit,
     onOpenQuiz: () -> Unit,
     onOpenMemoryVerse: () -> Unit,
+    onOpenGuessCharacter: () -> Unit,
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var showComingSoon by remember { mutableStateOf<String?>(null) }
@@ -56,7 +57,7 @@ fun BibleGamesHubScreen(
                 "Guess the Character",
                 "Identify Bible characters from clues, stories and references.",
                 Icons.Default.Groups,
-                false
+                true
             ),
             BibleGameEntry(
                 "Fill in the Blank",
@@ -156,8 +157,12 @@ fun BibleGamesHubScreen(
             items(games, key = { it.title }) { game ->
                 Card(
                     onClick = {
-                        if (game.title == "Bible Quiz") onOpenQuiz() else if (game.title == "Memory Verse") onOpenMemoryVerse()
-                        else showComingSoon = game.title
+                        when (game.title) {
+                            "Bible Quiz" -> onOpenQuiz()
+                            "Memory Verse" -> onOpenMemoryVerse()
+                            "Guess the Character" -> onOpenGuessCharacter()
+                            else -> showComingSoon = game.title
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
