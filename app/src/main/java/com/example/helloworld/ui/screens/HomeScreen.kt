@@ -68,14 +68,14 @@ fun HomeScreen(
 
     var currentQuickAction by remember { mutableIntStateOf(0) }
 
-    val quickActions = remember {
-        listOf(
+    // Keep the navigation callbacks current. A no-key remember would retain
+    // the first callbacks captured when HomeScreen was initially composed.
+    val quickActions = listOf(
             QuickAction("Services", "Worship times", Icons.Default.Church, "services", onOpenServices),
             QuickAction("Sermons", "Watch media", Icons.AutoMirrored.Filled.MenuBook, "sermons", onOpenSermons),
             QuickAction("Giving", "Tithes & Gift", Icons.Default.Favorite, "giving", onOpenGiving),
             QuickAction("Events", "What's on", Icons.Default.CalendarToday, "events", onOpenEvents)
-        )
-    }
+    )
 
     LaunchedEffect(currentQuickAction, quickActions.size) {
         delay(8000L)
