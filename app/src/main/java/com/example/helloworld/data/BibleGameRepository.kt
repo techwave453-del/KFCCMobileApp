@@ -1,6 +1,7 @@
 package com.example.helloworld.data
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.example.helloworld.data.SupabaseProvider
@@ -46,14 +47,23 @@ class BibleGameRepository {
         category: BibleGameCategory = BibleGameCategory.ALL,
         limit: Int = 10
     ): List<BibleGameQuestion> {
-        val remote = runCatching {
-            SupabaseProvider.client
-                .from("bible_game_questions")
-                .select()
-                .decodeList<BibleGameQuestionRow>()
-                .filter { category == BibleGameCategory.ALL || it.category == category.name }
-                .sortedBy { it.id }
-        }.getOrDefault(emptyList())
+        // Never let the games screen remain on a loading state because a remote
+        // database request is slow or unavailable. The built-in bank is a
+        // deliberate offline fallback so the game is always playable.
+        val remote = withTimeoutOrNull(8_000L) {
+            runCatching {
+                SupabaseProvider.client
+                    .from("bible_game_questions")
+                    .select()
+                    .decodeList<BibleGameQuestionRow>()
+                    .filter {
+                        (category == BibleGameCategory.ALL || it.category == category.name) &&
+                            it.options.size >= 2 &&
+                            it.correctAnswerIndex in it.options.indices
+                    }
+                    .sortedBy { it.id }
+            }.getOrDefault(emptyList())
+        }.orEmpty()
 
         if (remote.isNotEmpty()) {
             return remote.shuffled().take(limit.coerceAtMost(remote.size)).map {
