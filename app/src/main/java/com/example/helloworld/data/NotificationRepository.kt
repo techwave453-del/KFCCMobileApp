@@ -76,7 +76,10 @@ class NotificationRepository {
         val dailyScripture = getTodayScriptureNotification(userId)
         val all = if (dailyScripture != null) resolved + dailyScripture else resolved
 
-        cache(resolved)
+        // Cache the complete visible set, including the locally-generated daily
+        // scripture notification. Caching only `resolved` lets the Room observer
+        // emit immediately after sync and overwrite the returned daily scripture.
+        cache(all)
         all.sortedByDescending { it.createdAt }
     }
 
