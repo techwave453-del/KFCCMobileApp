@@ -2,14 +2,18 @@ package com.example.helloworld.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -61,7 +65,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         visibleQuickActions = 0
         repeat(4) { index ->
-            delay(if (index == 0) 80L else 90L)
+            delay(if (index == 0) 250L else 140L)
             visibleQuickActions = index + 1
         }
     }
@@ -118,7 +122,7 @@ fun HomeScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         AnimatedVisibility(
                             visible = visibleQuickActions >= 1,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                            enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(350)) + scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.tween(350)) + slideInVertically(animationSpec = androidx.compose.animation.core.tween(350), initialOffsetY = { it / 5 }),
                             modifier = Modifier.weight(1f)
                         ) {
                             QuickActionCard(
@@ -209,6 +213,29 @@ fun HomeScreen(
 
         item {
             SectionHeader(title = "Grow in Faith")
+            Spacer(Modifier.height(2.dp))
+
+            val faithFeatures = listOf(
+                FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false),
+                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, true),
+                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true),
+                FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false),
+                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false),
+                FaithFeature("Church Services", "Services and gatherings", Icons.Default.Church, true)
+            )
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(faithFeatures) { feature ->
+                    FaithFeatureCard(feature)
+                }
+            }
+        }
+
+        item {
+            SectionHeader(title = "Church Services")
         }
 
         items(info.services) { service ->
@@ -225,5 +252,68 @@ fun HomeScreen(
 fun HomeScreenPreview() {
     KFCCTheme {
         HomeScreen(ChurchContent.default)
+    }
+}
+
+
+private data class FaithFeature(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val comingSoon: Boolean
+)
+
+@Composable
+private fun FaithFeatureCard(feature: FaithFeature) {
+    Card(
+        modifier = Modifier.width(190.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = feature.icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Text(
+                text = feature.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                text = feature.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minLines = 2,
+                maxLines = 2
+            )
+            if (feature.comingSoon) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        text = "Coming soon",
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
     }
 }
