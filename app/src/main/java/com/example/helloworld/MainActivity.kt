@@ -289,6 +289,7 @@ private fun RequiredUpdateCheckFailedScreen(
 fun KFCCApp(
     openNotifications: Boolean = false,
     openChatRoomId: String? = null,
+    notificationBibleReference: String? = null,
     onNotificationOpened: () -> Unit = {},
     onChatOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
