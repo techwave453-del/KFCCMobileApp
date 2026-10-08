@@ -229,6 +229,7 @@ private fun AdminDashboardScreen(
                     "Events Management" -> if (allowed) onEvents else null
                     "Notifications" -> if (allowed) onNotifications else null
                     "App Updates" -> if (allowed) onAppUpdate else null
+                    "Bible Games" -> if (allowed) onBibleGames else null
                     "Today's Scripture" -> if (allowed) onDailyScripture else null
                     "Live Streaming" -> if (allowed) onLive else null
                     "Media Center" -> if (allowed) onMedia else null
