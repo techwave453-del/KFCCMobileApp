@@ -7,6 +7,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -200,7 +198,7 @@ private fun GameHome(
     onStart: () -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val horizontalPadding = if (maxWidth < 360.dp) 12.dp else 16.dp
+        val horizontalPadding = if (this@BoxWithConstraints.maxWidth < 360.dp) 12.dp else 16.dp
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -226,7 +224,7 @@ private fun GameHome(
                                     )
                                 )
                             )
-                            .padding(if (maxWidth < 360.dp) 18.dp else 22.dp)
+                            .padding(if (this@BoxWithConstraints.maxWidth < 360.dp) 18.dp else 22.dp)
                     ) {
                         Icon(
                             Icons.Default.SportsEsports,
@@ -409,11 +407,11 @@ private fun GameQuestionCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(if (maxWidth < 360.dp) 16.dp else 18.dp)
+                            .padding(if (this@BoxWithConstraints.maxWidth < 360.dp) 16.dp else 18.dp)
                     ) {
                         Text(
                             question.question,
-                            style = if (maxWidth < 360.dp) {
+                            style = if (this@BoxWithConstraints.maxWidth < 360.dp) {
                                 MaterialTheme.typography.titleMedium
                             } else {
                                 MaterialTheme.typography.titleLarge
@@ -503,7 +501,7 @@ private fun GameQuestionCard(
                             }
                         )
                     ) {
-                        Column(Modifier.padding(if (maxWidth < 360.dp) 14.dp else 16.dp)) {
+                        Column(Modifier.padding(if (this@BoxWithConstraints.maxWidth < 360.dp) 14.dp else 16.dp)) {
                             Text(
                                 if (answeredCorrectly) "Correct!" else "Not quite",
                                 style = MaterialTheme.typography.titleMedium,
@@ -559,7 +557,7 @@ private fun GameResult(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val horizontalPadding = if (maxWidth < 360.dp) 16.dp else 24.dp
+        val horizontalPadding = if (this@BoxWithConstraints.maxWidth < 360.dp) 16.dp else 24.dp
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
