@@ -3,6 +3,8 @@
 package com.example.helloworld.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
@@ -61,12 +63,12 @@ fun GuessCharacterScreen(
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            questions.isEmpty() -> EmptyCharacterGame(onRetry = { reloadToken++ }, showError = loadingError)
+            questions.isEmpty() -> EmptyCharacterGame(onRetry = { reloadToken++ })
             finished -> CharacterResult(score, questions.size, onBack)
             else -> {
                 val question = questions[index]
                 Column(
-                    Modifier.fillMaxSize().padding(18.dp),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     LinearProgressIndicator(
