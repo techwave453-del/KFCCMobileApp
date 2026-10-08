@@ -685,6 +685,7 @@ fun KFCCApp(
                         innerPadding = innerPadding,
                         onOpenChat = { navigate(AppDestinations.CHAT) },
                         onOpenMedia = { navigate(AppDestinations.MEDIA) },
+                        onOpenBible = { navigate(AppDestinations.BIBLE) },
                         onOpenEvents = { navigate(AppDestinations.EVENTS) },
                         onOpenGiving = { navigate(AppDestinations.GIVING) },
                         onOpenSermons = { navigate(AppDestinations.MEDIA) },
