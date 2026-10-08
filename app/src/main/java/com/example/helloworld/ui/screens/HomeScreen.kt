@@ -1,5 +1,8 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +30,7 @@ import com.example.helloworld.ui.theme.KFCCTheme
 
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -50,6 +54,16 @@ fun HomeScreen(
     val quickAccessImages = remember(mediaItems) {
         mediaItems.filter { it.type.equals("image", ignoreCase = true) }
             .associateBy { it.category.lowercase() }
+    }
+
+    var visibleQuickActions by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        visibleQuickActions = 0
+        repeat(4) { index ->
+            delay(if (index == 0) 80L else 90L)
+            visibleQuickActions = index + 1
+        }
     }
 
     LazyColumn(
@@ -96,46 +110,70 @@ fun HomeScreen(
 
         item {
             Column {
-                SectionHeader(title = "Quick Access")
+                SectionHeader(title = "Quick Actions")
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            title = "Services",
-                            description = "Worship times",
-                            icon = Icons.Default.Church,
-                            onClick = onOpenServices,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["services"]?.url
-                        )
-                        QuickActionCard(
-                            title = "Sermons",
-                            description = "Watch media",
-                            icon = Icons.AutoMirrored.Filled.MenuBook,
-                            onClick = onOpenSermons,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["sermons"]?.url
-                        )
+                        AnimatedVisibility(
+                            visible = visibleQuickActions >= 1,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            QuickActionCard(
+                                title = "Services",
+                                description = "Worship times",
+                                icon = Icons.Default.Church,
+                                onClick = onOpenServices,
+                                modifier = Modifier.fillMaxWidth(),
+                                imageUrl = quickAccessImages["services"]?.url
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = visibleQuickActions >= 2,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            QuickActionCard(
+                                title = "Sermons",
+                                description = "Watch media",
+                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                onClick = onOpenSermons,
+                                modifier = Modifier.fillMaxWidth(),
+                                imageUrl = quickAccessImages["sermons"]?.url
+                            )
+                        }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            title = "Giving",
-                            description = "Tithes & Gift",
-                            icon = Icons.Default.Favorite,
-                            onClick = onOpenGiving,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["giving"]?.url
-                        )
-                        QuickActionCard(
-                            title = "Events",
-                            description = "What's on",
-                            icon = Icons.Default.CalendarToday,
-                            onClick = onOpenEvents,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["events"]?.url
-                        )
+                        AnimatedVisibility(
+                            visible = visibleQuickActions >= 3,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            QuickActionCard(
+                                title = "Giving",
+                                description = "Tithes & Gift",
+                                icon = Icons.Default.Favorite,
+                                onClick = onOpenGiving,
+                                modifier = Modifier.fillMaxWidth(),
+                                imageUrl = quickAccessImages["giving"]?.url
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = visibleQuickActions >= 4,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            QuickActionCard(
+                                title = "Events",
+                                description = "What's on",
+                                icon = Icons.Default.CalendarToday,
+                                onClick = onOpenEvents,
+                                modifier = Modifier.fillMaxWidth(),
+                                imageUrl = quickAccessImages["events"]?.url
+                            )
+                        }
                     }
                 }
             }
@@ -148,10 +186,10 @@ fun HomeScreen(
                     actionText = "View all",
                     onActionClick = onOpenEvents
                 )
-                
+
                 val sortedEvents = events.sortedBy { it.start_at }.take(5)
                 val pagerState = rememberPagerState(pageCount = { sortedEvents.size })
-                
+
                 HorizontalPager(
                     state = pagerState,
                     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -170,9 +208,9 @@ fun HomeScreen(
         }
 
         item {
-            SectionHeader(title = "Join Us In Worship")
+            SectionHeader(title = "Grow in Faith")
         }
-        
+
         items(info.services) { service ->
             ChurchServiceCard(
                 service = service,
