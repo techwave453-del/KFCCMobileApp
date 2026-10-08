@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.BibleGameCategory
 import com.example.helloworld.data.BibleGameQuestion
 import com.example.helloworld.data.BibleGameRepository
+import com.example.helloworld.ui.viewmodel.BibleGameProgressViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 private enum class GameMode(val label: String, val description: String) {
@@ -81,13 +83,10 @@ fun BibleGamesScreen(
     var answered by rememberSaveable { mutableStateOf<Int?>(null) }
     var secondsLeft by rememberSaveable { mutableIntStateOf(60) }
     var roundRecorded by rememberSaveable { mutableStateOf(false) }
-    var playerStats by remember { mutableStateOf<com.example.helloworld.data.BibleGamePlayerStats?>(null) }
+    val progressViewModel: BibleGameProgressViewModel = viewModel()
+    val playerStats = progressViewModel.stats
 
     val repository = remember { BibleGameRepository() }
-
-    LaunchedEffect(Unit) {
-        playerStats = repository.loadPlayerStats()
-    }
 
     fun startGame() {
         loading = true
@@ -126,7 +125,7 @@ fun BibleGamesScreen(
     LaunchedEffect(roundFinished, roundRecorded) {
         if (!roundFinished || roundRecorded) return@LaunchedEffect
         roundRecorded = true
-        repository.recordQuizResult(score, questions.size)?.let { playerStats = it }
+        progressViewModel.recordQuizResult(score, questions.size)
     }
 
     Column(
