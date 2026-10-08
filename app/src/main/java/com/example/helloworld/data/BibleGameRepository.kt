@@ -62,11 +62,37 @@ private data class BibleGameQuestionRow(
     val question: String,
     val options: List<String>,
     @SerialName("correct_answer_index") val correctAnswerIndex: Int,
+    @SerialName("game_type") val gameType: String = "quiz",
     val explanation: String = "",
     val reference: String = ""
 )
 
 class BibleGameRepository {
+    suspend fun loadGameQuestions(gameType: String, limit: Int = 10): List<BibleGameQuestion> {
+        val remote = withTimeoutOrNull(8_000L) {
+            runCatching {
+                SupabaseProvider.client.from("bible_game_questions")
+                    .select().decodeList<BibleGameQuestionRow>()
+                    .filter { it.gameType == gameType && it.options.size >= 2 && it.correctAnswerIndex in it.options.indices }
+                    .sortedBy { it.id }
+            }.getOrDefault(emptyList())
+        }.orEmpty()
+        if (remote.isNotEmpty()) return remote.shuffled().take(limit).map {
+            BibleGameQuestion(
+                id = it.id,
+                category = BibleGameCategory.entries.firstOrNull { value -> value.name == it.category } ?: BibleGameCategory.PEOPLE,
+                question = it.question,
+                options = it.options,
+                correctAnswerIndex = it.correctAnswerIndex,
+                explanation = it.explanation,
+                reference = it.reference,
+                gameType = it.gameType
+            )
+        }
+        delay(120)
+        return if (gameType == "guess_character") CHARACTER_BANK.shuffled().take(limit) else emptyList()
+    }
+
     suspend fun loadQuestions(
         category: BibleGameCategory = BibleGameCategory.ALL,
         limit: Int = 10
@@ -81,6 +107,7 @@ class BibleGameRepository {
                     .select()
                     .decodeList<BibleGameQuestionRow>()
                     .filter {
+                        it.gameType == "quiz" &&
                         (category == BibleGameCategory.ALL || it.category == category.name) &&
                             it.options.size >= 2 &&
                             it.correctAnswerIndex in it.options.indices
@@ -99,7 +126,8 @@ class BibleGameRepository {
                     options = it.options,
                     correctAnswerIndex = it.correctAnswerIndex,
                     explanation = it.explanation,
-                    reference = it.reference
+                    reference = it.reference,
+                    gameType = it.gameType
                 )
             }
         }
@@ -244,6 +272,15 @@ class BibleGameRepository {
             )
         }.getOrNull()
     }
+
+        private val CHARACTER_BANK = listOf(
+            BibleGameQuestion("character-noah", BibleGameCategory.PEOPLE, "I built an ark before a great flood. Who am I?", listOf("Noah", "Moses", "David", "Joshua"), 0, "Noah obeyed God and built the ark before the flood.", "Genesis 6–9", "guess_character"),
+            BibleGameQuestion("character-david", BibleGameCategory.PEOPLE, "I defeated a giant with a sling and a stone. Who am I?", listOf("Jonathan", "David", "Saul", "Samuel"), 1, "David trusted God and defeated Goliath.", "1 Samuel 17", "guess_character"),
+            BibleGameQuestion("character-daniel", BibleGameCategory.PEOPLE, "I was thrown into a lions' den because I continued praying to God. Who am I?", listOf("Daniel", "Jeremiah", "Joseph", "Elijah"), 0, "Daniel remained faithful to God despite the royal decree.", "Daniel 6", "guess_character"),
+            BibleGameQuestion("character-jonah", BibleGameCategory.PEOPLE, "I was swallowed by a great fish after running from God's call. Who am I?", listOf("Jonah", "Amos", "Elisha", "Isaiah"), 0, "Jonah eventually went to Nineveh after God called him.", "Jonah 1–4", "guess_character"),
+            BibleGameQuestion("character-moses", BibleGameCategory.PEOPLE, "I led Israel out of Egypt and received the Law from God. Who am I?", listOf("Aaron", "Joshua", "Moses", "Caleb"), 2, "Moses led Israel out of Egypt and received God's commandments.", "Exodus 3–20", "guess_character"),
+            BibleGameQuestion("character-solomon", BibleGameCategory.PEOPLE, "I was known for great wisdom and built the temple in Jerusalem. Who am I?", listOf("David", "Solomon", "Samuel", "Hezekiah"), 1, "Solomon asked God for wisdom and later built the temple.", "1 Kings 3–8", "guess_character")
+        )
 
     companion object {
         private val QUESTION_BANK = listOf(
