@@ -31,6 +31,29 @@ data class BibleGameRound(
     val timed: Boolean
 )
 
+data class BibleGamePlayerStats(
+    val xp: Int = 0,
+    val gamesPlayed: Int = 0,
+    val questionsAnswered: Int = 0,
+    val correctAnswers: Int = 0,
+    val bestScore: Int = 0,
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0
+)
+
+@Serializable
+private data class BibleGamePlayerStatsRow(
+    @SerialName("user_id") val userId: String,
+    val xp: Int = 0,
+    @SerialName("games_played") val gamesPlayed: Int = 0,
+    @SerialName("questions_answered") val questionsAnswered: Int = 0,
+    @SerialName("correct_answers") val correctAnswers: Int = 0,
+    @SerialName("best_score") val bestScore: Int = 0,
+    @SerialName("current_streak") val currentStreak: Int = 0,
+    @SerialName("best_streak") val bestStreak: Int = 0,
+    @SerialName("last_played_on") val lastPlayedOn: String? = null
+)
+
 @Serializable
 private data class BibleGameQuestionRow(
     val id: String,
@@ -87,6 +110,85 @@ class BibleGameRepository {
             QUESTION_BANK.filter { it.category == category }
         }
         return source.shuffled().take(limit.coerceAtMost(source.size))
+    }
+
+    suspend fun loadPlayerStats(): BibleGamePlayerStats? {
+        if (!SupabaseProvider.ensureSession()) return null
+        val userId = SupabaseProvider.client.auth.currentSessionOrNull()?.user?.id ?: return null
+        return runCatching {
+            SupabaseProvider.client
+                .from("bible_game_player_stats")
+                .select()
+                .decodeList<BibleGamePlayerStatsRow>()
+                .firstOrNull { it.userId == userId }
+                ?.let {
+                    BibleGamePlayerStats(
+                        xp = it.xp,
+                        gamesPlayed = it.gamesPlayed,
+                        questionsAnswered = it.questionsAnswered,
+                        correctAnswers = it.correctAnswers,
+                        bestScore = it.bestScore,
+                        currentStreak = it.currentStreak,
+                        bestStreak = it.bestStreak
+                    )
+                }
+        }.getOrNull()
+    }
+
+    suspend fun recordQuizResult(score: Int, total: Int): BibleGamePlayerStats? {
+        if (!SupabaseProvider.ensureSession()) return null
+        val userId = SupabaseProvider.client.auth.currentSessionOrNull()?.user?.id ?: return null
+        if (total <= 0) return null
+
+        return runCatching {
+            val existing = SupabaseProvider.client
+                .from("bible_game_player_stats")
+                .select()
+                .decodeList<BibleGamePlayerStatsRow>()
+                .firstOrNull { it.userId == userId }
+
+            val today = java.time.LocalDate.now().toString()
+            val currentStreak = when {
+                existing == null -> 1
+                existing.lastPlayedOn == today -> existing.currentStreak.coerceAtLeast(1)
+                existing.lastPlayedOn == runCatching {
+                    java.time.LocalDate.parse(today).minusDays(1).toString()
+                }.getOrNull() -> existing.currentStreak + 1
+                else -> 1
+            }
+            val xpEarned = (score.coerceAtLeast(0) * 10) + 20
+            val next = BibleGamePlayerStatsRow(
+                userId = userId,
+                xp = (existing?.xp ?: 0) + xpEarned,
+                gamesPlayed = (existing?.gamesPlayed ?: 0) + 1,
+                questionsAnswered = (existing?.questionsAnswered ?: 0) + total,
+                correctAnswers = (existing?.correctAnswers ?: 0) + score.coerceAtMost(total),
+                bestScore = maxOf(existing?.bestScore ?: 0, score),
+                currentStreak = currentStreak,
+                bestStreak = maxOf(existing?.bestStreak ?: 0, currentStreak),
+                lastPlayedOn = today
+            )
+
+            if (existing == null) {
+                SupabaseProvider.client.from("bible_game_player_stats").insert(next)
+            } else {
+                SupabaseProvider.client
+                    .from("bible_game_player_stats")
+                    .update(next) {
+                        filter { eq("user_id", userId) }
+                    }
+            }
+
+            BibleGamePlayerStats(
+                xp = next.xp,
+                gamesPlayed = next.gamesPlayed,
+                questionsAnswered = next.questionsAnswered,
+                correctAnswers = next.correctAnswers,
+                bestScore = next.bestScore,
+                currentStreak = next.currentStreak,
+                bestStreak = next.bestStreak
+            )
+        }.getOrNull()
     }
 
     companion object {
