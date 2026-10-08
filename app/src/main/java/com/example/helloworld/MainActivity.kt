@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 KFCCApp(
                     openNotifications = openNotifications,
                     openChatRoomId = openChatRoomId,
-                    openBibleReference = openBibleReference,
+                    notificationBibleReference = openBibleReference,
                     onNotificationOpened = { openNotifications = false },
                     onChatOpened = { openChatRoomId = null },
                     onBibleReferenceOpened = { openBibleReference = null }
@@ -373,8 +373,8 @@ fun KFCCApp(
         }
     }
 
-    LaunchedEffect(openBibleReference) {
-        val reference = openBibleReference ?: return@LaunchedEffect
+    LaunchedEffect(notificationBibleReference) {
+        val reference = notificationBibleReference ?: return@LaunchedEffect
         openBibleReference(reference)
         onBibleReferenceOpened()
     }
