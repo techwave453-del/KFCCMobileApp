@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.KfccBibleRepository
 import com.example.helloworld.data.BibleGamePlayerStats
 import com.example.helloworld.data.BibleGameRepository
+import com.example.helloworld.ui.viewmodel.BibleGameProgressViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
 private data class MemoryVerseTarget(
@@ -53,12 +55,9 @@ fun MemoryVerseScreen(
     var loading by remember { mutableStateOf(true) }
     var revealed by remember { mutableStateOf(false) }
     var completed by remember { mutableIntStateOf(0) }
-    var stats by remember { mutableStateOf<BibleGamePlayerStats?>(null) }
+    val progressViewModel: BibleGameProgressViewModel = viewModel()
+    val stats = progressViewModel.stats
     var completionRecorded by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        stats = gameRepository.loadPlayerStats()
-    }
 
     fun loadTarget(index: Int) {
         val target = targets[index]
@@ -213,7 +212,7 @@ fun MemoryVerseScreen(
                         if (!completionRecorded) {
                             completionRecorded = true
                             completed++
-                            gameRepository.recordMemoryVerseCompleted()?.let { stats = it }
+                            progressViewModel.recordMemoryVerseCompleted()
                         }
                         targetIndex = (targetIndex + 1) % targets.size
                     },
