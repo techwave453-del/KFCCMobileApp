@@ -694,12 +694,16 @@ fun KFCCApp(
                         onOpenServices = { navigate(AppDestinations.SERVICES) }
                     )
 
-                    AppDestinations.BIBLE_GAMES -> BibleGamesScreen(
+                    AppDestinations.BIBLE_GAMES -> BibleGamesHubScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         innerPadding = innerPadding
                     )
 
-                    AppDestinations.BIBLE -> BibleHomeScreen(
+                    AppDestinations.BIBLE_GAME_QUIZ -> BibleGamesScreen(
+                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         innerPadding = innerPadding
+                     )
+                     AppDestinations.BIBLE -> BibleHomeScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
                         onOpenChapter = { bookId, chapter ->
@@ -1048,6 +1052,7 @@ enum class AppDestinations(val label: String) {
     HOME("Home"),
     BIBLE("Bible"),
     BIBLE_GAMES("Bible Games"),
+    BIBLE_GAME_QUIZ("Bible Quiz"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
