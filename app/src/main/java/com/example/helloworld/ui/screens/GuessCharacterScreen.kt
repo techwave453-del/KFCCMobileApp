@@ -61,7 +61,7 @@ fun GuessCharacterScreen(
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            questions.isEmpty() -> EmptyCharacterGame(onRetry = { reloadToken++ })
+            questions.isEmpty() -> EmptyCharacterGame(onRetry = { reloadToken++ }, showError = loadingError)
             finished -> CharacterResult(score, questions.size, onBack)
             else -> {
                 val question = questions[index]
@@ -116,7 +116,8 @@ fun GuessCharacterScreen(
                         Text(question.reference, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Button(
                             onClick = {
-                                if (selected == question.correctAnswerIndex) score++
+                                val newScore = score + if (selected == question.correctAnswerIndex) 1 else 0
+                                score = newScore
                                 if (index == questions.lastIndex) finished = true
                                 else { index++; selected = -1 }
                             },
