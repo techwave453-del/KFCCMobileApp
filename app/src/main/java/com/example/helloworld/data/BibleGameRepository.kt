@@ -192,6 +192,59 @@ class BibleGameRepository {
         }.getOrNull()
     }
 
+    suspend fun recordMemoryVerseCompleted(): BibleGamePlayerStats? {
+        if (!SupabaseProvider.ensureSession()) return null
+        val userId = SupabaseProvider.client.auth.currentSessionOrNull()?.user?.id ?: return null
+
+        return runCatching {
+            val existing = SupabaseProvider.client
+                .from("bible_game_player_stats")
+                .select()
+                .decodeList<BibleGamePlayerStatsRow>()
+                .firstOrNull { it.userId == userId }
+
+            val today = java.time.LocalDate.now().toString()
+            val yesterday = java.time.LocalDate.now().minusDays(1).toString()
+            val streak = when {
+                existing == null -> 1
+                existing.lastPlayedOn == today -> existing.currentStreak.coerceAtLeast(1)
+                existing.lastPlayedOn == yesterday -> existing.currentStreak + 1
+                else -> 1
+            }
+            val next = BibleGamePlayerStatsRow(
+                userId = userId,
+                xp = (existing?.xp ?: 0) + 15,
+                gamesPlayed = (existing?.gamesPlayed ?: 0) + 1,
+                questionsAnswered = existing?.questionsAnswered ?: 0,
+                correctAnswers = existing?.correctAnswers ?: 0,
+                bestScore = existing?.bestScore ?: 0,
+                currentStreak = streak,
+                bestStreak = maxOf(existing?.bestStreak ?: 0, streak),
+                lastPlayedOn = today
+            )
+
+            if (existing == null) {
+                SupabaseProvider.client.from("bible_game_player_stats").insert(next)
+            } else {
+                SupabaseProvider.client
+                    .from("bible_game_player_stats")
+                    .update(next) {
+                        filter { eq("user_id", userId) }
+                    }
+            }
+
+            BibleGamePlayerStats(
+                xp = next.xp,
+                gamesPlayed = next.gamesPlayed,
+                questionsAnswered = next.questionsAnswered,
+                correctAnswers = next.correctAnswers,
+                bestScore = next.bestScore,
+                currentStreak = next.currentStreak,
+                bestStreak = next.bestStreak
+            )
+        }.getOrNull()
+    }
+
     companion object {
         private val QUESTION_BANK = listOf(
             BibleGameQuestion(
