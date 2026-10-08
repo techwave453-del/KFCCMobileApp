@@ -184,7 +184,7 @@ fun HomeScreen(
                     }
 
                     Text(
-                        text = "$" + "{currentQuickAction + 1} / $" + "{quickActions.size}",
+                        text = "${currentQuickAction + 1} / ${quickActions.size}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
