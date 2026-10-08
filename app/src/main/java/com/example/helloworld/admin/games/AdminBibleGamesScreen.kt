@@ -57,7 +57,7 @@ fun AdminBibleGamesScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(item.question, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Text(item.category.replace('_', ' '), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                    Text("${item.gameType.replace('_', ' ')} • ${item.category.replace('_', ' ')}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                 }
                                 IconButton(onClick = { editing = item; showEditor = true }) { Icon(Icons.Default.Edit, "Edit") }
                                 IconButton(onClick = { viewModel.delete(item) }) { Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error) }
@@ -95,6 +95,7 @@ private fun BibleGameQuestionEditor(
     onSave: (BibleGameQuestionAdmin) -> Unit
 ) {
     var question by remember(initial.id) { mutableStateOf(initial.question) }
+    var gameType by remember(initial.id) { mutableStateOf(initial.gameType) }
     var category by remember(initial.id) { mutableStateOf(initial.category) }
     var options by remember(initial.id) { mutableStateOf(initial.options + List((4 - initial.options.size).coerceAtLeast(0)) { "" }) }
     var correct by remember(initial.id) { mutableIntStateOf(initial.correctAnswerIndex.coerceIn(0, 3)) }
@@ -108,6 +109,7 @@ private fun BibleGameQuestionEditor(
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
                 item { OutlinedTextField(question, { question = it }, label = { Text("Question") }, minLines = 2, modifier = Modifier.fillMaxWidth()) }
+                item { GameTypeMenu(gameType) { gameType = it } }
                 item { CategoryMenu(category) { category = it } }
                 items(4) { answerIndex ->
                     OutlinedTextField(
@@ -133,11 +135,32 @@ private fun BibleGameQuestionEditor(
         },
         confirmButton = {
             Button(onClick = {
-                onSave(initial.copy(category = category, question = question, options = options, correctAnswerIndex = correct, explanation = explanation, reference = reference, isPublished = published))
+                onSave(initial.copy(gameType = gameType, category = category, question = question, options = options, correctAnswerIndex = correct, explanation = explanation, reference = reference, isPublished = published))
             }, enabled = !saving && question.isNotBlank()) { Text(if (saving) "Saving…" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GameTypeMenu(selected: String, onSelected: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selected.replace('_', ' '),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Game type") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            listOf("quiz","guess_character","memory_verse","fill_blank","daily_challenge","choose_path","journey_jerusalem","character_missions").forEach { value ->
+                DropdownMenuItem(text = { Text(value.replace('_', ' ')) }, onClick = { onSelected(value); expanded = false })
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
