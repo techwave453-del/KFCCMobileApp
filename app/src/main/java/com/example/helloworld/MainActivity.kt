@@ -695,7 +695,8 @@ fun KFCCApp(
                     )
 
                     AppDestinations.BIBLE_GAMES -> BibleGamesScreen(
-                        onBack = { navigate(AppDestinations.HOME) }
+                        onBack = { navigate(AppDestinations.HOME) },
+                        innerPadding = innerPadding
                     )
 
                     AppDestinations.BIBLE -> BibleHomeScreen(
