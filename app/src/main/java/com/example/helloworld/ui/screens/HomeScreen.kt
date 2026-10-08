@@ -220,8 +220,7 @@ fun HomeScreen(
                 FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, true),
                 FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true),
                 FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false),
-                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false),
-                FaithFeature("Church Services", "Services and gatherings", Icons.Default.Church, true)
+                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false)
             )
 
             LazyRow(
@@ -234,16 +233,6 @@ fun HomeScreen(
             }
         }
 
-        item {
-            SectionHeader(title = "Church Services")
-        }
-
-        items(info.services) { service ->
-            ChurchServiceCard(
-                service = service,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
     }
 }
 
