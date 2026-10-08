@@ -79,7 +79,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         delay(300L)
         while (true) {
-            delay(4000L)
+            delay(8000L)
             currentQuickAction = (currentQuickAction + 1) % quickActions.size
         }
     }
