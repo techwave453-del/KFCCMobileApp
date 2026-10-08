@@ -192,7 +192,20 @@ class KfccNotificationWorker(
     private suspend fun postNotification(notification: AppNotification) {
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            if (notification.type.equals("daily_scripture", true)) {
+                val reference = notification.message
+                    .lineSequence()
+                    .firstOrNull()
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                if (reference != null) {
+                    putExtra(MainActivity.EXTRA_BIBLE_REFERENCE, reference)
+                } else {
+                    putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+                }
+            } else {
+                putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            }
             putExtra(MainActivity.EXTRA_NOTIFICATION_ID, notification.id)
         }
         val pendingIntent = PendingIntent.getActivity(
