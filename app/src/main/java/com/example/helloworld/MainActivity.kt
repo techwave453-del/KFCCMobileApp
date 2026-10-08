@@ -703,6 +703,10 @@ fun KFCCApp(
                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
                          innerPadding = innerPadding
                      )
+                     AppDestinations.BIBLE_GAME_MEMORY_VERSE -> MemoryVerseScreen(
+                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         innerPadding = innerPadding
+                     )
                      AppDestinations.BIBLE -> BibleHomeScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
@@ -1053,6 +1057,7 @@ enum class AppDestinations(val label: String) {
     BIBLE("Bible"),
     BIBLE_GAMES("Bible Games"),
     BIBLE_GAME_QUIZ("Bible Quiz"),
+    BIBLE_GAME_MEMORY_VERSE("Memory Verse"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
