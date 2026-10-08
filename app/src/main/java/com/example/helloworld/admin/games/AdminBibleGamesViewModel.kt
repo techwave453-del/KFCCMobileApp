@@ -42,13 +42,13 @@ class AdminBibleGamesViewModel(application: Application) : AndroidViewModel(appl
             _error.value = null
             val normalized = question.copy(
                 question = question.question.trim(),
-                options = question.options.map(String::trim).filter(String::isNotBlank),
+                options = question.options.map(String::trim),
                 explanation = question.explanation.trim(),
                 reference = question.reference.trim()
             )
             runCatching {
                 require(normalized.question.isNotBlank()) { "Question is required." }
-                require(normalized.options.size >= 2) { "At least two answer options are required." }
+                require(normalized.options.size == 4 && normalized.options.all(String::isNotBlank)) { "All four answer options are required." }
                 require(normalized.correctAnswerIndex in normalized.options.indices) { "Select a valid correct answer." }
                 if (normalized.id.isBlank()) repository.createBibleGameQuestion(normalized).getOrThrow()
                 else repository.updateBibleGameQuestion(normalized).getOrThrow()
