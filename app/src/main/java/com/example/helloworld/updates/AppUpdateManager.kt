@@ -19,14 +19,12 @@ object AppUpdateManager {
     private const val KEY_VERSION_CODE = "version_code"
 
     suspend fun getMandatoryUpdate(): AppUpdateConfig? = withContext(Dispatchers.IO) {
-        runCatching {
-            val config = SupabaseProvider.client
-                .from("app_update_config")
-                .select()
-                .decodeSingle<AppUpdateConfig>()
+        val config = SupabaseProvider.client
+            .from("app_update_config")
+            .select()
+            .decodeSingle<AppUpdateConfig>()
 
-            if (config.isEnabled && config.versionCode > BuildConfig.VERSION_CODE) config else null
-        }.getOrNull()
+        if (config.isEnabled && config.versionCode > BuildConfig.VERSION_CODE) config else null
     }
 
     suspend fun checkAndSchedule(context: Context): AppUpdateConfig? {
