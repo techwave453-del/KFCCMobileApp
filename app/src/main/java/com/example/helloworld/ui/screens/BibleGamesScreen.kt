@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,7 @@ private enum class GameMode(val label: String, val description: String) {
     TIMED("Timed Challenge", "Answer as many questions as you can in 60 seconds.")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BibleGamesScreen(
     onBack: () -> Unit = {}
