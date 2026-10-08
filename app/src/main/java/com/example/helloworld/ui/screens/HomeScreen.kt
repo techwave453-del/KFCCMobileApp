@@ -26,7 +26,6 @@ import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.MediaItem
 import com.example.helloworld.events.Event
 import com.example.helloworld.ui.components.ChurchHero
-import com.example.helloworld.ui.components.ChurchServiceCard
 import com.example.helloworld.ui.components.ModernEventCard
 import com.example.helloworld.ui.components.QuickActionCard
 import com.example.helloworld.ui.components.SectionHeader
