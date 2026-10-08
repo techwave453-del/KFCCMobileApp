@@ -416,12 +416,34 @@ class AdminRepository(context: Context) {
     }
 
     suspend fun createBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
-        client.from("bible_game_questions").insert(question.copy(id = ""))
+        client.from("bible_game_questions").insert(
+            mapOf(
+                "category" to question.category,
+                "question" to question.question.trim(),
+                "options" to question.options,
+                "correct_answer_index" to question.correctAnswerIndex,
+                "explanation" to question.explanation.trim(),
+                "reference" to question.reference.trim(),
+                "is_published" to question.isPublished,
+                "sort_order" to question.sortOrder
+            )
+        )
     }
 
     suspend fun updateBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
         require(question.id.isNotBlank()) { "Question ID is required." }
-        client.from("bible_game_questions").update(question.copy(id = "")) {
+        client.from("bible_game_questions").update(
+            mapOf(
+                "category" to question.category,
+                "question" to question.question.trim(),
+                "options" to question.options,
+                "correct_answer_index" to question.correctAnswerIndex,
+                "explanation" to question.explanation.trim(),
+                "reference" to question.reference.trim(),
+                "is_published" to question.isPublished,
+                "sort_order" to question.sortOrder
+            )
+        ) {
             filter { eq("id", question.id) }
         }
     }
