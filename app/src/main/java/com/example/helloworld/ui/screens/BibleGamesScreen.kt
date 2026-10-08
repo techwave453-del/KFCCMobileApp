@@ -80,8 +80,14 @@ fun BibleGamesScreen(
     var score by rememberSaveable { mutableIntStateOf(0) }
     var answered by rememberSaveable { mutableStateOf<Int?>(null) }
     var secondsLeft by rememberSaveable { mutableIntStateOf(60) }
+    var roundRecorded by rememberSaveable { mutableStateOf(false) }
+    var playerStats by remember { mutableStateOf<com.example.helloworld.data.BibleGamePlayerStats?>(null) }
 
     val repository = remember { BibleGameRepository() }
+
+    LaunchedEffect(Unit) {
+        playerStats = repository.loadPlayerStats()
+    }
 
     fun startGame() {
         loading = true
@@ -89,6 +95,7 @@ fun BibleGamesScreen(
         questionIndex = 0
         score = 0
         answered = null
+        roundRecorded = false
     }
 
     LaunchedEffect(loading) {
@@ -114,6 +121,13 @@ fun BibleGamesScreen(
             questionIndex >= questions.lastIndex && answered != null
     val timedOut =
         !started && questions.isNotEmpty() && secondsLeft == 0 && answered == null
+    val roundFinished = !started && questions.isNotEmpty() && answered == null && !loading
+
+    LaunchedEffect(roundFinished, roundRecorded) {
+        if (!roundFinished || roundRecorded) return@LaunchedEffect
+        roundRecorded = true
+        repository.recordQuizResult(score, questions.size)?.let { playerStats = it }
+    }
 
     Column(
         Modifier
@@ -143,8 +157,8 @@ fun BibleGamesScreen(
         ) { screen ->
             when (screen) {
                 "loading" -> LoadingGame()
-                "timeout" -> GameResult(score, questions.size, true, ::startGame)
-                "result" -> GameResult(score, questions.size, false, ::startGame)
+                "timeout" -> GameResult(score, questions.size, true, playerStats, ::startGame)
+                "result" -> GameResult(score, questions.size, false, playerStats, ::startGame)
                 "question" -> {
                     val question = questions[questionIndex]
                     GameQuestionCard(
@@ -177,7 +191,8 @@ fun BibleGamesScreen(
                     category = category,
                     onModeChange = { mode = it },
                     onCategoryChange = { category = it },
-                    onStart = ::startGame
+                    onStart = ::startGame,
+                    stats = playerStats
                 )
             }
         }
@@ -190,7 +205,8 @@ private fun GameHome(
     category: BibleGameCategory,
     onModeChange: (GameMode) -> Unit,
     onCategoryChange: (BibleGameCategory) -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    stats: com.example.helloworld.data.BibleGamePlayerStats?
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val horizontalPadding = if (this@BoxWithConstraints.maxWidth < 360.dp) 12.dp else 16.dp
@@ -243,6 +259,37 @@ private fun GameHome(
             }
 
             item {
+                stats?.let { progress ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Your progress", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    progress.xp.toString() + " XP • " + progress.gamesPlayed + " games • " +
+                                        progress.currentStreak + " day streak",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                progress.bestScore.toString(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(2.dp))
+                }
                 Text("Game mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Row(
@@ -541,6 +588,7 @@ private fun GameResult(
     score: Int,
     total: Int,
     timedOut: Boolean,
+    stats: com.example.helloworld.data.BibleGamePlayerStats?,
     onPlayAgain: () -> Unit
 ) {
     val percentage = if (total == 0) 0 else (score * 100) / total
@@ -584,6 +632,33 @@ private fun GameResult(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyLarge
                 )
+            }
+
+            item {
+                stats?.let { progress ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("Progress saved", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "+ XP earned • " + progress.xp + " total XP • " +
+                                    progress.currentStreak + " day streak",
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
             item {
