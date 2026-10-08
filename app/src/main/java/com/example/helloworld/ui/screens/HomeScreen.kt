@@ -64,7 +64,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         visibleQuickActions = 0
         repeat(4) { index ->
-            delay(if (index == 0) 250L else 140L)
+            delay(if (index == 0) 300L else 500L)
             visibleQuickActions = index + 1
         }
     }
