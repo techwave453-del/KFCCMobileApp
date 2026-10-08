@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.helloworld.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -30,8 +32,9 @@ fun GuessCharacterScreen(
     var score by remember { mutableIntStateOf(0) }
     var finished by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
+    var reloadToken by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(reloadToken) {
         questions = BibleGameRepository().loadGameQuestions("guess_character", 10)
         loading = false
         finished = questions.isEmpty()
@@ -58,7 +61,7 @@ fun GuessCharacterScreen(
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            questions.isEmpty() -> EmptyCharacterGame()
+            questions.isEmpty() -> EmptyCharacterGame(onRetry = { reloadToken++ })
             finished -> CharacterResult(score, questions.size, onBack)
             else -> {
                 val question = questions[index]
@@ -129,14 +132,20 @@ fun GuessCharacterScreen(
 }
 
 @Composable
-private fun EmptyCharacterGame() {
+private fun EmptyCharacterGame(onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Groups, null, Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
             Text("No character challenges are available yet.", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
-            Text("The built-in challenges will be available after the next app update.", textAlign = TextAlign.Center)
+            Text("Try loading the challenges again, or ask an administrator to publish more character questions.", textAlign = TextAlign.Center)
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onRetry) {
+                Icon(Icons.Default.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Try again")
+            }
         }
     }
 }
