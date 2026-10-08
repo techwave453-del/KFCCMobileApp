@@ -24,7 +24,8 @@ data class BibleGameQuestion(
     val options: List<String>,
     val correctAnswerIndex: Int,
     val explanation: String,
-    val reference: String
+    val reference: String,
+    val gameType: String = "quiz"
 )
 
 data class BibleGameRound(
@@ -274,12 +275,12 @@ class BibleGameRepository {
     }
 
         private val CHARACTER_BANK = listOf(
-            BibleGameQuestion("character-noah", BibleGameCategory.PEOPLE, "I built an ark before a great flood. Who am I?", listOf("Noah", "Moses", "David", "Joshua"), 0, "Noah obeyed God and built the ark before the flood.", "Genesis 6–9", "guess_character"),
-            BibleGameQuestion("character-david", BibleGameCategory.PEOPLE, "I defeated a giant with a sling and a stone. Who am I?", listOf("Jonathan", "David", "Saul", "Samuel"), 1, "David trusted God and defeated Goliath.", "1 Samuel 17", "guess_character"),
-            BibleGameQuestion("character-daniel", BibleGameCategory.PEOPLE, "I was thrown into a lions' den because I continued praying to God. Who am I?", listOf("Daniel", "Jeremiah", "Joseph", "Elijah"), 0, "Daniel remained faithful to God despite the royal decree.", "Daniel 6", "guess_character"),
-            BibleGameQuestion("character-jonah", BibleGameCategory.PEOPLE, "I was swallowed by a great fish after running from God's call. Who am I?", listOf("Jonah", "Amos", "Elisha", "Isaiah"), 0, "Jonah eventually went to Nineveh after God called him.", "Jonah 1–4", "guess_character"),
-            BibleGameQuestion("character-moses", BibleGameCategory.PEOPLE, "I led Israel out of Egypt and received the Law from God. Who am I?", listOf("Aaron", "Joshua", "Moses", "Caleb"), 2, "Moses led Israel out of Egypt and received God's commandments.", "Exodus 3–20", "guess_character"),
-            BibleGameQuestion("character-solomon", BibleGameCategory.PEOPLE, "I was known for great wisdom and built the temple in Jerusalem. Who am I?", listOf("David", "Solomon", "Samuel", "Hezekiah"), 1, "Solomon asked God for wisdom and later built the temple.", "1 Kings 3–8", "guess_character")
+            BibleGameQuestion("character-noah", BibleGameCategory.PEOPLE, "I built an ark before a great flood. Who am I?", listOf("Noah", "Moses", "David", "Joshua"), 0, "Noah obeyed God and built the ark before the flood.", "Genesis 6–9" ),
+            BibleGameQuestion("character-david", BibleGameCategory.PEOPLE, "I defeated a giant with a sling and a stone. Who am I?", listOf("Jonathan", "David", "Saul", "Samuel"), 1, "David trusted God and defeated Goliath.", "1 Samuel 17" ),
+            BibleGameQuestion("character-daniel", BibleGameCategory.PEOPLE, "I was thrown into a lions' den because I continued praying to God. Who am I?", listOf("Daniel", "Jeremiah", "Joseph", "Elijah"), 0, "Daniel remained faithful to God despite the royal decree.", "Daniel 6" ),
+            BibleGameQuestion("character-jonah", BibleGameCategory.PEOPLE, "I was swallowed by a great fish after running from God's call. Who am I?", listOf("Jonah", "Amos", "Elisha", "Isaiah"), 0, "Jonah eventually went to Nineveh after God called him.", "Jonah 1–4" ),
+            BibleGameQuestion("character-moses", BibleGameCategory.PEOPLE, "I led Israel out of Egypt and received the Law from God. Who am I?", listOf("Aaron", "Joshua", "Moses", "Caleb"), 2, "Moses led Israel out of Egypt and received God's commandments.", "Exodus 3–20" ),
+            BibleGameQuestion("character-solomon", BibleGameCategory.PEOPLE, "I was known for great wisdom and built the temple in Jerusalem. Who am I?", listOf("David", "Solomon", "Samuel", "Hezekiah"), 1, "Solomon asked God for wisdom and later built the temple.", "1 Kings 3–8" )
         )
 
     companion object {
