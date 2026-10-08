@@ -464,7 +464,8 @@ fun KFCCApp(
     fun backDestination(): AppDestinations = when (currentDestination) {
         AppDestinations.BIBLE_GAMES -> AppDestinations.HOME
         AppDestinations.BIBLE_GAME_QUIZ,
-        AppDestinations.BIBLE_GAME_MEMORY_VERSE -> AppDestinations.BIBLE_GAMES
+        AppDestinations.BIBLE_GAME_MEMORY_VERSE,
+        AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> AppDestinations.BIBLE_GAMES
         AppDestinations.BIBLE_CHAPTER,
         AppDestinations.BIBLE_SEARCH -> AppDestinations.BIBLE
         AppDestinations.ACCOUNT -> AppDestinations.CHAT
@@ -1108,7 +1109,8 @@ enum class AppDestinations(val label: String) {
     BIBLE("Bible"),
     BIBLE_GAMES("Bible Games"),
     BIBLE_GAME_QUIZ("Bible Quiz"),
-    BIBLE_GAME_MEMORY_VERSE("Memory Verse"),\n    BIBLE_GAME_GUESS_CHARACTER("Guess the Character"),
+    BIBLE_GAME_MEMORY_VERSE("Memory Verse"),
+    BIBLE_GAME_GUESS_CHARACTER("Guess the Character"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
