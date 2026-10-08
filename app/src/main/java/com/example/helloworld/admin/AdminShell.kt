@@ -28,6 +28,7 @@ import com.example.helloworld.admin.users.AdminUsersScreen
 import com.example.helloworld.admin.users.AdminUsersViewModel
 import com.example.helloworld.admin.notifications.AdminNotificationsScreen
 import com.example.helloworld.admin.updates.AppUpdateAdminScreen
+import com.example.helloworld.admin.games.AdminBibleGamesScreen
 
 private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been created, but no administration permissions have been assigned yet."
 
@@ -71,6 +72,8 @@ fun AdminShell(
                         ModuleFrame("Notifications", { openModule = null }) { AdminNotificationsScreen(Modifier.fillMaxSize()) }
                     openModule == "app_update" && currentUser.hasPermission(AdminPermissions.APP_UPDATE_MANAGE) ->
                         ModuleFrame("App Updates", { openModule = null }) { AppUpdateAdminScreen(Modifier.fillMaxSize()) }
+                    openModule == "bible_games" && currentUser.hasPermission(AdminPermissions.BIBLE_GAMES_MANAGE) ->
+                        ModuleFrame("Bible Games", { openModule = null }) { AdminBibleGamesScreen(Modifier.fillMaxSize()) }
                     openModule == "daily_scripture" && currentUser.hasPermission(AdminPermissions.DAILY_SCRIPTURE_MANAGE) ->
                         ModuleFrame("Today's Scripture", { openModule = null }) { AdminDailyScriptureScreen(Modifier.fillMaxSize()) }
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
@@ -99,6 +102,7 @@ fun AdminShell(
                         { openModule = "events" },
                         { openModule = "notifications" },
                         { openModule = "app_update" },
+                        { openModule = "bible_games" },
                         { openModule = "daily_scripture" },
                         { openModule = "live" },
                         { openModule = "media" },
@@ -175,6 +179,7 @@ private fun AdminDashboardScreen(
     onEvents: () -> Unit,
     onNotifications: () -> Unit,
     onAppUpdate: () -> Unit,
+    onBibleGames: () -> Unit,
     onDailyScripture: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
@@ -189,6 +194,7 @@ private fun AdminDashboardScreen(
         AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.EVENTS_MANAGE, Icons.Default.Event),
         AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign),
         AdminModule("App Updates", "Configure the latest Android APK and automatic update delivery", AdminPermissions.APP_UPDATE_MANAGE, Icons.Default.SystemUpdate),
+        AdminModule("Bible Games", "Create, edit and publish Bible quiz questions", AdminPermissions.BIBLE_GAMES_MANAGE, Icons.Default.SportsEsports),
         AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
