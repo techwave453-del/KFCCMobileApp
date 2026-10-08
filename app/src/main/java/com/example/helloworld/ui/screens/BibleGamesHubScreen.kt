@@ -31,6 +31,7 @@ private data class BibleGameEntry(
 fun BibleGamesHubScreen(
     onBack: () -> Unit,
     onOpenQuiz: () -> Unit,
+    onOpenMemoryVerse: () -> Unit,
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var showComingSoon by remember { mutableStateOf<String?>(null) }
@@ -47,7 +48,7 @@ fun BibleGamesHubScreen(
                 "Memory Verse",
                 "Memorize Scripture through progressive recall challenges.",
                 Icons.Default.FormatQuote,
-                false
+                true
             ),
             BibleGameEntry(
                 "Guess the Character",
@@ -153,7 +154,7 @@ fun BibleGamesHubScreen(
             items(games, key = { it.title }) { game ->
                 Card(
                     onClick = {
-                        if (game.available) onOpenQuiz()
+                        if (game.title == "Bible Quiz") onOpenQuiz() else if (game.title == "Memory Verse") onOpenMemoryVerse()
                         else showComingSoon = game.title
                     },
                     modifier = Modifier.fillMaxWidth()
