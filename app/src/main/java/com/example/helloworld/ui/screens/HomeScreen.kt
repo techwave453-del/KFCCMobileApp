@@ -1,9 +1,14 @@
 package com.example.helloworld.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -59,13 +64,22 @@ fun HomeScreen(
             .associateBy { it.category.lowercase() }
     }
 
-    var visibleQuickActions by remember { mutableIntStateOf(0) }
+    var currentQuickAction by remember { mutableIntStateOf(0) }
+
+    val quickActions = remember {
+        listOf(
+            QuickAction("Services", "Worship times", Icons.Default.Church, "services", onOpenServices),
+            QuickAction("Sermons", "Watch media", Icons.AutoMirrored.Filled.MenuBook, "sermons", onOpenSermons),
+            QuickAction("Giving", "Tithes & Gift", Icons.Default.Favorite, "giving", onOpenGiving),
+            QuickAction("Events", "What's on", Icons.Default.CalendarToday, "events", onOpenEvents)
+        )
+    }
 
     LaunchedEffect(Unit) {
-        visibleQuickActions = 0
-        repeat(4) { index ->
-            delay(if (index == 0) 300L else 500L)
-            visibleQuickActions = index + 1
+        delay(300L)
+        while (true) {
+            delay(4000L)
+            currentQuickAction = (currentQuickAction + 1) % quickActions.size
         }
     }
 
@@ -114,70 +128,43 @@ fun HomeScreen(
         item {
             Column {
                 SectionHeader(title = "Quick Actions")
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AnimatedVisibility(
-                            visible = visibleQuickActions >= 1,
-                            enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(350)) + scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.tween(350)) + slideInVertically(animationSpec = androidx.compose.animation.core.tween(350), initialOffsetY = { it / 5 }),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            QuickActionCard(
-                                title = "Services",
-                                description = "Worship times",
-                                icon = Icons.Default.Church,
-                                onClick = onOpenServices,
-                                modifier = Modifier.fillMaxWidth(),
-                                imageUrl = quickAccessImages["services"]?.url
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = visibleQuickActions >= 2,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            QuickActionCard(
-                                title = "Sermons",
-                                description = "Watch media",
-                                icon = Icons.AutoMirrored.Filled.MenuBook,
-                                onClick = onOpenSermons,
-                                modifier = Modifier.fillMaxWidth(),
-                                imageUrl = quickAccessImages["sermons"]?.url
-                            )
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AnimatedVisibility(
-                            visible = visibleQuickActions >= 3,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            QuickActionCard(
-                                title = "Giving",
-                                description = "Tithes & Gift",
-                                icon = Icons.Default.Favorite,
-                                onClick = onOpenGiving,
-                                modifier = Modifier.fillMaxWidth(),
-                                imageUrl = quickAccessImages["giving"]?.url
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = visibleQuickActions >= 4,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            QuickActionCard(
-                                title = "Events",
-                                description = "What's on",
-                                icon = Icons.Default.CalendarToday,
-                                onClick = onOpenEvents,
-                                modifier = Modifier.fillMaxWidth(),
-                                imageUrl = quickAccessImages["events"]?.url
-                            )
-                        }
-                    }
+                AnimatedContent(
+                    targetState = currentQuickAction,
+                    transitionSpec = {
+                        (
+                            fadeIn(androidx.compose.animation.core.tween(450)) +
+                                scaleIn(
+                                    initialScale = 0.94f,
+                                    animationSpec = androidx.compose.animation.core.tween(450)
+                                ) +
+                                slideInVertically(
+                                    animationSpec = androidx.compose.animation.core.tween(450),
+                                    initialOffsetY = { it / 6 }
+                                )
+                        ).togetherWith(
+                            fadeOut(androidx.compose.animation.core.tween(350)) +
+                                scaleOut(
+                                    targetScale = 0.96f,
+                                    animationSpec = androidx.compose.animation.core.tween(350)
+                                ) +
+                                slideOutHorizontally(
+                                    targetOffsetX = { -it / 5 },
+                                    animationSpec = androidx.compose.animation.core.tween(350)
+                                )
+                        )
+                    },
+                    label = "Quick action carousel",
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) { index ->
+                    val action = quickActions[index]
+                    QuickActionCard(
+                        title = action.title,
+                        description = action.description,
+                        icon = action.icon,
+                        onClick = action.onClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        imageUrl = quickAccessImages[action.imageCategory]?.url
+                    )
                 }
             }
         }
@@ -253,6 +240,14 @@ fun HomeScreenPreview() {
     }
 }
 
+
+private data class QuickAction(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val imageCategory: String,
+    val onClick: () -> Unit
+)
 
 private data class FaithFeature(
     val title: String,
