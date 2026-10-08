@@ -6,7 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.filter.eq
+import io.github.jan.supabase.auth.auth
 
 enum class BibleGameCategory(val label: String) {
     ALL("All"),
@@ -176,7 +176,7 @@ class BibleGameRepository {
                 SupabaseProvider.client
                     .from("bible_game_player_stats")
                     .update(next) {
-                        filter { eq("user_id", userId) }
+                        filter { this.eq("user_id", userId) }
                     }
             }
 
