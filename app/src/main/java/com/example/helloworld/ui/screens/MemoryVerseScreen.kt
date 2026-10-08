@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.helloworld.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -151,8 +153,7 @@ fun MemoryVerseScreen(
                                 textAlign = TextAlign.Center
                             )
                             verseText != null -> Text(
-                                "The verse is hidden.
-Recall as much as you can.",
+                                "The verse is hidden.\nRecall as much as you can.",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center
