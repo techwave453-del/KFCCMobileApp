@@ -693,6 +693,10 @@ fun KFCCApp(
                         onOpenServices = { navigate(AppDestinations.SERVICES) }
                     )
 
+                    AppDestinations.BIBLE_GAMES -> BibleGamesScreen(
+                        onBack = { navigate(AppDestinations.HOME) }
+                    )
+
                     AppDestinations.BIBLE -> BibleHomeScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
@@ -1041,6 +1045,7 @@ private fun youtubeVideoId(url: String): String? {
 enum class AppDestinations(val label: String) {
     HOME("Home"),
     BIBLE("Bible"),
+    BIBLE_GAMES("Bible Games"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
