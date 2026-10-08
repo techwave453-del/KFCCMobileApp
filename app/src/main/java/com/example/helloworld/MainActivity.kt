@@ -686,6 +686,7 @@ fun KFCCApp(
                         onOpenChat = { navigate(AppDestinations.CHAT) },
                         onOpenMedia = { navigate(AppDestinations.MEDIA) },
                         onOpenBible = { navigate(AppDestinations.BIBLE) },
+                        onOpenBibleGames = { navigate(AppDestinations.BIBLE_GAMES) },
                         onOpenEvents = { navigate(AppDestinations.EVENTS) },
                         onOpenGiving = { navigate(AppDestinations.GIVING) },
                         onOpenSermons = { navigate(AppDestinations.MEDIA) },
