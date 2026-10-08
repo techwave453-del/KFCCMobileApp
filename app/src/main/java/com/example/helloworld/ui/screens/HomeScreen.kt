@@ -48,6 +48,7 @@ fun HomeScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp),
     onOpenChat: () -> Unit = {},
     onOpenMedia: () -> Unit = {},
+    onOpenBible: () -> Unit = {},
     onOpenEvents: () -> Unit = {},
     onOpenGiving: () -> Unit = {},
     onOpenSermons: () -> Unit = {},
@@ -166,6 +167,37 @@ fun HomeScreen(
                         imageUrl = quickAccessImages[action.imageCategory]?.url
                     )
                 }
+
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            currentQuickAction =
+                                (currentQuickAction - 1 + quickActions.size) % quickActions.size
+                        }
+                    ) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Previous quick action")
+                    }
+
+                    Text(
+                        text = "$" + "{currentQuickAction + 1} / $" + "{quickActions.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    IconButton(
+                        onClick = {
+                            currentQuickAction =
+                                (currentQuickAction + 1) % quickActions.size
+                        }
+                    ) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Next quick action")
+                    }
+                }
             }
         }
 
@@ -202,11 +234,11 @@ fun HomeScreen(
             Spacer(Modifier.height(2.dp))
 
             val faithFeatures = listOf(
-                FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false),
-                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, true),
-                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true),
-                FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false),
-                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false)
+                FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false, onOpenBible),
+                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, true, {}),
+                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true, {}),
+                FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false, onOpenMedia),
+                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false, onOpenChat)
             )
 
             val faithPagerState = rememberPagerState(pageCount = { faithFeatures.size })
@@ -253,12 +285,14 @@ private data class FaithFeature(
     val title: String,
     val description: String,
     val icon: ImageVector,
-    val comingSoon: Boolean
+    val comingSoon: Boolean,
+    val onClick: () -> Unit
 )
 
 @Composable
 private fun FaithFeatureCard(feature: FaithFeature) {
     Card(
+        onClick = feature.onClick,
         modifier = Modifier.width(190.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
