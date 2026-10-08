@@ -321,6 +321,25 @@ fun KFCCApp(
     val chatAuthRepository = remember { com.example.helloworld.data.ChatAuthRepository() }
     var menuProfile by remember { mutableStateOf<com.example.helloworld.data.ChatProfile?>(null) }
 
+    fun openBibleReference(reference: String) {
+        val match = Regex(
+            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+))?\s*$""",
+            RegexOption.IGNORE_CASE
+        ).matchEntire(reference.trim()) ?: return
+
+        val bookName = listOfNotNull(
+            match.groupValues[1].trim().takeIf { it.isNotBlank() },
+            match.groupValues[2].trim().takeIf { it.isNotBlank() }
+        ).joinToString(" ").lowercase()
+
+        val bookId = bibleBookIdForName(bookName) ?: return
+        val chapter = match.groupValues[3].toIntOrNull() ?: return
+        bibleBookId = bookId
+        bibleChapter = chapter
+        navigate(AppDestinations.BIBLE_CHAPTER)
+    }
+
+
     LaunchedEffect(Unit) {
         delay(1200)
         showBrandSplash = false
@@ -440,24 +459,6 @@ fun KFCCApp(
     fun navigate(destination: AppDestinations) {
         currentDestination = destination
         drawerOpen = false
-    }
-
-    fun openBibleReference(reference: String) {
-        val match = Regex(
-            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+))?\s*$""",
-            RegexOption.IGNORE_CASE
-        ).matchEntire(reference.trim()) ?: return
-
-        val bookName = listOfNotNull(
-            match.groupValues[1].trim().takeIf { it.isNotBlank() },
-            match.groupValues[2].trim().takeIf { it.isNotBlank() }
-        ).joinToString(" ").lowercase()
-
-        val bookId = bibleBookIdForName(bookName) ?: return
-        val chapter = match.groupValues[3].toIntOrNull() ?: return
-        bibleBookId = bookId
-        bibleChapter = chapter
-        navigate(AppDestinations.BIBLE_CHAPTER)
     }
 
     if (updateCheckFailed) {
