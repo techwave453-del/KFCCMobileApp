@@ -1,6 +1,9 @@
 package com.example.helloworld.data
 
 import kotlinx.coroutines.delay
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import com.example.helloworld.data.SupabaseProvider
 
 enum class BibleGameCategory(val label: String) {
     ALL("All"),
@@ -26,11 +29,46 @@ data class BibleGameRound(
     val timed: Boolean
 )
 
+@Serializable
+private data class BibleGameQuestionRow(
+    val id: String,
+    val category: String,
+    val question: String,
+    val options: List<String>,
+    @SerialName("correct_answer_index") val correctAnswerIndex: Int,
+    val explanation: String = "",
+    val reference: String = ""
+)
+
 class BibleGameRepository {
     suspend fun loadQuestions(
         category: BibleGameCategory = BibleGameCategory.ALL,
         limit: Int = 10
     ): List<BibleGameQuestion> {
+        val remote = runCatching {
+            SupabaseProvider.client
+                .from("bible_game_questions")
+                .select()
+                .decodeList<BibleGameQuestionRow>()
+                .filter { category == BibleGameCategory.ALL || it.category == category.name }
+                .sortedBy { it.id }
+        }.getOrDefault(emptyList())
+
+        if (remote.isNotEmpty()) {
+            return remote.shuffled().take(limit.coerceAtMost(remote.size)).map {
+                BibleGameQuestion(
+                    id = it.id,
+                    category = BibleGameCategory.entries.firstOrNull { value -> value.name == it.category }
+                        ?: BibleGameCategory.FAITH_AND_LIFE,
+                    question = it.question,
+                    options = it.options,
+                    correctAnswerIndex = it.correctAnswerIndex,
+                    explanation = it.explanation,
+                    reference = it.reference
+                )
+            }
+        }
+
         delay(120)
         val source = if (category == BibleGameCategory.ALL) {
             QUESTION_BANK
