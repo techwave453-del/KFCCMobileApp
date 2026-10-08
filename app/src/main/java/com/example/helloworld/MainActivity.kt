@@ -664,7 +664,7 @@ fun KFCCApp(
                         ) {
                             Icon(
                                 imageVector = if (showBackButton) {
-                                    Icons.AutoMirrored.Filled.ArrowBack
+                                    Icons.Default.ArrowBack
                                 } else {
                                     Icons.Default.Menu
                                 },
