@@ -1124,6 +1124,7 @@ enum class AppDestinations(val label: String) {
     BIBLE_GAME_QUIZ("Bible Quiz"),
     BIBLE_GAME_MEMORY_VERSE("Memory Verse"),
     BIBLE_GAME_GUESS_CHARACTER("Guess the Character"),
+    BIBLE_GAME_FILL_IN_BLANK("Fill in the Blank"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),
