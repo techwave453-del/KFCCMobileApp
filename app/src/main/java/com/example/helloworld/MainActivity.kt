@@ -302,6 +302,7 @@ fun KFCCApp(
     var pendingChatRoomId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleChapter by rememberSaveable { mutableStateOf(1) }
+    var bibleVerse by rememberSaveable { mutableIntStateOf(0) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
