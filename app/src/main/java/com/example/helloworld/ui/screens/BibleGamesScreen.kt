@@ -71,6 +71,7 @@ private enum class GameMode(val label: String, val description: String) {
 @Composable
 fun BibleGamesScreen(
     onBack: () -> Unit = {},
+    onOpenReference: (String) -> Unit = {},
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var mode by rememberSaveable { mutableStateOf(GameMode.QUIZ) }
@@ -551,11 +552,9 @@ private fun GameQuestionCard(
                             Spacer(Modifier.height(6.dp))
                             Text(question.explanation, style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.height(7.dp))
-                            Text(
-                                question.reference,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            TextButton(onClick = { onOpenReference(question.reference) }) {
+                                Text(question.reference, style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
