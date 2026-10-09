@@ -835,7 +835,8 @@ fun KFCCApp(
                     AppDestinations.APPEARANCE -> AppearanceScreen(innerPadding)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(
                         innerPadding = innerPadding,
-                        canViewNotifications = chatSignedIn || adminUser != null
+                        canViewNotifications = chatSignedIn || adminUser != null,
+                        onOpenBibleReference = ::openBibleReference
                     )
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(
