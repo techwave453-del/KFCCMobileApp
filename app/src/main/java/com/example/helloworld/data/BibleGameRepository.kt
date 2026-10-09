@@ -91,7 +91,11 @@ class BibleGameRepository {
             )
         }
         delay(120)
-        return if (gameType == "guess_character") CHARACTER_BANK.shuffled().take(limit) else emptyList()
+        return when (gameType) {
+            "guess_character" -> CHARACTER_BANK.shuffled().take(limit)
+            "fill_blank" -> FILL_BLANK_BANK.shuffled().take(limit)
+            else -> emptyList()
+        }
     }
 
     suspend fun loadQuestions(
@@ -282,6 +286,15 @@ class BibleGameRepository {
             BibleGameQuestion("character-moses", BibleGameCategory.PEOPLE, "I led Israel out of Egypt and received the Law from God. Who am I?", listOf("Aaron", "Joshua", "Moses", "Caleb"), 2, "Moses led Israel out of Egypt and received God's commandments.", "Exodus 3–20", "guess_character"),
             BibleGameQuestion("character-solomon", BibleGameCategory.PEOPLE, "I was known for great wisdom and built the temple in Jerusalem. Who am I?", listOf("David", "Solomon", "Samuel", "Hezekiah"), 1, "Solomon asked God for wisdom and later built the temple.", "1 Kings 3–8", "guess_character")
         )
+
+    private val FILL_BLANK_BANK = listOf(
+        BibleGameQuestion("blank-psalm-23-1", BibleGameCategory.FAITH_AND_LIFE, "The Lord is my shepherd; I shall not ____. ", listOf("want", "fear", "sleep", "wander"), 0, "Psalm 23 describes God as a shepherd who provides for His people.", "Psalm 23:1", "fill_blank"),
+        BibleGameQuestion("blank-proverbs-3-5", BibleGameCategory.FAITH_AND_LIFE, "Trust in the Lord with all your ____. ", listOf("strength", "heart", "wisdom", "wealth"), 1, "Proverbs teaches wholehearted trust in the Lord.", "Proverbs 3:5", "fill_blank"),
+        BibleGameQuestion("blank-joshua-1-9", BibleGameCategory.OLD_TESTAMENT, "Be strong and of good ____. ", listOf("fortune", "cheer", "courage", "health"), 2, "God encouraged Joshua to be strong and courageous.", "Joshua 1:9", "fill_blank"),
+        BibleGameQuestion("blank-john-3-16", BibleGameCategory.NEW_TESTAMENT, "For God so loved the world that He gave His only ____. ", listOf("prophet", "Son", "angel", "servant"), 1, "John 3:16 describes God's love and the gift of His Son.", "John 3:16", "fill_blank"),
+        BibleGameQuestion("blank-philippians-4-13", BibleGameCategory.NEW_TESTAMENT, "I can do all things through Christ who ____. ", listOf("calls me", "strengthens me", "guides others", "created me"), 1, "Paul describes receiving strength through Christ.", "Philippians 4:13", "fill_blank"),
+        BibleGameQuestion("blank-galatians-5-22", BibleGameCategory.FAITH_AND_LIFE, "The fruit of the Spirit includes love, joy, peace, and ____. ", listOf("patience", "pride", "envy", "fear"), 0, "Patience is included in the fruit of the Spirit.", "Galatians 5:22–23", "fill_blank")
+    )
 
     companion object {
         private val QUESTION_BANK = listOf(
