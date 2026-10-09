@@ -323,7 +323,7 @@ fun KFCCApp(
 
     fun openBibleReference(reference: String) {
         val match = Regex(
-            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+)(?:[-–](\d+))?)?\s*$""",
+            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?:[-–](\d+))?(?::(\d+)(?:[-–](\d+))?)?\s*$""",
             RegexOption.IGNORE_CASE
         ).matchEntire(reference.trim()) ?: return
 
