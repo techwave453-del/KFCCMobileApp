@@ -323,7 +323,7 @@ fun KFCCApp(
 
     fun openBibleReference(reference: String) {
         val match = Regex(
-            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+))?\s*$""",
+            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+)(?:[-–](\d+))?)?\s*$""",
             RegexOption.IGNORE_CASE
         ).matchEntire(reference.trim()) ?: return
 
@@ -336,6 +336,7 @@ fun KFCCApp(
         val chapter = match.groupValues[3].toIntOrNull() ?: return
         bibleBookId = bookId
         bibleChapter = chapter
+        bibleVerse = match.groupValues[4].toIntOrNull() ?: 0
         currentDestination = AppDestinations.BIBLE_CHAPTER
     }
 
@@ -465,7 +466,8 @@ fun KFCCApp(
         AppDestinations.BIBLE_GAMES -> AppDestinations.HOME
         AppDestinations.BIBLE_GAME_QUIZ,
         AppDestinations.BIBLE_GAME_MEMORY_VERSE,
-        AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> AppDestinations.BIBLE_GAMES
+        AppDestinations.BIBLE_GAME_GUESS_CHARACTER,
+        AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> AppDestinations.BIBLE_GAMES
         AppDestinations.BIBLE_CHAPTER,
         AppDestinations.BIBLE_SEARCH -> AppDestinations.BIBLE
         AppDestinations.ACCOUNT -> AppDestinations.CHAT
@@ -749,6 +751,7 @@ fun KFCCApp(
                         onOpenQuiz = { navigate(AppDestinations.BIBLE_GAME_QUIZ) },
                         onOpenMemoryVerse = { navigate(AppDestinations.BIBLE_GAME_MEMORY_VERSE) },
                         onOpenGuessCharacter = { navigate(AppDestinations.BIBLE_GAME_GUESS_CHARACTER) },
+                        onOpenFillInBlank = { navigate(AppDestinations.BIBLE_GAME_FILL_IN_BLANK) },
                         innerPadding = innerPadding
                     )
 
