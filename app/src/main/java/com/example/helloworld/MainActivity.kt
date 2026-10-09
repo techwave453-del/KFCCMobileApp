@@ -823,7 +823,7 @@ fun KFCCApp(
                             adminViewModel.restoreSession()
                             navigate(AppDestinations.ADMIN)
                         },
-                        onOpenBibleReference = { reference, explanation -> openBibleReference(reference, explanation) }
+                        onOpenBibleReference = { openBibleReference(it) }
                     )
                     AppDestinations.ACCOUNT -> ChatScreen(
                         innerPadding,
@@ -841,7 +841,7 @@ fun KFCCApp(
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(
                         innerPadding = innerPadding,
                         canViewNotifications = chatSignedIn || adminUser != null,
-                        onOpenBibleReference = ::openBibleReference
+                        onOpenBibleReference = { reference, explanation -> openBibleReference(reference, explanation) }
                     )
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(
