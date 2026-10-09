@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -32,6 +33,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -83,6 +87,8 @@ fun BibleHomeScreen(
         }
     }
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
+    var bookQuery by rememberSaveable { mutableStateOf("") }
+    var testamentFilter by rememberSaveable { mutableStateOf("All") }
     var showTranslations by remember { mutableStateOf(false) }
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
     val dailyScriptureRepository = remember { DailyScriptureRepository(repository) }
@@ -225,45 +231,128 @@ selectedTranslationId = translation.id
 
             item {
                 BibleSectionHeader(
-                    title = "Browse Scripture",
-                    subtitle = "Explore all 66 books of the Bible."
+                    title = "Find a book",
+                    subtitle = "Search by name or browse by testament."
                 )
             }
 
             item {
-                TestamentHeader(
-                    title = "Old Testament",
-                    subtitle = "39 books"
-                )
-            }
-
-            items(
-                books.filter { it.testament == Testament.OLD },
-                key = { it.id }
-            ) { book ->
-                BibleBookRow(
-                    book = book,
-                    onClick = { selectedBook = book }
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    TextField(
+                        value = bookQuery,
+                        onValueChange = { bookQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Search Genesis, Psalms, John…") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Search books")
+                        },
+                        trailingIcon = {
+                            if (bookQuery.isNotEmpty()) {
+                                IconButton(onClick = { bookQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                }
+                            }
+                        },
+                        colors = androidx.compose.material3.TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                        )
+                    )
+                }
             }
 
             item {
-                Spacer(modifier = Modifier.height(2.dp))
-
-                TestamentHeader(
-                    title = "New Testament",
-                    subtitle = "27 books"
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("All", "Old Testament", "New Testament").forEach { filter ->
+                        FilterChip(
+                            selected = testamentFilter == filter,
+                            onClick = { testamentFilter = filter },
+                            label = { Text(filter) }
+                        )
+                    }
+                }
             }
 
-            items(
-                books.filter { it.testament == Testament.NEW },
-                key = { it.id }
-            ) { book ->
-                BibleBookRow(
-                    book = book,
-                    onClick = { selectedBook = book }
-                )
+            val filteredBooks = books.filter { book ->
+                book.name.contains(bookQuery.trim(), ignoreCase = true) &&
+                    (testamentFilter == "All" ||
+                        (testamentFilter == "Old Testament" && book.testament == Testament.OLD) ||
+                        (testamentFilter == "New Testament" && book.testament == Testament.NEW))
+            }
+
+            if (filteredBooks.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Text(
+                                "No books found",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 10.dp)
+                            )
+                            Text(
+                                "Try a different book name or change the testament filter.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                if (testamentFilter != "New Testament" && filteredBooks.any { it.testament == Testament.OLD }) {
+                    item {
+                        TestamentHeader(
+                            title = "Old Testament",
+                            subtitle = "${filteredBooks.count { it.testament == Testament.OLD }} books"
+                        )
+                    }
+                    items(
+                        filteredBooks.filter { it.testament == Testament.OLD },
+                        key = { it.id }
+                    ) { book ->
+                        BibleBookRow(book = book, onClick = { selectedBook = book })
+                    }
+                }
+
+                if (testamentFilter != "Old Testament" && filteredBooks.any { it.testament == Testament.NEW }) {
+                    item {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        TestamentHeader(
+                            title = "New Testament",
+                            subtitle = "${filteredBooks.count { it.testament == Testament.NEW }} books"
+                        )
+                    }
+                    items(
+                        filteredBooks.filter { it.testament == Testament.NEW },
+                        key = { it.id }
+                    ) { book ->
+                        BibleBookRow(book = book, onClick = { selectedBook = book })
+                    }
+                }
             }
         }
     }
