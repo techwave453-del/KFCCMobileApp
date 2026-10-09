@@ -764,9 +764,15 @@ fun KFCCApp(
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> GuessCharacterScreen(
-                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
-                         innerPadding = innerPadding
-                     )
+                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onOpenReference = { openBibleReference(it) },
+                          innerPadding = innerPadding
+                      )
+                     AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> FillInBlankScreen(
+                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onOpenReference = { openBibleReference(it) },
+                          innerPadding = innerPadding
+                      )
                      AppDestinations.BIBLE -> BibleHomeScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
@@ -789,13 +795,10 @@ fun KFCCApp(
                     AppDestinations.BIBLE_CHAPTER -> {
 
                         BibleChapterScreen(
-
                             bookId = bibleBookId ?: "psalms",
-
                             chapterNumber = bibleChapter,
-
+                            initialVerse = bibleVerse.takeIf { it > 0 },
                             onBack = { navigate(AppDestinations.BIBLE) }
-
                         )
 
                     }
