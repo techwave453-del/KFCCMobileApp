@@ -24,6 +24,7 @@ import com.example.helloworld.ui.viewmodel.BibleGameProgressViewModel
 @Composable
 fun GuessCharacterScreen(
     onBack: () -> Unit,
+    onOpenReference: (String) -> Unit = {},
     innerPadding: PaddingValues = PaddingValues(0.dp),
     progressViewModel: BibleGameProgressViewModel = viewModel()
 ) {
@@ -115,7 +116,9 @@ fun GuessCharacterScreen(
                             if (selected == question.correctAnswerIndex) "Correct! ${question.explanation}" else "Not quite. ${question.explanation}",
                             color = if (selected == question.correctAnswerIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
-                        Text(question.reference, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = { onOpenReference(question.reference) }) {
+                            Text(question.reference, style = MaterialTheme.typography.labelMedium)
+                        }
                         Button(
                             onClick = {
                                 val newScore = score + if (selected == question.correctAnswerIndex) 1 else 0
