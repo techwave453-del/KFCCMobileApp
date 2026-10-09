@@ -12,18 +12,24 @@ import androidx.compose.material3.*
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationManagerCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helloworld.data.AppNotification
 import com.example.helloworld.ui.NotificationViewModel
@@ -33,6 +39,7 @@ import com.example.helloworld.ui.components.CopyableErrorMessage
 fun NotificationsScreen(
     innerPadding: PaddingValues,
     canViewNotifications: Boolean = false,
+    onOpenBibleReference: (String) -> Unit = {},
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
@@ -174,7 +181,8 @@ fun NotificationsScreen(
                 ) { notification ->
                     NotificationCard(
                         notification = notification,
-                        onViewed = { viewModel.markAsRead(notification.id) }
+                        onViewed = { viewModel.markAsRead(notification.id) },
+                        onOpenBibleReference = onOpenBibleReference
                     )
                 }
             }
@@ -185,10 +193,23 @@ fun NotificationsScreen(
 @Composable
 private fun NotificationCard(
     notification: AppNotification,
-    onViewed: () -> Unit
+    onViewed: () -> Unit,
+    onOpenBibleReference: (String) -> Unit
 ) {
+    var showDetails by remember(notification.id) { mutableStateOf(false) }
+    val context = LocalContext.current
+
     Card(
-        onClick = onViewed,
+        onClick = {
+            onViewed()
+            if (notification.type.equals("daily_scripture", true)) {
+                notification.message.lineSequence().firstOrNull()?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(onOpenBibleReference)
+            } else {
+                showDetails = true
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (notification.readAt != null) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
@@ -264,6 +285,101 @@ private fun NotificationCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+    
+    if (showDetails) {
+        Dialog(
+            onDismissRequest = { showDetails = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            notification.title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { showDetails = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close notification")
+                        }
+                    }
+
+                    if (!notification.imageUrl.isNullOrBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            AsyncImage(
+                                model = notification.imageUrl,
+                                contentDescription = notification.title,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)
+                    ) {
+                        Text(notification.message, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            notification.createdAt.replace("T", " ").replace("Z", " UTC"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showDetails = false },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Close") }
+                        Button(
+                            onClick = {
+                                val shareText = buildString {
+                                    append(notification.title)
+                                    append("\n\n")
+                                    append(notification.message)
+                                    notification.imageUrl?.takeIf { it.isNotBlank() }?.let {
+                                        append("\n\nImage: ")
+                                        append(it)
+                                    }
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                        },
+                                        "Share notification"
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Share")
+                        }
+                    }
+                }
+            }
+        }
+    }
         }
     }
 }
