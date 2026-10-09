@@ -35,6 +35,7 @@ fun BibleGamesHubScreen(
     onOpenQuiz: () -> Unit,
     onOpenMemoryVerse: () -> Unit,
     onOpenGuessCharacter: () -> Unit,
+    onOpenFillInBlank: () -> Unit,
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var showComingSoon by remember { mutableStateOf<String?>(null) }
@@ -63,7 +64,7 @@ fun BibleGamesHubScreen(
                 "Fill in the Blank",
                 "Complete key Scripture phrases and Bible story statements.",
                 Icons.Default.Extension,
-                false
+                true
             ),
             BibleGameEntry(
                 "Daily Challenge",
@@ -161,6 +162,7 @@ fun BibleGamesHubScreen(
                             "Bible Quiz" -> onOpenQuiz()
                             "Memory Verse" -> onOpenMemoryVerse()
                             "Guess the Character" -> onOpenGuessCharacter()
+                            "Fill in the Blank" -> onOpenFillInBlank()
                             else -> showComingSoon = game.title
                         }
                     },
