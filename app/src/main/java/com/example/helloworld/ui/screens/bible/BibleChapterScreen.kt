@@ -66,6 +66,7 @@ fun BibleChapterScreen(
     bookId: String,
     chapterNumber: Int,
     initialVerse: Int? = null,
+    initialVerseExplanation: String? = null,
     onBack: () -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
@@ -175,6 +176,7 @@ fun BibleChapterScreen(
             selectedVerse?.let { verse ->
                 VerseActionsPanel(
                     verse = verse,
+                    explanation = initialVerseExplanation,
                     bookName = book?.name ?: bookId,
                     chapterNumber = chapterNumber,
                     translationId = translationId,
@@ -571,9 +573,26 @@ private fun BibleReader(
                         ),
                         modifier = Modifier.padding(
                             top = 16.dp,
-                            bottom = 18.dp
+                            bottom = if (explanation.isNullOrBlank()) 18.dp else 12.dp
                         )
                     )
+
+                    if (!explanation.isNullOrBlank()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            text = "Today's Reflection",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                        Text(
+                            text = explanation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
