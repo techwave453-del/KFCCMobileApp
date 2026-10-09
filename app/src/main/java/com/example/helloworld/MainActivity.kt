@@ -782,15 +782,17 @@ fun KFCCApp(
                         onOpenChapter = { bookId, chapter ->
                             bibleBookId = bookId
                             bibleChapter = chapter
+                            bibleVerse = 0
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
 
                     AppDestinations.BIBLE_SEARCH -> BibleSearchScreen(
                         onBack = { navigate(AppDestinations.BIBLE) },
-                        onOpenChapter = { bookId, chapter ->
+                        onOpenChapter = { bookId, chapter, verse ->
                             bibleBookId = bookId
                             bibleChapter = chapter
+                            bibleVerse = verse
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
