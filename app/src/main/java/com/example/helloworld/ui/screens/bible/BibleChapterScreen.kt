@@ -486,20 +486,15 @@ private fun BibleReader(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    MaterialTheme.colorScheme.scrim.copy(alpha = 0.25f)
+                    MaterialTheme.colorScheme.scrim.copy(alpha = 0.38f)
                 )
-                .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.BottomCenter
+                .clickable(onClick = onDismiss)
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(
-                        start = 12.dp,
-                        end = 12.dp,
-                        bottom = 12.dp
-                    )
                     .clickable(onClick = {}),
                 shape = RoundedCornerShape(26.dp),
                 elevation = CardDefaults.cardElevation(
