@@ -757,10 +757,12 @@ fun KFCCApp(
 
                     AppDestinations.BIBLE_GAME_QUIZ -> BibleGamesScreen(
                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onOpenReference = { openBibleReference(it) },
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_MEMORY_VERSE -> MemoryVerseScreen(
                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onOpenReference = { openBibleReference(it) },
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> GuessCharacterScreen(
