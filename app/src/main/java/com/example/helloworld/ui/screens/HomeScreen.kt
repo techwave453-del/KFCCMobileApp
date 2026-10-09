@@ -137,6 +137,24 @@ fun HomeScreen(
                             imageUrl = quickAccessImages["events"]?.url
                         )
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        QuickActionCard(
+                            title = "Community Chat",
+                            description = "Connect with members",
+                            icon = Icons.Default.Chat,
+                            onClick = onOpenChat,
+                            modifier = Modifier.weight(1f),
+                            imageUrl = quickAccessImages["chat"]?.url
+                        )
+                        QuickActionCard(
+                            title = "Media Center",
+                            description = "Watch and listen",
+                            icon = Icons.Default.PlayCircle,
+                            onClick = onOpenMedia,
+                            modifier = Modifier.weight(1f),
+                            imageUrl = quickAccessImages["media"]?.url
+                        )
+                    }
                 }
             }
         }
