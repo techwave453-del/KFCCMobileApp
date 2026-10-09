@@ -96,6 +96,18 @@ fun BibleChapterScreen(
         mutableStateOf<BibleVerse?>(null)
     }
 
+    // References opened from games, chat, search, and notifications land on the
+    // exact verse and automatically show the same centered verse-actions dialog
+    // used when a reader taps a verse manually.
+    LaunchedEffect(bookId, chapterNumber, initialVerse, chapter) {
+        val requestedVerse = initialVerse
+        if (requestedVerse != null && requestedVerse > 0) {
+            selectedVerse = chapter?.verses?.firstOrNull { it.number == requestedVerse }
+        } else {
+            selectedVerse = null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
