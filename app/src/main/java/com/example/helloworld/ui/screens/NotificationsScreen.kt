@@ -196,7 +196,7 @@ fun NotificationsScreen(
 private fun NotificationCard(
     notification: AppNotification,
     onViewed: () -> Unit,
-    onOpenBibleReference: (String) -> Unit
+    onOpenBibleReference: (String, String?) -> Unit
 ) {
     var showDetails by remember(notification.id) { mutableStateOf(false) }
     val context = LocalContext.current
