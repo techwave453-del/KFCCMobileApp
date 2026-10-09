@@ -303,6 +303,7 @@ fun KFCCApp(
     var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleChapter by rememberSaveable { mutableStateOf(1) }
     var bibleVerse by rememberSaveable { mutableIntStateOf(0) }
+    var bibleVerseExplanation by rememberSaveable { mutableStateOf<String?>(null) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
@@ -322,7 +323,7 @@ fun KFCCApp(
     val chatAuthRepository = remember { com.example.helloworld.data.ChatAuthRepository() }
     var menuProfile by remember { mutableStateOf<com.example.helloworld.data.ChatProfile?>(null) }
 
-    fun openBibleReference(reference: String) {
+    fun openBibleReference(reference: String, explanation: String? = null) {
         val match = Regex(
             """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?:[-–](\d+))?(?::(\d+)(?:[-–](\d+))?)?\s*$""",
             RegexOption.IGNORE_CASE
@@ -338,6 +339,7 @@ fun KFCCApp(
         bibleBookId = bookId
         bibleChapter = chapter
         bibleVerse = match.groupValues[5].toIntOrNull() ?: 0
+        bibleVerseExplanation = explanation?.takeIf { it.isNotBlank() }
         currentDestination = AppDestinations.BIBLE_CHAPTER
     }
 
@@ -783,6 +785,7 @@ fun KFCCApp(
                             bibleBookId = bookId
                             bibleChapter = chapter
                             bibleVerse = 0
+                            bibleVerseExplanation = null
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
@@ -793,6 +796,7 @@ fun KFCCApp(
                             bibleBookId = bookId
                             bibleChapter = chapter
                             bibleVerse = verse
+                            bibleVerseExplanation = null
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
@@ -803,6 +807,7 @@ fun KFCCApp(
                             bookId = bibleBookId ?: "psalms",
                             chapterNumber = bibleChapter,
                             initialVerse = bibleVerse.takeIf { it > 0 },
+                            initialVerseExplanation = bibleVerseExplanation,
                             onBack = { navigate(AppDestinations.BIBLE) }
                         )
 
@@ -818,7 +823,7 @@ fun KFCCApp(
                             adminViewModel.restoreSession()
                             navigate(AppDestinations.ADMIN)
                         },
-                        onOpenBibleReference = ::openBibleReference
+                        onOpenBibleReference = { reference, explanation -> openBibleReference(reference, explanation) }
                     )
                     AppDestinations.ACCOUNT -> ChatScreen(
                         innerPadding,
