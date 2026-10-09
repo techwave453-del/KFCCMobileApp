@@ -56,7 +56,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun BibleSearchScreen(
     onBack: () -> Unit,
-    onOpenChapter: (String, Int) -> Unit
+    onOpenChapter: (String, Int, Int) -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
@@ -191,7 +191,7 @@ fun BibleSearchScreen(
                                 result = result,
                                 translationId = translationId,
                                 onClick = {
-                                    onOpenChapter(result.bookId, result.chapter)
+                                    onOpenChapter(result.bookId, result.chapter, result.verse)
                                 }
                             )
                         }

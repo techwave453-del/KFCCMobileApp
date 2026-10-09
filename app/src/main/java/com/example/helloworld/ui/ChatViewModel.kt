@@ -71,6 +71,23 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private var kanisaObserveJob: Job? = null
     private var sessionInitialized = false
 
+    private fun deliverAuthenticatedNotifications() {
+        viewModelScope.launch {
+            // Associate the current FCM installation with the authenticated
+            // community identity first. This is required for server-side FCM
+            // delivery to reach the device immediately after sign-in.
+            com.example.helloworld.notifications.DeviceTokenRepository()
+                .registerCurrentToken()
+                .onFailure { /* FCM registration can recover on token refresh/retry. */ }
+
+            // Deliver sign-in notifications and today's Scripture immediately.
+            // The worker is network-constrained so public/default content is
+            // delivered as soon as an internet connection is available.
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverSignInDefault(context)
+        }
+    }
+
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
@@ -89,6 +106,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         _signedIn.value = true
                         if (!sessionInitialized) {
                             sessionInitialized = true
+                            deliverAuthenticatedNotifications()
                             initChat()
                         }
                     }
@@ -112,6 +130,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (authRepository.isSignedIn()) {
             _signedIn.value = true
             sessionInitialized = true
+            deliverAuthenticatedNotifications()
             initChat()
         }
     }
@@ -126,6 +145,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 _loading.value = false
                 return@launch
             }
+
+            // Associate this installation with the authenticated account before
+            // requesting sign-in push delivery. This also covers administrator sessions.
+            com.example.helloworld.notifications.DeviceTokenRepository()
+                .registerCurrentToken()
+                .onFailure { cause -> _error.value = cause.message }
+
+            // Sign-in notifications and today's Scripture are device notifications.
+            // Both workers require internet and wait for connectivity if offline.
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverSignInDefault(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
 
             // Do not retrieve the Auth user here. Imported administrator sessions
             // already have a valid JWT, and ChatAuthRepository can resolve the user

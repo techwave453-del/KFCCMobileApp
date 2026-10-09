@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.helloworld.ui.screens.bible.BibleChapterScreen
@@ -68,10 +69,14 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.helloworld.updates.AppUpdateManager
 
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
     private var openChatRoomId by mutableStateOf<String?>(null)
+    private var openBibleReference by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -80,6 +85,7 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
         openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         openChatRoomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
+        openBibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
@@ -95,8 +101,10 @@ class MainActivity : ComponentActivity() {
                 KFCCApp(
                     openNotifications = openNotifications,
                     openChatRoomId = openChatRoomId,
+                    notificationBibleReference = openBibleReference,
                     onNotificationOpened = { openNotifications = false },
-                    onChatOpened = { openChatRoomId = null }
+                    onChatOpened = { openChatRoomId = null },
+                    onBibleReferenceOpened = { openBibleReference = null }
                 )
             }
         }
@@ -112,6 +120,9 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }?.let {
             openChatRoomId = it
         }
+        intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }?.let {
+            openBibleReference = it
+        }
     }
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
@@ -124,9 +135,152 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_NOTIFICATIONS = "kfcc.open_notifications"
+        const val EXTRA_BIBLE_REFERENCE = "kfcc.bible_reference"
         const val EXTRA_OPEN_CHAT = "kfcc.open_chat"
         const val EXTRA_CHAT_ROOM_ID = "kfcc.chat_room_id"
         const val EXTRA_NOTIFICATION_ID = "kfcc.notification_id"
+    }
+}
+
+@Composable
+private fun RequiredAppUpdateScreen(
+    update: com.example.helloworld.admin.AppUpdateConfig,
+    checking: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onInstall: () -> Unit
+) {
+    val context = LocalContext.current
+    val downloadId = AppUpdateManager.getTrackedDownloadId(context)
+    var downloadComplete by remember(downloadId) { mutableStateOf(false) }
+
+    LaunchedEffect(downloadId, update.versionCode) {
+        while (downloadId != -1L) {
+            val manager = context.getSystemService(android.app.DownloadManager::class.java)
+            val query = android.app.DownloadManager.Query().setFilterById(downloadId)
+            manager.query(query).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val status = cursor.getInt(
+                        cursor.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_STATUS)
+                    )
+                    downloadComplete = status == android.app.DownloadManager.STATUS_SUCCESSFUL
+                }
+            }
+            if (downloadComplete) break
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.SystemUpdate,
+                contentDescription = null,
+                modifier = Modifier.size(72.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Required app update",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Kanisa ${update.versionName} is available. You must install this update before continuing to use the app.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            if (update.releaseNotes.isNotBlank()) {
+                Text(
+                    update.releaseNotes,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(Modifier.height(28.dp))
+
+            when {
+                downloadComplete -> {
+                    Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.InstallMobile, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Install update")
+                    }
+                }
+                checking -> {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text("Checking the required update…")
+                }
+                error != null -> {
+                    Text(error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = onRetry) { Text("Retry") }
+                }
+                else -> {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text("Downloading required update…", textAlign = TextAlign.Center)
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "There is no Skip option. After installation, Kanisa will reopen on the new version.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun RequiredUpdateCheckFailedScreen(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.CloudOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Update verification required",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Kanisa could not verify whether this installation is current. For security, the app will not continue until the update check succeeds.",
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
     }
 }
 
@@ -135,8 +289,10 @@ class MainActivity : ComponentActivity() {
 fun KFCCApp(
     openNotifications: Boolean = false,
     openChatRoomId: String? = null,
+    notificationBibleReference: String? = null,
     onNotificationOpened: () -> Unit = {},
     onChatOpened: () -> Unit = {},
+    onBibleReferenceOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
@@ -146,12 +302,18 @@ fun KFCCApp(
     var pendingChatRoomId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleBookId by rememberSaveable { mutableStateOf<String?>(null) }
     var bibleChapter by rememberSaveable { mutableStateOf(1) }
+    var bibleVerse by rememberSaveable { mutableIntStateOf(0) }
+    var bibleVerseExplanation by rememberSaveable { mutableStateOf<String?>(null) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     val churchInfo by viewModel.churchInfo.collectAsState()
     val mediaItems by viewModel.mediaItems.collectAsState()
     val events by viewModel.events.collectAsState()
     val chatSignedIn by chatViewModel.signedIn.collectAsState()
     val adminUser by adminViewModel.user.collectAsState()
+    val notifications by notificationViewModel.notifications.collectAsState()
+    val unreadNotificationCount = remember(notifications) {
+        notifications.count { it.readAt == null }
+    }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showLivePlayer by remember { mutableStateOf(false) }
@@ -161,9 +323,66 @@ fun KFCCApp(
     val chatAuthRepository = remember { com.example.helloworld.data.ChatAuthRepository() }
     var menuProfile by remember { mutableStateOf<com.example.helloworld.data.ChatProfile?>(null) }
 
+    fun openBibleReference(reference: String, explanation: String? = null) {
+        val match = Regex(
+            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?:[-–](\d+))?(?::(\d+)(?:[-–](\d+))?)?\s*$""",
+            RegexOption.IGNORE_CASE
+        ).matchEntire(reference.trim()) ?: return
+
+        val bookName = listOfNotNull(
+            match.groupValues[1].trim().takeIf { it.isNotBlank() },
+            match.groupValues[2].trim().takeIf { it.isNotBlank() }
+        ).joinToString(" ").lowercase()
+
+        val bookId = bibleBookIdForName(bookName) ?: return
+        val chapter = match.groupValues[3].toIntOrNull() ?: return
+        bibleBookId = bookId
+        bibleChapter = chapter
+        bibleVerse = match.groupValues[5].toIntOrNull() ?: 0
+        bibleVerseExplanation = explanation?.takeIf { it.isNotBlank() }
+        currentDestination = AppDestinations.BIBLE_CHAPTER
+    }
+
+
     LaunchedEffect(Unit) {
         delay(1200)
         showBrandSplash = false
+    }
+
+    var mandatoryUpdate by remember { mutableStateOf<com.example.helloworld.admin.AppUpdateConfig?>(null) }
+    var updateCheckFailed by remember { mutableStateOf(false) }
+    var updateChecking by remember { mutableStateOf(true) }
+    var updateError by remember { mutableStateOf<String?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    suspend fun checkMandatoryUpdate() {
+        updateChecking = true
+        updateError = null
+        updateCheckFailed = false
+        runCatching {
+            AppUpdateManager.checkAndSchedule(context)
+        }.onSuccess {
+            mandatoryUpdate = it
+            if (it != null) AppUpdateManager.installTrackedDownload(context)
+        }.onFailure {
+            updateError = it.message ?: "Unable to check for required app updates."
+            updateCheckFailed = true
+        }
+        updateChecking = false
+    }
+
+    LaunchedEffect(Unit) {
+        checkMandatoryUpdate()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch { checkMandatoryUpdate() }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(chatSignedIn, adminUser?.id) {
@@ -177,6 +396,12 @@ fun KFCCApp(
             currentDestination = AppDestinations.NOTIFICATIONS
             onNotificationOpened()
         }
+    }
+
+    LaunchedEffect(notificationBibleReference) {
+        val reference = notificationBibleReference ?: return@LaunchedEffect
+        openBibleReference(reference)
+        onBibleReferenceOpened()
     }
 
     LaunchedEffect(openChatRoomId, chatSignedIn, adminUser?.id) {
@@ -195,6 +420,8 @@ fun KFCCApp(
         if (granted) {
             com.example.helloworld.notifications.KfccNotificationScheduler
                 .scheduleInstallDelivery(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
         }
     }
 
@@ -209,6 +436,8 @@ fun KFCCApp(
         } else {
             com.example.helloworld.notifications.KfccNotificationScheduler
                 .scheduleInstallDelivery(context)
+            com.example.helloworld.notifications.KfccNotificationScheduler
+                .deliverDailyScriptureNow(context)
         }
     }
 
@@ -236,22 +465,62 @@ fun KFCCApp(
         drawerOpen = false
     }
 
-    fun openBibleReference(reference: String) {
-        val match = Regex(
-            """^\s*(1\s+|2\s+|3\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+))?\s*$""",
-            RegexOption.IGNORE_CASE
-        ).matchEntire(reference.trim()) ?: return
+    fun backDestination(): AppDestinations = when (currentDestination) {
+        AppDestinations.BIBLE_GAMES -> AppDestinations.HOME
+        AppDestinations.BIBLE_GAME_QUIZ,
+        AppDestinations.BIBLE_GAME_MEMORY_VERSE,
+        AppDestinations.BIBLE_GAME_GUESS_CHARACTER,
+        AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> AppDestinations.BIBLE_GAMES
+        AppDestinations.BIBLE_CHAPTER,
+        AppDestinations.BIBLE_SEARCH -> AppDestinations.BIBLE
+        AppDestinations.ACCOUNT -> AppDestinations.CHAT
+        AppDestinations.PROFILE,
+        AppDestinations.APPEARANCE,
+        AppDestinations.NOTIFICATIONS,
+        AppDestinations.PREFERENCES,
+        AppDestinations.SETTINGS,
+        AppDestinations.VERSION,
+        AppDestinations.SEARCH,
+        AppDestinations.SERVICES,
+        AppDestinations.EVENTS,
+        AppDestinations.MEDIA,
+        AppDestinations.GIVING -> AppDestinations.HOME
+        else -> AppDestinations.HOME
+    }
 
-        val bookName = listOfNotNull(
-            match.groupValues[1].trim().takeIf { it.isNotBlank() },
-            match.groupValues[2].trim().takeIf { it.isNotBlank() }
-        ).joinToString(" ").lowercase()
+    val showBackButton = currentDestination != AppDestinations.HOME &&
+        currentDestination != AppDestinations.BIBLE &&
+        currentDestination != AppDestinations.CHAT &&
+        currentDestination != AppDestinations.ADMIN
 
-        val bookId = bibleBookIdForName(bookName) ?: return
-        val chapter = match.groupValues[3].toIntOrNull() ?: return
-        bibleBookId = bookId
-        bibleChapter = chapter
-        navigate(AppDestinations.BIBLE_CHAPTER)
+    BackHandler(enabled = drawerOpen) {
+        drawerOpen = false
+    }
+
+    BackHandler(enabled = !drawerOpen && showBackButton) {
+        navigate(backDestination())
+    }
+
+    if (updateCheckFailed) {
+        BackHandler(enabled = true) {}
+        RequiredUpdateCheckFailedScreen(
+            message = updateError ?: "Unable to verify the current app version.",
+            onRetry = { scope.launch { checkMandatoryUpdate() } }
+        )
+        return
+    }
+
+    if (mandatoryUpdate != null) {
+        BackHandler(enabled = true) {}
+
+        RequiredAppUpdateScreen(
+            update = mandatoryUpdate!!,
+            checking = updateChecking,
+            error = updateError,
+            onRetry = { scope.launch { checkMandatoryUpdate() } },
+            onInstall = { AppUpdateManager.installTrackedDownload(context) }
+        )
+        return
     }
 
     ModalNavigationDrawer(
@@ -390,13 +659,40 @@ fun KFCCApp(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, "Open menu")
+                        IconButton(
+                            onClick = {
+                                if (showBackButton) {
+                                    navigate(backDestination())
+                                } else {
+                                    scope.launch { drawerState.open() }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (showBackButton) {
+                                    Icons.Default.ArrowBack
+                                } else {
+                                    Icons.Default.Menu
+                                },
+                                contentDescription = if (showBackButton) "Back" else "Open menu"
+                            )
                         }
                     },
                     actions = {
-                        IconButton(onClick = { navigate(AppDestinations.BIBLE) }) {
-                            Icon(Icons.Default.MenuBook, "Bible")
+                        IconButton(onClick = { navigate(AppDestinations.NOTIFICATIONS) }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadNotificationCount > 0) {
+                                        Badge {
+                                            Text(
+                                                text = if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString()
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Notifications, "Notifications")
+                            }
                         }
                         IconButton(onClick = { navigate(AppDestinations.SEARCH) }) {
                             Icon(Icons.Default.Search, "Search")
@@ -444,6 +740,8 @@ fun KFCCApp(
                         innerPadding = innerPadding,
                         onOpenChat = { navigate(AppDestinations.CHAT) },
                         onOpenMedia = { navigate(AppDestinations.MEDIA) },
+                        onOpenBible = { navigate(AppDestinations.BIBLE) },
+                        onOpenBibleGames = { navigate(AppDestinations.BIBLE_GAMES) },
                         onOpenEvents = { navigate(AppDestinations.EVENTS) },
                         onOpenGiving = { navigate(AppDestinations.GIVING) },
                         onOpenSermons = { navigate(AppDestinations.MEDIA) },
@@ -451,21 +749,54 @@ fun KFCCApp(
                         onOpenServices = { navigate(AppDestinations.SERVICES) }
                     )
 
-                    AppDestinations.BIBLE -> BibleHomeScreen(
+                    AppDestinations.BIBLE_GAMES -> BibleGamesHubScreen(
+                        onBack = { navigate(AppDestinations.HOME) },
+                        onOpenQuiz = { navigate(AppDestinations.BIBLE_GAME_QUIZ) },
+                        onOpenMemoryVerse = { navigate(AppDestinations.BIBLE_GAME_MEMORY_VERSE) },
+                        onOpenGuessCharacter = { navigate(AppDestinations.BIBLE_GAME_GUESS_CHARACTER) },
+                        onOpenFillInBlank = { navigate(AppDestinations.BIBLE_GAME_FILL_IN_BLANK) },
+                        innerPadding = innerPadding
+                    )
+
+                    AppDestinations.BIBLE_GAME_QUIZ -> BibleGamesScreen(
+                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onOpenReference = { openBibleReference(it) },
+                         innerPadding = innerPadding
+                     )
+                     AppDestinations.BIBLE_GAME_MEMORY_VERSE -> MemoryVerseScreen(
+                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onOpenReference = { openBibleReference(it) },
+                         innerPadding = innerPadding
+                     )
+                     AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> GuessCharacterScreen(
+                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onOpenReference = { openBibleReference(it) },
+                          innerPadding = innerPadding
+                      )
+                     AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> FillInBlankScreen(
+                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onOpenReference = { openBibleReference(it) },
+                          innerPadding = innerPadding
+                      )
+                     AppDestinations.BIBLE -> BibleHomeScreen(
                         onBack = { navigate(AppDestinations.HOME) },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
                         onOpenChapter = { bookId, chapter ->
                             bibleBookId = bookId
                             bibleChapter = chapter
+                            bibleVerse = 0
+                            bibleVerseExplanation = null
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
 
                     AppDestinations.BIBLE_SEARCH -> BibleSearchScreen(
                         onBack = { navigate(AppDestinations.BIBLE) },
-                        onOpenChapter = { bookId, chapter ->
+                        onOpenChapter = { bookId, chapter, verse ->
                             bibleBookId = bookId
                             bibleChapter = chapter
+                            bibleVerse = verse
+                            bibleVerseExplanation = null
                             navigate(AppDestinations.BIBLE_CHAPTER)
                         }
                     )
@@ -473,13 +804,11 @@ fun KFCCApp(
                     AppDestinations.BIBLE_CHAPTER -> {
 
                         BibleChapterScreen(
-
                             bookId = bibleBookId ?: "psalms",
-
                             chapterNumber = bibleChapter,
-
+                            initialVerse = bibleVerse.takeIf { it > 0 },
+                            initialVerseExplanation = bibleVerseExplanation,
                             onBack = { navigate(AppDestinations.BIBLE) }
-
                         )
 
                     }
@@ -494,7 +823,7 @@ fun KFCCApp(
                             adminViewModel.restoreSession()
                             navigate(AppDestinations.ADMIN)
                         },
-                        onOpenBibleReference = ::openBibleReference
+                        onOpenBibleReference = { openBibleReference(it) }
                     )
                     AppDestinations.ACCOUNT -> ChatScreen(
                         innerPadding,
@@ -511,7 +840,8 @@ fun KFCCApp(
                     AppDestinations.APPEARANCE -> AppearanceScreen(innerPadding)
                     AppDestinations.NOTIFICATIONS -> NotificationsScreen(
                         innerPadding = innerPadding,
-                        canViewNotifications = chatSignedIn || adminUser != null
+                        canViewNotifications = chatSignedIn || adminUser != null,
+                        onOpenBibleReference = { reference, explanation -> openBibleReference(reference, explanation) }
                     )
                     AppDestinations.PREFERENCES -> PreferencesScreen(innerPadding)
                     AppDestinations.SETTINGS -> SettingsScreen(
@@ -799,6 +1129,11 @@ private fun youtubeVideoId(url: String): String? {
 enum class AppDestinations(val label: String) {
     HOME("Home"),
     BIBLE("Bible"),
+    BIBLE_GAMES("Bible Games"),
+    BIBLE_GAME_QUIZ("Bible Quiz"),
+    BIBLE_GAME_MEMORY_VERSE("Memory Verse"),
+    BIBLE_GAME_GUESS_CHARACTER("Guess the Character"),
+    BIBLE_GAME_FILL_IN_BLANK("Fill in the Blank"),
     BIBLE_CHAPTER("Bible Chapter"),
     BIBLE_SEARCH("Bible Search"),
     SERVICES("Services"),

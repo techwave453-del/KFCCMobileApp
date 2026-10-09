@@ -29,7 +29,11 @@ private val MEDIA_CATEGORIES = listOf(
     MediaCategoryOption("sermons", "Sermons"),
     MediaCategoryOption("worship", "Worship"),
     MediaCategoryOption("events", "Events"),
-    MediaCategoryOption("gallery", "Gallery")
+    MediaCategoryOption("gallery", "Gallery"),
+    MediaCategoryOption("quick_services", "Quick Action • Services"),
+    MediaCategoryOption("quick_sermons", "Quick Action • Sermons"),
+    MediaCategoryOption("quick_giving", "Quick Action • Giving"),
+    MediaCategoryOption("quick_events", "Quick Action • Events")
 )
 
 private fun categoryLabel(value: String): String =

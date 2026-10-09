@@ -1,5 +1,14 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,14 +30,15 @@ import com.example.helloworld.data.ChurchInfo
 import com.example.helloworld.data.MediaItem
 import com.example.helloworld.events.Event
 import com.example.helloworld.ui.components.ChurchHero
-import com.example.helloworld.ui.components.ChurchServiceCard
 import com.example.helloworld.ui.components.ModernEventCard
 import com.example.helloworld.ui.components.QuickActionCard
 import com.example.helloworld.ui.components.SectionHeader
 import com.example.helloworld.ui.theme.KFCCTheme
 
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -36,6 +48,8 @@ fun HomeScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp),
     onOpenChat: () -> Unit = {},
     onOpenMedia: () -> Unit = {},
+    onOpenBible: () -> Unit = {},
+    onOpenBibleGames: () -> Unit = {},
     onOpenEvents: () -> Unit = {},
     onOpenGiving: () -> Unit = {},
     onOpenSermons: () -> Unit = {},
@@ -48,8 +62,24 @@ fun HomeScreen(
     }
 
     val quickAccessImages = remember(mediaItems) {
-        mediaItems.filter { it.type.equals("image", ignoreCase = true) }
-            .associateBy { it.category.lowercase() }
+        mediaItems
+            .filter { it.type.equals("image", ignoreCase = true) && it.url.isNotBlank() }
+    }
+
+    var currentQuickAction by remember { mutableIntStateOf(0) }
+
+    // Keep the navigation callbacks current. A no-key remember would retain
+    // the first callbacks captured when HomeScreen was initially composed.
+    val quickActions = listOf(
+            QuickAction("Services", "Worship times", Icons.Default.Church, "services", onOpenServices),
+            QuickAction("Sermons", "Watch media", Icons.AutoMirrored.Filled.MenuBook, "sermons", onOpenSermons),
+            QuickAction("Giving", "Tithes & Gift", Icons.Default.Favorite, "giving", onOpenGiving),
+            QuickAction("Events", "What's on", Icons.Default.CalendarToday, "events", onOpenEvents)
+    )
+
+    LaunchedEffect(currentQuickAction, quickActions.size) {
+        delay(8000L)
+        currentQuickAction = (currentQuickAction + 1) % quickActions.size
     }
 
     LazyColumn(
@@ -96,46 +126,77 @@ fun HomeScreen(
 
         item {
             Column {
-                SectionHeader(title = "Quick Access")
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                SectionHeader(title = "Quick Actions")
+                AnimatedContent(
+                    targetState = currentQuickAction,
+                    transitionSpec = {
+                        (
+                            fadeIn(androidx.compose.animation.core.tween(450)) +
+                                scaleIn(
+                                    initialScale = 0.94f,
+                                    animationSpec = androidx.compose.animation.core.tween(450)
+                                ) +
+                                slideInVertically(
+                                    animationSpec = androidx.compose.animation.core.tween(450),
+                                    initialOffsetY = { it / 6 }
+                                )
+                        ).togetherWith(
+                            fadeOut(androidx.compose.animation.core.tween(350)) +
+                                scaleOut(
+                                    targetScale = 0.96f,
+                                    animationSpec = androidx.compose.animation.core.tween(350)
+                                ) +
+                                slideOutHorizontally(
+                                    targetOffsetX = { -it / 5 },
+                                    animationSpec = androidx.compose.animation.core.tween(350)
+                                )
+                        )
+                    },
+                    label = "Quick action carousel",
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) { index ->
+                    val action = quickActions[index]
+                    QuickActionCard(
+                        title = action.title,
+                        description = action.description,
+                        icon = action.icon,
+                        onClick = action.onClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        imageUrl = quickActionImageUrl(
+                            mediaItems = quickAccessImages,
+                            category = action.imageCategory
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            title = "Services",
-                            description = "Worship times",
-                            icon = Icons.Default.Church,
-                            onClick = onOpenServices,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["services"]?.url
-                        )
-                        QuickActionCard(
-                            title = "Sermons",
-                            description = "Watch media",
-                            icon = Icons.AutoMirrored.Filled.MenuBook,
-                            onClick = onOpenSermons,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["sermons"]?.url
-                        )
+                    IconButton(
+                        onClick = {
+                            currentQuickAction =
+                                (currentQuickAction - 1 + quickActions.size) % quickActions.size
+                        }
+                    ) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Previous quick action")
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            title = "Giving",
-                            description = "Tithes & Gift",
-                            icon = Icons.Default.Favorite,
-                            onClick = onOpenGiving,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["giving"]?.url
-                        )
-                        QuickActionCard(
-                            title = "Events",
-                            description = "What's on",
-                            icon = Icons.Default.CalendarToday,
-                            onClick = onOpenEvents,
-                            modifier = Modifier.weight(1f),
-                            imageUrl = quickAccessImages["events"]?.url
-                        )
+
+                    Text(
+                        text = "${currentQuickAction + 1} / ${quickActions.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    IconButton(
+                        onClick = {
+                            currentQuickAction =
+                                (currentQuickAction + 1) % quickActions.size
+                        }
+                    ) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Next quick action")
                     }
                 }
             }
@@ -148,10 +209,10 @@ fun HomeScreen(
                     actionText = "View all",
                     onActionClick = onOpenEvents
                 )
-                
+
                 val sortedEvents = events.sortedBy { it.start_at }.take(5)
                 val pagerState = rememberPagerState(pageCount = { sortedEvents.size })
-                
+
                 HorizontalPager(
                     state = pagerState,
                     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -170,15 +231,37 @@ fun HomeScreen(
         }
 
         item {
-            SectionHeader(title = "Join Us In Worship")
-        }
-        
-        items(info.services) { service ->
-            ChurchServiceCard(
-                service = service,
-                modifier = Modifier.padding(horizontal = 16.dp)
+            SectionHeader(title = "Grow in Faith")
+            Spacer(Modifier.height(2.dp))
+
+            val faithFeatures = listOf(
+                FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false, onOpenBible),
+                FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, false, onOpenBibleGames),
+                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true, {}),
+                FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false, onOpenMedia),
+                FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false, onOpenChat)
             )
+
+            val faithPagerState = rememberPagerState(pageCount = { faithFeatures.size })
+
+            LaunchedEffect(faithFeatures.size) {
+                while (true) {
+                    delay(3500L)
+                    faithPagerState.animateScrollToPage((faithPagerState.currentPage + 1) % faithFeatures.size)
+                }
+            }
+
+            HorizontalPager(
+                state = faithPagerState,
+                pageSize = PageSize.Fixed(190.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                pageSpacing = 12.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                FaithFeatureCard(faithFeatures[page])
+            }
         }
+
     }
 }
 
@@ -187,5 +270,97 @@ fun HomeScreen(
 fun HomeScreenPreview() {
     KFCCTheme {
         HomeScreen(ChurchContent.default)
+    }
+}
+
+
+
+private fun quickActionImageUrl(
+    mediaItems: List<MediaItem>,
+    category: String
+): String? {
+    val aliases = when (category.lowercase()) {
+        "services" -> setOf("services", "service", "worship", "worship services", "quick_services")
+        "sermons" -> setOf("sermons", "sermon", "preaching", "messages", "quick_sermons")
+        "giving" -> setOf("giving", "give", "donation", "donations", "offering", "quick_giving")
+        "events" -> setOf("events", "event", "church events", "quick_events")
+        else -> setOf(category.lowercase())
+    }
+
+    return mediaItems.firstOrNull {
+        it.category.trim().lowercase() in aliases
+    }?.url
+}
+
+private data class QuickAction(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val imageCategory: String,
+    val onClick: () -> Unit
+)
+
+private data class FaithFeature(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val comingSoon: Boolean,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun FaithFeatureCard(feature: FaithFeature) {
+    Card(
+        onClick = feature.onClick,
+        enabled = !feature.comingSoon,
+        modifier = Modifier.width(190.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = feature.icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Text(
+                text = feature.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                text = feature.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minLines = 2,
+                maxLines = 2
+            )
+            if (feature.comingSoon) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        text = "Coming soon",
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
     }
 }

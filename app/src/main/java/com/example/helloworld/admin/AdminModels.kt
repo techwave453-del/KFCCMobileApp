@@ -71,6 +71,8 @@ object AdminPermissions {
     const val NOTIFICATIONS_SEND = "notifications.send"
     const val EVENTS_MANAGE = "events.manage"
     const val DAILY_SCRIPTURE_MANAGE = "daily_scripture.manage"
+    const val APP_UPDATE_MANAGE = "app_update.manage"
+    const val BIBLE_GAMES_MANAGE = "bible_games.manage"
 }
 
 fun AdminUser.hasPermission(permission: String): Boolean =

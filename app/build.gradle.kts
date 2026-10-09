@@ -20,6 +20,22 @@ val supabasePublishableKey =
         ?: localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY")
         ?: "sb_publishable_mGcmejtGmoASLKFqWpSXLw_xGBeYTAA"
 
+val kanisaKeystorePath =
+    System.getenv("KANISA_KEYSTORE_PATH")
+        ?: localProperties.getProperty("KANISA_KEYSTORE_PATH")
+
+val kanisaKeystorePassword =
+    System.getenv("KANISA_KEYSTORE_PASSWORD")
+        ?: localProperties.getProperty("KANISA_KEYSTORE_PASSWORD")
+
+val kanisaKeyAlias =
+    System.getenv("KANISA_KEY_ALIAS")
+        ?: localProperties.getProperty("KANISA_KEY_ALIAS")
+
+val kanisaKeyPassword =
+    System.getenv("KANISA_KEY_PASSWORD")
+        ?: localProperties.getProperty("KANISA_KEY_PASSWORD")
+
 android {
     namespace = "com.example.helloworld"
     compileSdk {
@@ -30,15 +46,33 @@ android {
         applicationId = "com.kfcc.mobile"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"${supabasePublishableKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (!kanisaKeystorePath.isNullOrBlank()) {
+                storeFile = file(kanisaKeystorePath)
+            }
+            if (!kanisaKeystorePassword.isNullOrBlank()) {
+                storePassword = kanisaKeystorePassword
+            }
+            if (!kanisaKeyAlias.isNullOrBlank()) {
+                keyAlias = kanisaKeyAlias
+            }
+            if (!kanisaKeyPassword.isNullOrBlank()) {
+                keyPassword = kanisaKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }

@@ -3,10 +3,12 @@ import com.example.helloworld.admin.AdminErrorMessage
 
 import android.app.Application
 import android.net.Uri
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,7 +16,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -42,6 +48,7 @@ fun AdminNotificationsScreen(
     var imageUrl by remember { mutableStateOf<String?>(null) }
     var imageName by remember { mutableStateOf<String?>(null) }
     var uploadingImage by remember { mutableStateOf(false) }
+    var selectedNotification by remember { mutableStateOf<AppNotification?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -167,7 +174,7 @@ fun AdminNotificationsScreen(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                "The selected install and sign-in notifications are applied automatically.",
+                "Only notifications marked approved are visible to members. Install and sign-in defaults are applied automatically.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -193,8 +200,104 @@ fun AdminNotificationsScreen(
                 },
                 onInstallChanged = { viewModel.setInstallDefault(notification, it) },
                 onSignInChanged = { viewModel.setSignInDefault(notification, it) },
-                onDelete = { viewModel.delete(notification) }
+                onDelete = { viewModel.delete(notification) },
+                onOpen = { selectedNotification = notification }
             )
+        }
+    }
+
+    selectedNotification?.let { notification ->
+        Dialog(
+            onDismissRequest = { selectedNotification = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(
+                            notification.title,
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { selectedNotification = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close notification")
+                        }
+                    }
+
+                    if (!notification.imageUrl.isNullOrBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            AsyncImage(
+                                model = notification.imageUrl,
+                                contentDescription = notification.title,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                    ) {
+                        item {
+                            Text(notification.message, style = MaterialTheme.typography.bodyLarge)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                notification.createdAt.replace("T", " ").replace("Z", " UTC"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { selectedNotification = null },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Close") }
+                        Button(
+                            onClick = {
+                                val shareText = buildString {
+                                    append(notification.title)
+                                    append("\n\n")
+                                    append(notification.message)
+                                    notification.imageUrl?.takeIf { it.isNotBlank() }?.let {
+                                        append("\n\nImage: ")
+                                        append(it)
+                                    }
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                        },
+                                        "Share notification"
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Share")
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -205,12 +308,16 @@ private fun NotificationHistoryCard(
     onEnabledChanged: (Boolean) -> Unit,
     onInstallChanged: (Boolean) -> Unit,
     onSignInChanged: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOpen: () -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    Modifier.weight(1f).clickable(onClick = onOpen),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(notification.title, style = MaterialTheme.typography.titleMedium)
                     if (!notification.imageUrl.isNullOrBlank()) {
                         AsyncImage(
@@ -230,6 +337,11 @@ private fun NotificationHistoryCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    Text(
+                        "Tap to view full notification",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
@@ -244,7 +356,7 @@ private fun NotificationHistoryCard(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Enabled")
+                Text("Approved for members")
                 Switch(checked = notification.isEnabled, onCheckedChange = onEnabledChanged)
             }
             Row(

@@ -359,6 +359,112 @@ class AdminRepository(context: Context) {
         )
     }
 
+    suspend fun getAppUpdateConfig(): Result<AppUpdateConfig> = runCatching {
+        client.from("app_update_config")
+            .select()
+            .decodeSingle<AppUpdateConfig>()
+    }
+
+    suspend fun saveAppUpdateConfig(config: AppUpdateConfig): Result<Unit> = runCatching {
+        require(config.versionCode > 0) { "Version code must be greater than zero." }
+        require(config.versionName.isNotBlank()) { "Version name is required." }
+        require(config.downloadUrl.isNotBlank()) { "APK download URL is required." }
+        client.from("app_update_config").update(
+            mapOf(
+                "version_code" to config.versionCode,
+                "version_name" to config.versionName.trim(),
+                "download_url" to config.downloadUrl.trim(),
+                "release_notes" to config.releaseNotes.trim(),
+                "is_enabled" to config.isEnabled
+            )
+        ) {
+            filter { eq("id", AppUpdateConfig.SINGLETON_ID) }
+        }
+    }
+
+    suspend fun publishLatestSuccessfulBuild(
+        downloadUrl: String,
+        releaseNotes: String,
+        isEnabled: Boolean
+    ): Result<Unit> = runCatching {
+        val latest = getAppUpdateConfig().getOrThrow()
+        require(latest.latestBuildVersionCode != null) { "No successful release build has been recorded yet." }
+        require(latest.latestBuildVersionName?.isNotBlank() == true) { "The latest successful build has no version name." }
+        require(downloadUrl.isNotBlank()) { "APK download URL is required." }
+        require(latest.latestBuildVersionCode > latest.versionCode) {
+            "The latest successful build must have a higher version code than the currently published version."
+        }
+
+        client.from("app_update_config").update(
+            mapOf(
+                "version_code" to latest.latestBuildVersionCode,
+                "version_name" to latest.latestBuildVersionName,
+                "download_url" to downloadUrl.trim(),
+                "release_notes" to releaseNotes.trim(),
+                "is_enabled" to isEnabled
+            )
+        ) {
+            filter { eq("id", AppUpdateConfig.SINGLETON_ID) }
+        }
+    }
+
+    suspend fun getBibleGameQuestions(): Result<List<BibleGameQuestionAdmin>> = runCatching {
+        client.from("bible_game_questions")
+            .select()
+            .decodeList<BibleGameQuestionAdmin>()
+            .sortedWith(compareBy<BibleGameQuestionAdmin> { !it.isPublished }.thenBy { it.category }.thenBy { it.sortOrder })
+    }
+
+    suspend fun createBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
+        client.from("bible_game_questions").insert(
+            mapOf(
+                "game_type" to question.gameType,
+                "game_type" to question.gameType,
+                "category" to question.category,
+                "question" to question.question.trim(),
+                "options" to question.options,
+                "correct_answer_index" to question.correctAnswerIndex,
+                "explanation" to question.explanation.trim(),
+                "reference" to question.reference.trim(),
+                "is_published" to question.isPublished,
+                "sort_order" to question.sortOrder
+            )
+        )
+    }
+
+    suspend fun updateBibleGameQuestion(question: BibleGameQuestionAdmin): Result<Unit> = runCatching {
+        require(question.id.isNotBlank()) { "Question ID is required." }
+        client.from("bible_game_questions").update(
+            mapOf(
+                "category" to question.category,
+                "question" to question.question.trim(),
+                "options" to question.options,
+                "correct_answer_index" to question.correctAnswerIndex,
+                "explanation" to question.explanation.trim(),
+                "reference" to question.reference.trim(),
+                "is_published" to question.isPublished,
+                "sort_order" to question.sortOrder
+            )
+        ) {
+            filter { eq("id", question.id) }
+        }
+    }
+
+    suspend fun deleteBibleGameQuestion(id: String): Result<Unit> = runCatching {
+        require(id.isNotBlank()) { "Question ID is required." }
+        client.from("bible_game_questions").delete {
+            filter { eq("id", id) }
+        }
+    }
+
+    suspend fun setBibleGameQuestionPublished(id: String, published: Boolean): Result<Unit> = runCatching {
+        client.from("bible_game_questions").update(
+            mapOf("is_published" to published)
+        ) {
+            filter { eq("id", id) }
+        }
+    }
+
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         client.from("app_notifications")
             .select()
@@ -506,6 +612,43 @@ class AdminRepository(context: Context) {
         private const val SUPABASE_FUNCTIONS_URL =
             "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
 
+    }
+}
+
+
+@kotlinx.serialization.Serializable
+data class BibleGameQuestionAdmin(
+    val id: String = "",
+    @kotlinx.serialization.SerialName("game_type")
+    val gameType: String = "quiz",
+    val category: String = "FAITH_AND_LIFE",
+    val question: String = "",
+    val options: List<String> = listOf("", "", "", ""),
+    @kotlinx.serialization.SerialName("correct_answer_index")
+    val correctAnswerIndex: Int = 0,
+    val explanation: String = "",
+    val reference: String = "",
+    @kotlinx.serialization.SerialName("is_published")
+    val isPublished: Boolean = false,
+    @kotlinx.serialization.SerialName("sort_order")
+    val sortOrder: Int = 0
+)
+
+@Serializable
+data class AppUpdateConfig(
+    @SerialName("id") val id: String = "android",
+    @SerialName("version_code") val versionCode: Int = 1,
+    @SerialName("version_name") val versionName: String = "1.0.0",
+    @SerialName("download_url") val downloadUrl: String = "",
+    @SerialName("release_notes") val releaseNotes: String = "",
+    @SerialName("is_enabled") val isEnabled: Boolean = false,
+    @SerialName("latest_build_version_code") val latestBuildVersionCode: Int? = null,
+    @SerialName("latest_build_version_name") val latestBuildVersionName: String? = null,
+    @SerialName("latest_build_at") val latestBuildAt: String? = null,
+    @SerialName("latest_build_commit") val latestBuildCommit: String? = null
+) {
+    companion object {
+        const val SINGLETON_ID = "android"
     }
 }
 

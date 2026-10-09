@@ -32,9 +32,15 @@ class NotificationRepository {
     suspend fun getNotifications(): Result<List<AppNotification>> = runCatching {
         syncFromServer().getOrElse {
             val userId = client.auth.currentUserOrNull()?.id
+            val username = userId?.let { resolveUsername(it) }.orEmpty()
             offline.getNotifications(userId).filter {
                 it.isEnabled &&
                     (it.userId == userId || (it.userId == null && (it.showOnInstall || it.showOnSignIn)))
+            }.map {
+                it.copy(
+                    title = personalize(it.title, username),
+                    message = personalize(it.message, username)
+                )
             }
         }
     }
@@ -70,7 +76,10 @@ class NotificationRepository {
         val dailyScripture = getTodayScriptureNotification(userId)
         val all = if (dailyScripture != null) resolved + dailyScripture else resolved
 
-        cache(resolved)
+        // Cache the complete visible set, including the locally-generated daily
+        // scripture notification. Caching only `resolved` lets the Room observer
+        // emit immediately after sync and overwrite the returned daily scripture.
+        cache(all)
         all.sortedByDescending { it.createdAt }
     }
 
@@ -170,6 +179,8 @@ class NotificationRepository {
     }
 
     suspend fun getPublicDefaults(onInstall: Boolean): Result<List<AppNotification>> = runCatching {
+        val userId = client.auth.currentUserOrNull()?.id
+        val username = userId?.let { resolveUsername(it) }.orEmpty()
         val rows = client.from("app_notifications")
             .select()
             .decodeList<AppNotification>()
@@ -180,7 +191,12 @@ class NotificationRepository {
         }.sortedWith(
             compareByDescending<AppNotification> { it.updatedAt ?: it.createdAt }
                 .thenByDescending { it.createdAt }
-        )
+        ).map {
+            it.copy(
+                title = personalize(it.title, username),
+                message = personalize(it.message, username)
+            )
+        }
     }
 
     suspend fun getPublicDefault(onInstall: Boolean): Result<AppNotification?> =
@@ -200,21 +216,35 @@ class NotificationRepository {
     }
 
     private suspend fun resolveUsername(userId: String): String {
-        return runCatching {
+        // The community identity is authoritative: chat_profiles.username.
+        // Auth metadata is only a fallback while the community profile is
+        // being materialized or when the profile read is temporarily unavailable.
+        val profileUsername = runCatching {
             client.from("chat_profiles")
                 .select(Columns.list("user_id", "username", "display_name")) {
                     filter { eq("user_id", userId) }
                 }
                 .decodeList<ChatProfile>()
                 .firstOrNull()
-                ?.let { profile ->
-                    profile.username
-                        .trim()
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-                ?.trim()
-                .orEmpty()
-        }.getOrDefault("")
+                ?.username
+        }.getOrNull()
+
+        val metadataUsername = runCatching {
+            client.auth.currentUserOrNull()
+                ?.userMetadata
+                ?.get("chat_username")
+                ?.toString()
+                ?.trim('"')
+        }.getOrNull()
+
+        val username = sequenceOf(profileUsername, metadataUsername)
+            .mapNotNull { it?.trim()?.removePrefix("@")?.takeIf { value -> value.isNotBlank() } }
+            .firstOrNull()
+            ?: return ""
+
+        return username.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase() else it.toString()
+        }
     }
 
     private data class SenderProfile(val avatarUrl: String?)

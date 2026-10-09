@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +65,8 @@ import com.example.helloworld.data.bible.KfccBibleRepository
 fun BibleChapterScreen(
     bookId: String,
     chapterNumber: Int,
+    initialVerse: Int? = null,
+    initialVerseExplanation: String? = null,
     onBack: () -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
@@ -92,6 +95,18 @@ fun BibleChapterScreen(
 
     var selectedVerse by remember {
         mutableStateOf<BibleVerse?>(null)
+    }
+
+    // References opened from games, chat, search, and notifications land on the
+    // exact verse and automatically show the same centered verse-actions dialog
+    // used when a reader taps a verse manually.
+    LaunchedEffect(bookId, chapterNumber, initialVerse, chapter) {
+        val requestedVerse = initialVerse
+        if (requestedVerse != null && requestedVerse > 0) {
+            selectedVerse = chapter?.verses?.firstOrNull { it.number == requestedVerse }
+        } else {
+            selectedVerse = null
+        }
     }
 
     Scaffold(
@@ -147,6 +162,7 @@ fun BibleChapterScreen(
                 BibleReader(
                     chapter = loadedChapter,
                     translationId = translationId,
+                    initialVerse = initialVerse,
                     onVerseClick = { verse ->
                         selectedVerse = verse
                     }
@@ -160,6 +176,7 @@ fun BibleChapterScreen(
             selectedVerse?.let { verse ->
                 VerseActionsPanel(
                     verse = verse,
+                    explanation = initialVerseExplanation,
                     bookName = book?.name ?: bookId,
                     chapterNumber = chapterNumber,
                     translationId = translationId,
@@ -236,17 +253,20 @@ private fun ChapterNotLoaded(
 @Composable
 
 private fun BibleReader(
-
     chapter: BibleChapter,
-
     translationId: String,
-
+    initialVerse: Int? = null,
     onVerseClick: (BibleVerse) -> Unit
-
 ) {
-
+    val listState = rememberLazyListState()
+    LaunchedEffect(chapter.chapterNumber, initialVerse) {
+        val verse = initialVerse
+        if (verse != null && verse > 0) {
+            listState.scrollToItem(verse.coerceAtMost(chapter.verses.size))
+        }
+    }
     LazyColumn(
-
+        state = listState,
         modifier = Modifier.fillMaxSize(),
 
         contentPadding = PaddingValues(
@@ -468,6 +488,7 @@ private fun BibleReader(
     @Composable
     private fun VerseActionsPanel(
         verse: BibleVerse,
+        explanation: String? = null,
         bookName: String,
         chapterNumber: Int,
         translationId: String,
@@ -480,20 +501,15 @@ private fun BibleReader(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    MaterialTheme.colorScheme.scrim.copy(alpha = 0.25f)
+                    MaterialTheme.colorScheme.scrim.copy(alpha = 0.38f)
                 )
-                .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.BottomCenter
+                .clickable(onClick = onDismiss)
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(
-                        start = 12.dp,
-                        end = 12.dp,
-                        bottom = 12.dp
-                    )
                     .clickable(onClick = {}),
                 shape = RoundedCornerShape(26.dp),
                 elevation = CardDefaults.cardElevation(
@@ -558,9 +574,26 @@ private fun BibleReader(
                         ),
                         modifier = Modifier.padding(
                             top = 16.dp,
-                            bottom = 18.dp
+                            bottom = if (explanation.isNullOrBlank()) 18.dp else 12.dp
                         )
                     )
+
+                    if (!explanation.isNullOrBlank()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            text = "Today's Reflection",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                        Text(
+                            text = explanation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

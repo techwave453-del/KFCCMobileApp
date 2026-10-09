@@ -181,7 +181,7 @@ class KfccNotificationWorker(
                 NotificationChannel(
                     CHANNEL_ID,
                     "$churchName Notifications",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Announcements and important updates from $churchName."
                 }
@@ -192,7 +192,20 @@ class KfccNotificationWorker(
     private suspend fun postNotification(notification: AppNotification) {
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            if (notification.type.equals("daily_scripture", true)) {
+                val reference = notification.message
+                    .lineSequence()
+                    .firstOrNull()
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                if (reference != null) {
+                    putExtra(MainActivity.EXTRA_BIBLE_REFERENCE, reference)
+                } else {
+                    putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+                }
+            } else {
+                putExtra(MainActivity.EXTRA_OPEN_NOTIFICATIONS, true)
+            }
             putExtra(MainActivity.EXTRA_NOTIFICATION_ID, notification.id)
         }
         val pendingIntent = PendingIntent.getActivity(
@@ -205,7 +218,7 @@ class KfccNotificationWorker(
         NotificationManagerCompat.from(applicationContext).notify(
             notification.id.hashCode(),
             NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_notification)
                 .setContentTitle(notification.title)
                 .setContentText(notification.message)
                 .setStyle(
@@ -221,7 +234,7 @@ class KfccNotificationWorker(
                 )
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         )
     }
@@ -261,7 +274,7 @@ class KfccNotificationWorker(
     }
 
     companion object {
-        const val CHANNEL_ID = "kfcc_church_notifications"
+        const val CHANNEL_ID = "kfcc_church_notifications_v2"
         private const val PREFS = "kfcc_notification_delivery"
         private const val KEY_DELIVERED = "delivered_ids"
         private const val KEY_SERVER_DELIVERED = "server_delivered_ids"
