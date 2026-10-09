@@ -41,7 +41,7 @@ import com.example.helloworld.ui.components.CopyableErrorMessage
 fun NotificationsScreen(
     innerPadding: PaddingValues,
     canViewNotifications: Boolean = false,
-    onOpenBibleReference: (String) -> Unit = {},
+    onOpenBibleReference: (String, String?) -> Unit = { _, _ -> },
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
@@ -205,9 +205,10 @@ private fun NotificationCard(
         onClick = {
             onViewed()
             if (notification.type.equals("daily_scripture", true)) {
-                notification.message.lineSequence().firstOrNull()?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let(onOpenBibleReference)
+                val sections = notification.message.split("\n\n")
+                val reference = sections.firstOrNull()?.trim().orEmpty()
+                val explanation = sections.getOrNull(2)?.trim()
+                if (reference.isNotBlank()) onOpenBibleReference(reference, explanation)
             } else {
                 showDetails = true
             }
