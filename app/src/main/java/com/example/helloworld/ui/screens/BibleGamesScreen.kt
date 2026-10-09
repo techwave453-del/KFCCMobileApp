@@ -40,6 +40,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -169,6 +170,7 @@ fun BibleGamesScreen(
                         secondsLeft = secondsLeft,
                         timed = mode == GameMode.TIMED,
                         selectedAnswer = answered,
+                        onOpenReference = onOpenReference,
                         onAnswer = { selected ->
                             if (answered == null) {
                                 answered = selected
@@ -400,6 +402,7 @@ private fun GameQuestionCard(
     secondsLeft: Int,
     timed: Boolean,
     selectedAnswer: Int?,
+    onOpenReference: (String) -> Unit,
     onAnswer: (Int) -> Unit,
     onNext: () -> Unit
 ) {
