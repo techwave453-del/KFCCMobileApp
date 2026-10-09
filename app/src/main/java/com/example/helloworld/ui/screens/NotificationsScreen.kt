@@ -1,6 +1,8 @@
 package com.example.helloworld.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
@@ -212,7 +214,8 @@ private fun NotificationCard(
         },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (notification.readAt != null) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            containerColor = if (notification.readAt != null) MaterialTheme.colorScheme.surface
+            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
         )
     ) {
         Row(
@@ -220,7 +223,7 @@ private fun NotificationCard(
             verticalAlignment = Alignment.Top
         ) {
             Icon(
-                imageVector = when(notification.type) {
+                imageVector = when (notification.type) {
                     "welcome" -> Icons.Default.Celebration
                     "admin" -> Icons.Default.Campaign
                     "chat" -> Icons.AutoMirrored.Filled.Chat
@@ -235,22 +238,29 @@ private fun NotificationCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (!notification.senderAvatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = notification.senderAvatarUrl,
-                        contentDescription = "Sender profile picture",
-                        modifier = Modifier.size(38.dp).clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.width(10.dp))
-                } else {
-                    Surface(modifier = Modifier.size(38.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        AsyncImage(
+                            model = notification.senderAvatarUrl,
+                            contentDescription = "Sender profile picture",
+                            modifier = Modifier.size(38.dp).clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier.size(38.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.width(10.dp))
-                }
-                Text(
+                    Text(
                         notification.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -270,9 +280,7 @@ private fun NotificationCard(
                     AsyncImage(
                         model = notification.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(190.dp),
+                        modifier = Modifier.fillMaxWidth().height(190.dp),
                         contentScale = ContentScale.Crop
                     )
                     Spacer(Modifier.height(8.dp))
@@ -284,9 +292,18 @@ private fun NotificationCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (!notification.type.equals("daily_scripture", true)) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Tap to view details",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
+        }
+    }
 
-    
     if (showDetails) {
         Dialog(
             onDismissRequest = { showDetails = false },
@@ -330,6 +347,7 @@ private fun NotificationCard(
 
                     Column(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
                         Text(notification.message, style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.height(8.dp))
@@ -378,8 +396,6 @@ private fun NotificationCard(
                     }
                 }
             }
-        }
-    }
         }
     }
 }
