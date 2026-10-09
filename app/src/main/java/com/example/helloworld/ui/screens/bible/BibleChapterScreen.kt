@@ -488,6 +488,7 @@ private fun BibleReader(
     @Composable
     private fun VerseActionsPanel(
         verse: BibleVerse,
+        explanation: String? = null,
         bookName: String,
         chapterNumber: Int,
         translationId: String,
