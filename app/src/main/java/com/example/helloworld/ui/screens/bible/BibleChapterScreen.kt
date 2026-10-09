@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +65,7 @@ import com.example.helloworld.data.bible.KfccBibleRepository
 fun BibleChapterScreen(
     bookId: String,
     chapterNumber: Int,
+    initialVerse: Int? = null,
     onBack: () -> Unit
 ) {
     val repository = remember { KfccBibleRepository() }
@@ -147,6 +149,7 @@ fun BibleChapterScreen(
                 BibleReader(
                     chapter = loadedChapter,
                     translationId = translationId,
+                    initialVerse = initialVerse,
                     onVerseClick = { verse ->
                         selectedVerse = verse
                     }
@@ -236,17 +239,20 @@ private fun ChapterNotLoaded(
 @Composable
 
 private fun BibleReader(
-
     chapter: BibleChapter,
-
     translationId: String,
-
+    initialVerse: Int? = null,
     onVerseClick: (BibleVerse) -> Unit
-
 ) {
-
+    val listState = rememberLazyListState()
+    LaunchedEffect(chapter.chapterNumber, initialVerse) {
+        val verse = initialVerse
+        if (verse != null && verse > 0) {
+            listState.scrollToItem(verse.coerceAtMost(chapter.verses.size))
+        }
+    }
     LazyColumn(
-
+        state = listState,
         modifier = Modifier.fillMaxSize(),
 
         contentPadding = PaddingValues(
