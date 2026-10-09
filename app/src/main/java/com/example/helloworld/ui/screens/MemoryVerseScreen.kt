@@ -33,6 +33,7 @@ private data class MemoryVerseTarget(
 @Composable
 fun MemoryVerseScreen(
     onBack: () -> Unit,
+    onOpenReference: (String) -> Unit = {},
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val repository = remember { KfccBibleRepository() }
@@ -149,13 +150,17 @@ fun MemoryVerseScreen(
             }
 
             item {
-                Text(
-                    targets[targetIndex].reference,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
+                TextButton(
+                    onClick = { onOpenReference(targets[targetIndex].reference) },
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Text(
+                        targets[targetIndex].reference,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
 
             item {
