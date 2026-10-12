@@ -501,15 +501,9 @@ fun KFCCApp(
         navigate(backDestination())
     }
 
-    if (updateCheckFailed) {
-        BackHandler(enabled = true) {}
-        RequiredUpdateCheckFailedScreen(
-            message = updateError ?: "Unable to verify the current app version.",
-            onRetry = { scope.launch { checkMandatoryUpdate() } }
-        )
-        return
-    }
-
+    // An unavailable update endpoint must never prevent the installed app from opening.
+    // Mandatory updates are enforced only when the server successfully confirms one.
+    // If this check fails (offline, timeout, or Supabase outage), continue into the app.
     if (mandatoryUpdate != null) {
         BackHandler(enabled = true) {}
 
