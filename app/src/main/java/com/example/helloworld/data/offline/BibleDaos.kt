@@ -39,4 +39,7 @@ interface BibleVerseDao {
 
     @Query("SELECT COUNT(*) FROM bible_verses WHERE translationId = :translationId")
     suspend fun count(translationId: String): Int
+
+    @Query("INSERT OR REPLACE INTO bible_verses (translationId, bookId, chapter, verse, text) SELECT :toTranslation, bookId, chapter, verse, text FROM bible_verses WHERE translationId = :fromTranslation")
+    suspend fun copyTranslation(fromTranslation: String, toTranslation: String)
 }

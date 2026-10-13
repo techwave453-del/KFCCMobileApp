@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.BorderStroke
@@ -52,6 +55,8 @@ fun KanisaAssistantScreen(
     var input by rememberSaveable { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
     var messageToDelete by remember { mutableStateOf<KanisaAssistantUiMessage?>(null) }
+    var selectedMessageForAction by remember { mutableStateOf<KanisaAssistantUiMessage?>(null) }
+    val clipboardManager = LocalClipboardManager.current
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -132,41 +137,46 @@ fun KanisaAssistantScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Suggestion("Service times") { input = "What are the current church service times?" }
-            Suggestion("Events") { input = "What events are coming up?" }
-            Suggestion("Bible") { input = "What does the Bible say about prayer?" }
+            Suggestion("Upcoming events") { input = "What church events are coming up this month?" }
+            Suggestion("Daily scripture") { input = "Can you share today's daily scripture reflection?" }
+            Suggestion("How to pray") { input = "How can I develop a deeper prayer life?" }
+            Suggestion("Salvation") { input = "What does the Bible teach about salvation?" }
+            Suggestion("Giving") { input = "How can I give my tithes and offerings?" }
         }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            state = listState,
-            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(messages, key = { it.id }) { message ->
-                AssistantBubble(
-                    message = message,
-                    onOpenBibleReference = onOpenBibleReference,
-                    onDelete = { if (message.id != 0L) messageToDelete = message },
-                    showFollowUps = !sending && message.role == "assistant" && message.id == messages.lastOrNull()?.id,
-                    onFollowUp = { prompt -> viewModel.ask(prompt) }
-                )
-            }
-            if (sending) {
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(messages, key = { it.id }) { message ->
+                    AssistantBubble(
+                        message = message,
+                        onOpenBibleReference = onOpenBibleReference,
+                        onDelete = { selectedMessageForAction = message },
+                        showFollowUps = !sending && message.role == "assistant" && message.id == messages.lastOrNull()?.id,
+                        onFollowUp = { prompt -> viewModel.ask(prompt) }
+                    )
+                }
+                if (sending) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
-                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Kanisa Assistant is thinking…",
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                            Row(
+                                Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Kanisa Assistant is thinking…",
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
                         }
                     }
                 }
@@ -523,6 +533,7 @@ private fun KanisaAssistantScriptureCard(
     quote: KanisaAssistantBibleQuote,
     onClick: () -> Unit
 ) {
+    val clipboardManager = LocalClipboardManager.current
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
@@ -535,6 +546,13 @@ private fun KanisaAssistantScriptureCard(
                 Spacer(Modifier.width(6.dp))
                 Text("SCRIPTURE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = { clipboardManager.setText(AnnotatedString("“${quote.text.trim()}” — ${quote.reference} (${quote.translation})")) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy verse", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.width(4.dp))
                 Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(7.dp))

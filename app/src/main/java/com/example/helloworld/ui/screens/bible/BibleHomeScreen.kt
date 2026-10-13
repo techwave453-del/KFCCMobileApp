@@ -42,6 +42,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -113,19 +115,16 @@ fun BibleHomeScreen(
                         val count = translationAvailability[translation.id] ?: 0
                         TextButton(
                             onClick = {
-                                if (count > 0) {
-                                    prefs.edit().putString("translation_id", translation.id).apply()
-selectedTranslationId = translation.id
-                                    showTranslations = false
-                                }
+                                prefs.edit().putString("translation_id", translation.id).apply()
+                                selectedTranslationId = translation.id
+                                showTranslations = false
                             },
-                            enabled = count > 0,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    if (count > 0) "${count} verses available" else "Verse data not available yet",
+                                    if (count > 0) "${count} verses available" else "Offline translation",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -175,10 +174,15 @@ selectedTranslationId = translation.id
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showTranslations = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = "Choose Bible translation"
+                    FilledTonalButton(
+                        onClick = { showTranslations = true },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = selectedTranslation?.abbreviation ?: selectedTranslationId.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
                         )
                     }
                     IconButton(onClick = onOpenSearch) {
@@ -204,6 +208,38 @@ selectedTranslationId = translation.id
             ),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+
+            item {
+                Card(
+                    onClick = { showTranslations = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Current Bible Version", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                            Text(selectedTranslation?.name ?: selectedTranslationId.uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = "Change",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
 
             item {
                 BibleHero(translationAbbreviation = selectedTranslation?.abbreviation ?: selectedTranslationId.uppercase())

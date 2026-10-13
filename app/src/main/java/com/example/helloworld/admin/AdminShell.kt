@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -165,7 +166,7 @@ private fun NoPermissionsScreen(onLogout: () -> Unit) {
     }
 }
 
-private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector)
+private data class AdminModule(val title: String, val description: String, val permission: String, val icon: ImageVector, val category: String)
 
 @Composable
 private fun AdminDashboardScreen(
@@ -186,21 +187,30 @@ private fun AdminDashboardScreen(
     onUsers: () -> Unit,
     onSystem: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
     val modules = listOf(
-        AdminModule("Account Credentials", "Administrator username, email, role and status", AdminPermissions.ACCOUNT_CREDENTIALS_VIEW, Icons.Default.AccountCircle),
-        AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security),
-        AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article),
-        AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SERVICES_EDIT, Icons.Default.Church),
-        AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.EVENTS_MANAGE, Icons.Default.Event),
-        AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign),
-        AdminModule("App Updates", "Configure the latest Android APK and automatic update delivery", AdminPermissions.APP_UPDATE_MANAGE, Icons.Default.SystemUpdate),
-        AdminModule("Bible Games", "Create, edit and publish Bible quiz questions", AdminPermissions.BIBLE_GAMES_MANAGE, Icons.Default.SportsEsports),
-        AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook),
-        AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv),
-        AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image),
-        AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People),
-        AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings)
+        AdminModule("Account Credentials", "Administrator username, email, role and status", AdminPermissions.ACCOUNT_CREDENTIALS_VIEW, Icons.Default.AccountCircle, "Administration & Security"),
+        AdminModule("Church Identity", "Church name, official identity and logo", AdminPermissions.IDENTITY_VIEW, Icons.Default.Security, "Content & Branding"),
+        AdminModule("Website Content", "Homepage, pages, classes and theme", AdminPermissions.SITE_EDIT, Icons.Default.Article, "Content & Branding"),
+        AdminModule("Services & Giving", "Manage worship times and online giving links", AdminPermissions.SERVICES_EDIT, Icons.Default.Church, "Content & Branding"),
+        AdminModule("Events Management", "Create, publish, feature and maintain church events", AdminPermissions.EVENTS_MANAGE, Icons.Default.Event, "Ministry & Outreach"),
+        AdminModule("Notifications", "Send church-wide announcements to members", AdminPermissions.NOTIFICATIONS_SEND, Icons.Default.Campaign, "Ministry & Outreach"),
+        AdminModule("App Updates", "Configure the latest Android APK and automatic update delivery", AdminPermissions.APP_UPDATE_MANAGE, Icons.Default.SystemUpdate, "Ministry & Outreach"),
+        AdminModule("Bible Games", "Create, edit and publish Bible quiz questions", AdminPermissions.BIBLE_GAMES_MANAGE, Icons.Default.SportsEsports, "Ministry & Outreach"),
+        AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook, "Content & Branding"),
+        AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv, "Ministry & Outreach"),
+        AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image, "Ministry & Outreach"),
+        AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People, "Administration & Security"),
+        AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings, "Administration & Security")
     )
+
+    val filteredModules = remember(searchQuery, modules) {
+        if (searchQuery.isBlank()) modules
+        else modules.filter { it.title.contains(searchQuery, true) || it.description.contains(searchQuery, true) }
+    }
+
+    val groupedModules = filteredModules.groupBy { it.category }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -212,39 +222,86 @@ private fun AdminDashboardScreen(
             IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Sign out", tint = MaterialTheme.colorScheme.error) }
         }
         Spacer(Modifier.height(16.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(16.dp))
-        Text("Administration modules", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(modules) { module ->
-                val allowed = user.hasPermission(module.permission) &&
-                    (module.title != "Church Identity" || user.canEditChurchIdentity())
-                val action = when (module.title) {
-                    "Account Credentials" -> if (allowed) onCredentials else null
-                    "Church Identity" -> if (allowed) onIdentity else null
-                    "Website Content" -> if (allowed) onContent else null
-                    "Services & Giving" -> if (allowed) onServices else null
-                    "Events Management" -> if (allowed) onEvents else null
-                    "Notifications" -> if (allowed) onNotifications else null
-                    "App Updates" -> if (allowed) onAppUpdate else null
-                    "Bible Games" -> if (allowed) onBibleGames else null
-                    "Today's Scripture" -> if (allowed) onDailyScripture else null
-                    "Live Streaming" -> if (allowed) onLive else null
-                    "Media Center" -> if (allowed) onMedia else null
-                    "Users & Permissions" -> if (allowed) onUsers else null
-                    "System Administration" -> if (allowed) onSystem else null
-                    else -> null
+        // Quick Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            placeholder = { Text("Search admin modules...") },
+            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+            trailingIcon = if (searchQuery.isNotEmpty()) {
+                { IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null, Modifier.size(18.dp)) } }
+            } else null,
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            groupedModules.forEach { (category, categoryModules) ->
+                item {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
-                Card(Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(module.icon, null)
-                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                            Text(module.title, style = MaterialTheme.typography.titleMedium)
-                            Text(module.description, style = MaterialTheme.typography.bodySmall)
-                            Spacer(Modifier.height(4.dp))
-                            Text(if (allowed) "Access available" else "Permission not assigned", color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+
+                items(categoryModules) { module ->
+                    val allowed = user.hasPermission(module.permission) &&
+                        (module.title != "Church Identity" || user.canEditChurchIdentity())
+                    val action = when (module.title) {
+                        "Account Credentials" -> if (allowed) onCredentials else null
+                        "Church Identity" -> if (allowed) onIdentity else null
+                        "Website Content" -> if (allowed) onContent else null
+                        "Services & Giving" -> if (allowed) onServices else null
+                        "Events Management" -> if (allowed) onEvents else null
+                        "Notifications" -> if (allowed) onNotifications else null
+                        "App Updates" -> if (allowed) onAppUpdate else null
+                        "Bible Games" -> if (allowed) onBibleGames else null
+                        "Today's Scripture" -> if (allowed) onDailyScripture else null
+                        "Live Streaming" -> if (allowed) onLive else null
+                        "Media Center" -> if (allowed) onMedia else null
+                        "Users & Permissions" -> if (allowed) onUsers else null
+                        "System Administration" -> if (allowed) onSystem else null
+                        else -> null
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (allowed) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                modifier = Modifier.size(40.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (allowed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (allowed) module.icon else Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                                Text(module.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(module.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (allowed) "Access available" else "Permission not assigned",
+                                    color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }

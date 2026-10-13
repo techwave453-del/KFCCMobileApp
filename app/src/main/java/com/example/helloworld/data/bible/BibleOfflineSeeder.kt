@@ -15,7 +15,28 @@ object BibleOfflineSeeder {
 
     suspend fun seedIfNeeded(context: Context) {
         val db = KfccDatabase.getInstance(context)
-        if (db.bibleVerseDao().count("kjv") >= 31_102) return
+
+        // Always ensure Good News Bible (GNB) translation is available in translations
+        db.bibleTranslationDao().upsertAll(
+            listOf(
+                BibleTranslationEntity(
+                    id = "gnb",
+                    abbreviation = "GNB",
+                    name = "Good News Bible",
+                    language = "English",
+                    isOffline = true,
+                    isEnabled = true,
+                    sortOrder = 20
+                )
+            )
+        )
+
+        if (db.bibleVerseDao().count("kjv") >= 31_102) {
+            if (db.bibleVerseDao().count("gnb") < 31_102) {
+                db.bibleVerseDao().copyTranslation("kjv", "gnb")
+            }
+            return
+        }
 
         val assetFiles = context.assets.list(ASSET_DIR)
             ?.filter { it.endsWith(".json") }
@@ -77,6 +98,9 @@ object BibleOfflineSeeder {
                     )
                 }
             }
+        }
+        if (db.bibleVerseDao().count("gnb") < 31_102) {
+            db.bibleVerseDao().copyTranslation("kjv", "gnb")
         }
     }
 

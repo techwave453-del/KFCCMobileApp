@@ -42,12 +42,16 @@ fun ChurchHero(
     val pagerState = rememberPagerState(pageCount = { if (backgroundImages.isEmpty()) 1 else backgroundImages.size })
 
     if (backgroundImages.isNotEmpty()) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(pagerState) {
             while (true) {
                 delay(5000)
-                if (pagerState.pageCount > 0) {
+                if (pagerState.pageCount > 0 && !pagerState.isScrollInProgress) {
                     val next = (pagerState.currentPage + 1) % pagerState.pageCount
-                    pagerState.animateScrollToPage(next)
+                    try {
+                        pagerState.animateScrollToPage(next)
+                    } catch (e: Exception) {
+                        // ignore cancellation
+                    }
                 }
             }
         }
@@ -64,7 +68,7 @@ fun ChurchHero(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = false
+                userScrollEnabled = true
             ) { page ->
                 AsyncImage(
                     model = backgroundImages[page],

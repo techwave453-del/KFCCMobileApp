@@ -1,10 +1,12 @@
 package com.example.helloworld.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.helloworld.data.KanisaAssistantBibleQuote
 import com.example.helloworld.data.KanisaAssistantMessage
 import com.example.helloworld.data.KanisaAssistantRepository
+import com.example.helloworld.data.KfccDataContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +28,7 @@ class KanisaAssistantViewModel : ViewModel() {
             KanisaAssistantUiMessage(
                 0L,
                 "assistant",
-                "Hello! 👋 I’m Kanisa Assistant. I can help with church information, services, events and Bible questions."
+                "Hello! 👋 I’m Kanisa Assistant, your AI church & Bible companion. I can help you explore Scripture, find service times, learn about church events, and grow in prayer. How can I help you today?"
             )
         )
     )
@@ -61,7 +63,7 @@ class KanisaAssistantViewModel : ViewModel() {
                         KanisaAssistantUiMessage(
                             0L,
                             "assistant",
-                            "Hello! 👋 I’m Kanisa Assistant. I can help with church information, services, events and Bible questions."
+                            "Hello! 👋 I’m Kanisa Assistant, your AI church & Bible companion. I can help you explore Scripture, find service times, learn about church events, and grow in prayer. How can I help you today?"
                         )
                     ) + restored
                     nextId = (restored.maxOfOrNull { it.id } ?: 0L) + 1L
@@ -93,7 +95,11 @@ class KanisaAssistantViewModel : ViewModel() {
                 .takeLast(8)
                 .map { KanisaAssistantMessage(it.role, it.content) }
 
-            repository.ask(clean, history)
+            val context = KfccDataContext.appContext
+            val prefs = context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE)
+            val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
+
+            repository.ask(clean, history, translation = translationId)
                 .onSuccess { response ->
                     val answer = response.answer.normalizeAssistantText()
                     val references = response.bible_references.distinct().take(6)

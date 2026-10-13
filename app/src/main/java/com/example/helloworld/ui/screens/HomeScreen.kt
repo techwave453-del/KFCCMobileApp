@@ -38,6 +38,11 @@ import com.example.helloworld.ui.theme.KFCCTheme
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
+import coil.compose.AsyncImage
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.background
 import kotlinx.coroutines.delay
 
 @Composable
@@ -67,6 +72,9 @@ fun HomeScreen(
     }
 
     var currentQuickAction by remember { mutableIntStateOf(0) }
+    var showPrayerDialog by remember { mutableStateOf(false) }
+    var prayerText by remember { mutableStateOf("") }
+    var prayerSubmitted by remember { mutableStateOf(false) }
 
     // Keep the navigation callbacks current. A no-key remember would retain
     // the first callbacks captured when HomeScreen was initially composed.
@@ -237,7 +245,7 @@ fun HomeScreen(
             val faithFeatures = listOf(
                 FaithFeature("Daily Scripture", "Read and reflect", Icons.Default.MenuBook, false, onOpenBible),
                 FaithFeature("Bible Games", "Test your Bible knowledge", Icons.Default.SportsEsports, false, onOpenBibleGames),
-                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, true, {}),
+                FaithFeature("Prayer", "Build a life of prayer", Icons.Default.VolunteerActivism, false, { showPrayerDialog = true }),
                 FaithFeature("Worship & Media", "Sermons and worship", Icons.Default.PlayCircle, false, onOpenMedia),
                 FaithFeature("Fellowship", "Connect with the church", Icons.Default.Groups, false, onOpenChat)
             )
@@ -258,10 +266,76 @@ fun HomeScreen(
                 pageSpacing = 12.dp,
                 modifier = Modifier.fillMaxWidth()
             ) { page ->
-                FaithFeatureCard(faithFeatures[page])
+                val feature = faithFeatures[page]
+                FaithFeatureCard(
+                    feature = feature,
+                    imageUrl = quickActionImageUrl(quickAccessImages, feature.title, page)
+                )
             }
         }
 
+    }
+
+    if (showPrayerDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPrayerDialog = false 
+                prayerSubmitted = false
+                prayerText = ""
+            },
+            title = { Text("Submit Prayer Request") },
+            text = {
+                Column {
+                    if (prayerSubmitted) {
+                        Text(
+                            text = "🙏 Your prayer request has been received. Our pastoral prayer team will join you in faith.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Text("Share your prayer request with our church community and prayer team. All requests are handled with care and confidentiality.")
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = prayerText,
+                            onValueChange = { prayerText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Type your prayer request here...") },
+                            minLines = 3,
+                            maxLines = 5
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (prayerSubmitted) {
+                    Button(onClick = {
+                        showPrayerDialog = false
+                        prayerSubmitted = false
+                        prayerText = ""
+                    }) {
+                        Text("Close")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (prayerText.isNotBlank()) {
+                                prayerSubmitted = true
+                            }
+                        },
+                        enabled = prayerText.isNotBlank()
+                    ) {
+                        Text("Submit Prayer")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!prayerSubmitted) {
+                    TextButton(onClick = { showPrayerDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -277,19 +351,42 @@ fun HomeScreenPreview() {
 
 private fun quickActionImageUrl(
     mediaItems: List<MediaItem>,
-    category: String
-): String? {
-    val aliases = when (category.lowercase()) {
-        "services" -> setOf("services", "service", "worship", "worship services", "quick_services")
-        "sermons" -> setOf("sermons", "sermon", "preaching", "messages", "quick_sermons")
-        "giving" -> setOf("giving", "give", "donation", "donations", "offering", "quick_giving")
-        "events" -> setOf("events", "event", "church events", "quick_events")
-        else -> setOf(category.lowercase())
+    category: String,
+    index: Int = 0
+): String {
+    val lowerCategory = category.lowercase()
+    val keywords = when {
+        lowerCategory.contains("service") -> setOf("service", "services", "worship", "sanctuary", "sunday")
+        lowerCategory.contains("sermon") || lowerCategory.contains("media") -> setOf("sermon", "sermons", "preaching", "message", "media", "watch")
+        lowerCategory.contains("giving") || lowerCategory.contains("tithe") -> setOf("giving", "give", "tithe", "tithes", "offerings", "donation", "generosity")
+        lowerCategory.contains("event") -> setOf("event", "events", "calendar", "gathering", "what's on")
+        lowerCategory.contains("scripture") || lowerCategory.contains("bible") -> setOf("bible", "scripture", "word", "reading", "study", "psalms")
+        lowerCategory.contains("game") -> setOf("game", "quiz", "youth", "fun", "kids")
+        lowerCategory.contains("prayer") -> setOf("prayer", "pray", "hands", "altar", "intercession")
+        lowerCategory.contains("fellowship") || lowerCategory.contains("chat") -> setOf("chat", "fellowship", "community", "connect", "group")
+        else -> setOf(lowerCategory)
     }
 
-    return mediaItems.firstOrNull {
-        it.category.trim().lowercase() in aliases
+    val matched = mediaItems.firstOrNull { item ->
+        val cat = item.category.lowercase()
+        val title = item.title.lowercase()
+        val desc = item.description.lowercase()
+        item.url.isNotBlank() && keywords.any { kw -> cat.contains(kw) || title.contains(kw) || desc.contains(kw) }
     }?.url
+
+    if (!matched.isNullOrBlank()) return matched
+
+    return when {
+        lowerCategory.contains("service") -> "https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("sermon") || lowerCategory.contains("media") -> "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("giving") || lowerCategory.contains("tithe") -> "https://images.unsplash.com/photo-1532629345422-7515f3d16bb9?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("event") -> "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("scripture") || lowerCategory.contains("bible") -> "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("game") -> "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("prayer") -> "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80"
+        lowerCategory.contains("fellowship") || lowerCategory.contains("chat") -> "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80"
+        else -> "https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=800&q=80"
+    }
 }
 
 private data class QuickAction(
@@ -309,56 +406,84 @@ private data class FaithFeature(
 )
 
 @Composable
-private fun FaithFeatureCard(feature: FaithFeature) {
+private fun FaithFeatureCard(feature: FaithFeature, imageUrl: String? = null) {
     Card(
         onClick = feature.onClick,
         enabled = !feature.comingSoon,
-        modifier = Modifier.width(190.dp),
+        modifier = Modifier.width(190.dp).height(170.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(
-                modifier = Modifier.size(42.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = feature.icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (imageUrl != null) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.25f),
+                                    Color.Black.copy(alpha = 0.85f)
+                                )
+                            )
+                        )
+                )
             }
-            Text(
-                text = feature.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-            Text(
-                text = feature.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                minLines = 2,
-                maxLines = 2
-            )
-            if (feature.comingSoon) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                    modifier = Modifier.size(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (imageUrl != null) Color.White.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primaryContainer
                 ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = feature.icon,
+                            contentDescription = null,
+                            tint = if (imageUrl != null) Color.White else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Coming soon",
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
+                        text = feature.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        color = if (imageUrl != null) Color.White else MaterialTheme.colorScheme.onSurface
                     )
+                    Text(
+                        text = feature.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (imageUrl != null) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        minLines = 2,
+                        maxLines = 2
+                    )
+                    if (feature.comingSoon) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (imageUrl != null) Color.White.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                        ) {
+                            Text(
+                                text = "Coming soon",
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (imageUrl != null) Color.White else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
             }
         }

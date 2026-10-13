@@ -2,6 +2,7 @@ package com.example.helloworld.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudUpload
@@ -32,6 +33,8 @@ fun AdminDashboard(
     var liveDesc by remember(churchInfo) { mutableStateOf(churchInfo.liveStream.description) }
     var phone by remember(churchInfo) { mutableStateOf(churchInfo.phone) }
     var email by remember(churchInfo) { mutableStateOf(churchInfo.email) }
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -112,8 +115,42 @@ fun AdminDashboard(
         
         Spacer(modifier = Modifier.height(24.dp))
         
+        saveMessage?.let {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        errorMessage?.let {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         Button(
             onClick = {
+                saveMessage = null
+                errorMessage = null
                 val updated = churchInfo.copy(
                     liveStream = churchInfo.liveStream.copy(
                         enabled = liveEnabled,
@@ -125,7 +162,11 @@ fun AdminDashboard(
                     email = email
                 )
                 viewModel.updateSiteContent(updated) { success ->
-                    // Handle success/failure toast
+                    if (success) {
+                        saveMessage = "Changes saved successfully to the database!"
+                    } else {
+                        errorMessage = "Failed to save changes. Please check your connection."
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),

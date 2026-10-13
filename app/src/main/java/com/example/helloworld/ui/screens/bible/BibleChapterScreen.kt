@@ -27,6 +27,10 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +61,7 @@ import android.content.Context
 import android.content.Intent
 import com.example.helloworld.data.bible.BibleChapter
 import com.example.helloworld.data.bible.BibleBook
+import com.example.helloworld.data.bible.BibleTranslation
 import com.example.helloworld.data.bible.BibleVerse
 import com.example.helloworld.data.bible.KfccBibleRepository
 
@@ -72,21 +77,26 @@ fun BibleChapterScreen(
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
-    val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
+    var currentTranslationId by remember { mutableStateOf(prefs.getString("translation_id", "kjv") ?: "kjv") }
     LaunchedEffect(bookId, chapterNumber) {
         prefs.edit().putString("continue_book", bookId).putInt("continue_chapter", chapterNumber).apply()
     }
 
-    val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
-        value = runCatching { repository.getBooks(translationId) }.getOrDefault(emptyList())
+    val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
+        value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
+    }
+    var showTranslations by remember { mutableStateOf(false) }
+
+    val books by produceState(initialValue = emptyList<BibleBook>(), repository, currentTranslationId) {
+        value = runCatching { repository.getBooks(currentTranslationId) }.getOrDefault(emptyList())
     }
 
     val book = books.firstOrNull { it.id == bookId }
 
-    val chapter by produceState<BibleChapter?>(initialValue = null, repository, bookId, chapterNumber) {
+    val chapter by produceState<BibleChapter?>(initialValue = null, repository, bookId, chapterNumber, currentTranslationId) {
         value = runCatching {
             repository.getChapter(
-                translationId = translationId,
+                translationId = currentTranslationId,
                 bookId = bookId,
                 chapterNumber = chapterNumber
             )
@@ -109,6 +119,32 @@ fun BibleChapterScreen(
         }
     }
 
+    if (showTranslations) {
+        AlertDialog(
+            onDismissRequest = { showTranslations = false },
+            title = { Text("Bible translation") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    translations.forEach { translation ->
+                        TextButton(
+                            onClick = {
+                                prefs.edit().putString("translation_id", translation.id).apply()
+                                currentTranslationId = translation.id
+                                showTranslations = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTranslations = false }) { Text("Close") } }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,7 +156,7 @@ fun BibleChapterScreen(
                         )
 
                         Text(
-                            text = "Chapter $chapterNumber • ${translationId.uppercase()}",
+                            text = "Chapter $chapterNumber • ${currentTranslationId.uppercase()}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -138,7 +174,18 @@ fun BibleChapterScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { shareText(context, "${book?.name ?: bookId} $chapterNumber — ${translationId.uppercase()}") }) {
+                    FilledTonalButton(
+                        onClick = { showTranslations = true },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = currentTranslationId.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                    IconButton(onClick = { shareText(context, "${book?.name ?: bookId} $chapterNumber — ${currentTranslationId.uppercase()}") }) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share chapter"
@@ -161,7 +208,7 @@ fun BibleChapterScreen(
             chapter?.let { loadedChapter ->
                 BibleReader(
                     chapter = loadedChapter,
-                    translationId = translationId,
+                    translationId = currentTranslationId,
                     initialVerse = initialVerse,
                     onVerseClick = { verse ->
                         selectedVerse = verse
@@ -179,11 +226,11 @@ fun BibleChapterScreen(
                     explanation = initialVerseExplanation,
                     bookName = book?.name ?: bookId,
                     chapterNumber = chapterNumber,
-                    translationId = translationId,
+                    translationId = currentTranslationId,
                     onDismiss = { selectedVerse = null },
                     onBookmark = { toggleBookmark(prefs, bookId, chapterNumber, it.number) },
                     isBookmarked = { isBookmarked(prefs, bookId, chapterNumber, it.number) },
-                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + translationId.uppercase() + " — " + it.text) }
+                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + currentTranslationId.uppercase() + " — " + it.text) }
                 )
             }
         }

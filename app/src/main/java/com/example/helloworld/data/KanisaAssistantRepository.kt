@@ -31,7 +31,8 @@ data class KanisaAssistantRequest(
     val provider: String = "cloud",
     val conversation: List<KanisaAssistantMessage> = emptyList(),
     val room_id: String? = null,
-    val reply_to_message_id: String? = null
+    val reply_to_message_id: String? = null,
+    val translation: String? = null
 )
 
 @Serializable
@@ -152,7 +153,8 @@ class KanisaAssistantRepository {
         message: String,
         conversation: List<KanisaAssistantMessage> = emptyList(),
         roomId: String? = null,
-        replyToMessageId: String? = null
+        replyToMessageId: String? = null,
+        translation: String? = null
     ): Result<KanisaAssistantResponse> = runCatching {
         if (!SupabaseProvider.ensureSession()) {
             error("Your sign-in session is unavailable. Please sign in again.")
@@ -169,7 +171,8 @@ class KanisaAssistantRepository {
                     message = message,
                     conversation = conversation,
                     room_id = roomId,
-                    reply_to_message_id = replyToMessageId
+                    reply_to_message_id = replyToMessageId,
+                    translation = translation
                 )
             )
         }

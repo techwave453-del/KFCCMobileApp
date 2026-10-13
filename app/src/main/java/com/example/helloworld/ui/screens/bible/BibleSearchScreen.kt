@@ -23,6 +23,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +41,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +54,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleSearchResult
+import com.example.helloworld.data.bible.BibleTranslation
 import com.example.helloworld.data.bible.KfccBibleRepository
 import kotlinx.coroutines.delay
 
@@ -61,12 +67,17 @@ fun BibleSearchScreen(
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
-    val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
+    var currentTranslationId by remember { mutableStateOf(prefs.getString("translation_id", "kjv") ?: "kjv") }
+    val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
+        value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
+    }
+    var showTranslations by remember { mutableStateOf(false) }
+
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<BibleSearchResult>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
 
-    LaunchedEffect(query, translationId) {
+    LaunchedEffect(query, currentTranslationId) {
         val q = query.trim()
         if (q.length < 2) {
             results = emptyList()
@@ -75,8 +86,34 @@ fun BibleSearchScreen(
         }
         delay(250)
         searching = true
-        results = runCatching { repository.search(translationId, q) }.getOrDefault(emptyList())
+        results = runCatching { repository.search(currentTranslationId, q) }.getOrDefault(emptyList())
         searching = false
+    }
+
+    if (showTranslations) {
+        AlertDialog(
+            onDismissRequest = { showTranslations = false },
+            title = { Text("Bible translation") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    translations.forEach { translation ->
+                        TextButton(
+                            onClick = {
+                                prefs.edit().putString("translation_id", translation.id).apply()
+                                currentTranslationId = translation.id
+                                showTranslations = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTranslations = false }) { Text("Close") } }
+        )
     }
 
     Scaffold(
@@ -86,7 +123,7 @@ fun BibleSearchScreen(
                     Column {
                         Text("Bible Search", fontWeight = FontWeight.Bold)
                         Text(
-                            translationId.uppercase(),
+                            currentTranslationId.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -95,6 +132,19 @@ fun BibleSearchScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    FilledTonalButton(
+                        onClick = { showTranslations = true },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = currentTranslationId.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             )
@@ -189,7 +239,7 @@ fun BibleSearchScreen(
                         ) { result ->
                             BibleSearchResultCard(
                                 result = result,
-                                translationId = translationId,
+                                translationId = currentTranslationId,
                                 onClick = {
                                     onOpenChapter(result.bookId, result.chapter, result.verse)
                                 }

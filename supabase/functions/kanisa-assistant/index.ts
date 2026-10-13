@@ -20,6 +20,7 @@ type Body = {
   conversation?: Array<{ role: "user" | "assistant"; content: string }>;
   room_id?: string;
   reply_to_message_id?: string;
+  translation?: string;
 };
 
 function json(data: unknown, status = 200) {
@@ -48,7 +49,7 @@ async function churchContext() {
   };
 }
 
-async function bibleContext(question: string, history: Array<{ role: "user" | "assistant"; content: string }> = []) {
+async function bibleContext(question: string, history: Array<{ role: "user" | "assistant"; content: string }> = [], requestedTranslation?: string) {
   const q = normalize(question);
   const lastAssistant = [...history].reverse().find(item => item.role === "assistant")?.content || "";
   const contextualFollowUp =
@@ -57,7 +58,9 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const bibleSearchQuestion = contextualFollowUp && lastAssistant
     ? q + " " + lastAssistant
     : q;
-  const translation = /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
+  const translation = requestedTranslation && ["kjv", "gnb", "web"].includes(requestedTranslation.toLowerCase())
+    ? requestedTranslation.toLowerCase()
+    : /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
   const { data: books } = await supabase
     .from("bible_books")
@@ -495,10 +498,10 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
         /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
 
       if (contextualFollowUp) {
-        return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\nIn simple terms: This passage is the biblical text returned for your question. Read it in its surrounding chapter context, and use the wording of the passage itself as the starting point for understanding its message.\\n\\nPractical reflection: Consider how the teaching in this passage relates to your current situation, while keeping personal application distinct from the exact words of Scripture.`;
+        return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\n💡 Spiritual Insight & Application:\nThis passage invites us to anchor our faith in God's unfailing promises. Reflect on how its timeless truth applies directly to your walk with Christ today, offering peace, encouragement, and strength.`;
       }
 
-      return `Answer from Scripture: ${reference}.\\n\\n${translationName} Scripture:\\n${scripture}\\n\\nMeaning: The passage above is the biblical text returned from Kanisa's Bible database. Its meaning should be understood from the passage and its surrounding context rather than from an invented quotation or reference.`;
+      return `Scripture Reference: ${reference}\\n\\n${translationName} Bible Text:\\n${scripture}\\n\\n🙏 Pastoral Reflection:\nThe passage above provides wonderful biblical insight and encouragement. Read it prayerfully in its surrounding context to experience its full spiritual depth.`;
     }
 
     const references = verses.map((v: any) => {
@@ -506,20 +509,25 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
-    return `Answer from Scripture: I found relevant passages in the Kanisa Bible database.\\n\\nScripture:\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\nMeaning: These passages are relevant to the topic you asked about. Read them in context; the Assistant will not invent additional quotations beyond the supplied Bible text.`;
+    return `Scripture Answers:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\n🙏 Pastoral Reflection:\nThese passages offer meaningful biblical guidance on your question. Take time to meditate on God's Word.`;
   }
 
   if (/help|what can you do|how can you help/.test(q)) {
-    return `I can help with ${churchName}, service times, events, media, giving, contact and visitor information, youth information, and Bible passages available in Kanisa. Ask me a specific question and I’ll use the published data available to me.`;
+    return `Hello! I am ${assistantName}, your AI church & Bible companion. I can help you with ${churchName} service times, upcoming events, media and sermons, giving, contact information, and exploring Bible passages. How may I assist you today?`;
   }
 
-  return `I’m currently operating in local mode. I can answer from the church and Bible information available in Kanisa, but I don’t have enough published data for that question yet. Try asking about service times, events, giving, contact details, media, or a specific Bible passage.`;
+  return `I am here to help with ${churchName} details and Bible questions. Feel free to ask about our service times, upcoming events, giving, or ask for Scripture passages on topics like prayer, faith, hope, or love!`;
 }
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
   const recent = JSON.stringify((history || []).slice(-8));
-  return `You are Kanisa Assistant, the official AI assistant for a Christian church mobile app.
+  return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
+
+PASTORAL & COMMUNICATION STYLE:
+- Be warm, deeply encouraging, pastorally sensitive, concise, and spiritually uplifting.
+- Speak with grace and clarity, offering genuine Christian encouragement and biblical truth.
+- Do not claim to be a human or a pastor, but serve as a faithful, knowledgeable Bible and church companion.
 
 STRICT SOURCE RULES:
 - Never use the church website as a source.
@@ -530,16 +538,14 @@ STRICT SOURCE RULES:
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
 - When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
 - Distinguish Scripture from explanation, interpretation, and practical application.
-- For a Bible question that has relevant BIBLE CONTEXT, use this natural order when useful: brief answer/explanation -> Scripture -> meaning -> practical application.
-- Keep the structure conversational rather than turning every response into a rigid template. Do not add headings when the question only needs a short answer.
+- For a Bible question that has relevant BIBLE CONTEXT, use this natural order when useful: brief encouraging insight -> Scripture -> spiritual meaning -> practical Christian application.
+- Keep the structure conversational rather than turning every response into a rigid template.
 - If the user asks for a specific passage, prioritize that passage instead of adding unrelated verses.
 - If the user asks a contextual follow-up such as "explain this", "what does that mean?", "how do I apply this?", or "more scriptures", use the previous conversation plus the supplied BIBLE CONTEXT to stay on the same subject.
-- When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage. Do not put all references in a separate list.
+- When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
 - Keep exact Scripture quotations clearly identifiable as Scripture and do not mix commentary into the quotation.
-- Practical application should be framed as a thoughtful application, not as a claim that the church officially teaches that exact advice unless the church context says so.
-- You may answer general Christian questions, but do not present personal theological interpretation as an official church doctrine unless the supplied church context says so.
-- Be warm, concise and useful. Do not claim to be a pastor or human.
+- Practical application should be framed as thoughtful Christian encouragement.
 - If the user asks for something private about another member, refuse to expose it.
 
 CHURCH CONTEXT:
@@ -582,7 +588,7 @@ Deno.serve(async (req: Request) => {
   const [{ data: settings }, context, bible] = await Promise.all([
     supabase.from("ai_assistant_settings").select("enabled,assistant_name,welcome_message,cloud_ai_enabled,bible_enabled,model").eq("id", 1).maybeSingle(),
     churchContext(),
-    bibleContext(message, body.conversation || [])
+    bibleContext(message, body.conversation || [], body.translation)
   ]);
 
   if (settings?.enabled === false) {
@@ -605,8 +611,9 @@ Deno.serve(async (req: Request) => {
         : [];
     const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
       const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
+      const transAbbr = usableBible.translation === "gnb" ? "GNB" : usableBible.translation === "web" ? "WEB" : "KJV";
       return name && verse.text
-        ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: usableBible.translation === "web" ? "WEB" : "KJV" }
+        ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: transAbbr }
         : null;
     }).filter(Boolean);
     const bibleQuotes = allBibleQuotes
