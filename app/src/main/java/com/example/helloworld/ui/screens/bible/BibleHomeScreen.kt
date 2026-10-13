@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,9 +43,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.delay
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +73,14 @@ import com.example.helloworld.data.bible.DailyScripture
 import com.example.helloworld.data.bible.DailyScriptureRepository
 import com.example.helloworld.data.bible.Testament
 import android.content.Context
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.helloworld.data.bible.BibleChapter
+import com.example.helloworld.data.bible.BibleTranslation
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +88,8 @@ import java.time.LocalDate
 fun BibleHomeScreen(
     onBack: () -> Unit,
     onOpenChapter: (String, Int) -> Unit,
-    onOpenSearch: () -> Unit
+    onOpenSearch: () -> Unit,
+    onOpenBibleGames: () -> Unit = {}
 ) {
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
@@ -82,7 +100,7 @@ fun BibleHomeScreen(
     val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
         value = runCatching { repository.getBooks(selectedTranslationId) }.getOrDefault(emptyList())
     }
-    val translations by produceState(initialValue = emptyList<com.example.helloworld.data.bible.BibleTranslation>(), repository) {
+    val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
         value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
     }
     val translationAvailability by produceState(initialValue = emptyMap<String, Int>(), repository, translations) {
@@ -94,15 +112,34 @@ fun BibleHomeScreen(
     var bookQuery by rememberSaveable { mutableStateOf("") }
     var testamentFilter by rememberSaveable { mutableStateOf("All") }
     var showTranslations by remember { mutableStateOf(false) }
+    var showBookFinder by rememberSaveable { mutableStateOf(false) }
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
     val dailyScriptureRepository = remember { DailyScriptureRepository(repository) }
-    val dailyScripture by produceState<DailyScripture?>(initialValue = null, dailyScriptureRepository, selectedTranslationId) {
-        value = runCatching { dailyScriptureRepository.getToday(selectedTranslationId) }.getOrNull()
+    val dailyScripture by produceState<DailyScripture>(initialValue = DailyScripture(
+        themeName = "Trusting God's Guidance",
+        themeDescription = "When you need direction and peace.",
+        bookId = "PSA",
+        chapter = 23,
+        verseStart = 1,
+        verseEnd = 3,
+        situation = "When you need comfort and guidance in your daily walk.",
+        reflection = "The Lord is my shepherd; I shall not want."
+    ), dailyScriptureRepository, selectedTranslationId) {
+        value = runCatching { dailyScriptureRepository.getToday(selectedTranslationId) }.getOrNull() ?: DailyScripture(
+            themeName = "Trusting God's Guidance",
+            themeDescription = "When you need direction and peace.",
+            bookId = "PSA",
+            chapter = 23,
+            verseStart = 1,
+            verseEnd = 3,
+            situation = "When you need comfort and guidance in your daily walk.",
+            reflection = "The Lord is my shepherd; I shall not want."
+        )
     }
-    val dailyChapter by produceState<com.example.helloworld.data.bible.BibleChapter?>(initialValue = null, dailyScriptureRepository, dailyScripture, selectedTranslationId) {
+    val dailyChapter by produceState<BibleChapter?>(initialValue = null, dailyScriptureRepository, dailyScripture, selectedTranslationId) {
         value = dailyScripture?.let { scripture ->
             runCatching { dailyScriptureRepository.getPassage(selectedTranslationId, scripture) }.getOrNull()
-        }
+        } ?: runCatching { repository.getChapter(selectedTranslationId, "PSA", 23) }.getOrNull()
     }
 
     if (showTranslations) {
@@ -210,31 +247,89 @@ fun BibleHomeScreen(
         ) {
 
             item {
-                Card(
-                    onClick = { showTranslations = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                ) {
+                BibleHero(
+                    translationAbbreviation = selectedTranslation?.abbreviation ?: selectedTranslationId.uppercase(),
+                    onOpenBibleGames = onOpenBibleGames,
+                    onOpenSearch = onOpenSearch,
+                    onChangeVersion = { showTranslations = true }
+                )
+            }
+
+            item {
+                val pagerState = rememberPagerState(pageCount = { 2 })
+                val progressAnimatable = remember { Animatable(0f) }
+
+                LaunchedEffect(pagerState.currentPage) {
+                    progressAnimatable.snapTo(0f)
+                    progressAnimatable.animateTo(
+                        1f,
+                        animationSpec = tween(8000, easing = LinearEasing)
+                    )
+                }
+
+                LaunchedEffect(pagerState) {
+                    while (true) {
+                        delay(8000L)
+                        if (!pagerState.isScrollInProgress && pagerState.pageCount > 0) {
+                            val next = (pagerState.currentPage + 1) % pagerState.pageCount
+                            try {
+                                pagerState.animateScrollToPage(next)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 0.dp),
+                        pageSpacing = 12.dp
+                    ) { page ->
+                        if (page == 0) {
+                            TodaysScriptureCard(
+                                scripture = dailyScripture,
+                                chapter = dailyChapter,
+                                bookName = books.firstOrNull { it.id == dailyScripture.bookId }?.name ?: dailyScripture.bookId,
+                                translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
+                                onClick = {
+                                    onOpenChapter(dailyScripture.bookId, dailyScripture.chapter)
+                                }
+                            )
+                        } else {
+                            ContinueReadingCard(
+                                bookName = books.firstOrNull { it.id == savedBook }?.name ?: savedBook,
+                                chapter = savedChapter,
+                                onClick = {
+                                    onOpenChapter(savedBook, savedChapter)
+                                }
+                            )
+                        }
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { progressAnimatable.value },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text("Current Bible Version", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-                            Text(selectedTranslation?.name ?: selectedTranslationId.uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.primary
-                        ) {
-                            Text(
-                                text = "Change",
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Bold
+                        repeat(2) { index ->
+                            val color = if (pagerState.currentPage == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
                             )
                         }
                     }
@@ -242,81 +337,95 @@ fun BibleHomeScreen(
             }
 
             item {
-                BibleHero(translationAbbreviation = selectedTranslation?.abbreviation ?: selectedTranslationId.uppercase())
-            }
-
-            item {
-                TodaysScriptureCard(
-                    scripture = dailyScripture,
-                    chapter = dailyChapter,
-                    bookName = books.firstOrNull { it.id == dailyScripture?.bookId }?.name ?: dailyScripture?.bookId ?: "Bible",
-                    translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
-                    onClick = {
-                        dailyScripture?.let { onOpenChapter(it.bookId, it.chapter) }
-                    }
-                )
-            }
-
-            item {
-                ContinueReadingCard(
-                    bookName = books.firstOrNull { it.id == savedBook }?.name ?: savedBook,
-                    chapter = savedChapter,
-                    onClick = {
-                        onOpenChapter(savedBook, savedChapter)
-                    }
-                )
-            }
-
-            item {
-                BibleSectionHeader(
-                    title = "Find a book",
-                    subtitle = "Search by name or browse by testament."
-                )
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                ) {
-                    TextField(
-                        value = bookQuery,
-                        onValueChange = { bookQuery = it },
+                if (!showBookFinder) {
+                    Card(
+                        onClick = { showBookFinder = true },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text("Search Genesis, Psalms, John…") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = "Search books")
-                        },
-                        trailingIcon = {
-                            if (bookQuery.isNotEmpty()) {
-                                IconButton(onClick = { bookQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(18.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    modifier = Modifier.size(42.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                Spacer(Modifier.width(14.dp))
+                                Column {
+                                    Text("Find a Book", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text("Browse Genesis to Revelation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
-                        },
-                        colors = androidx.compose.material3.TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
-                        )
-                    )
-                }
-            }
+                            Text("Tap to Browse  ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BibleSectionHeader(
+                                title = "Find a book",
+                                subtitle = "Search by name or browse by testament."
+                            )
+                            TextButton(onClick = { showBookFinder = false }) {
+                                Text("Hide")
+                            }
+                        }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("All", "Old Testament", "New Testament").forEach { filter ->
-                        FilterChip(
-                            selected = testamentFilter == filter,
-                            onClick = { testamentFilter = filter },
-                            label = { Text(filter) }
-                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            TextField(
+                                value = bookQuery,
+                                onValueChange = { bookQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Search Genesis, Psalms, John…") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = "Search books")
+                                },
+                                trailingIcon = {
+                                    if (bookQuery.isNotEmpty()) {
+                                        IconButton(onClick = { bookQuery = "" }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                        }
+                                    }
+                                },
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                )
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("All", "Old Testament", "New Testament").forEach { filter ->
+                                FilterChip(
+                                    selected = testamentFilter == filter,
+                                    onClick = { testamentFilter = filter },
+                                    label = { Text(filter) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -397,59 +506,136 @@ fun BibleHomeScreen(
 }
 
 @Composable
-private fun BibleHero(translationAbbreviation: String) {
-    val colors = MaterialTheme.colorScheme
+private fun BibleHero(
+    translationAbbreviation: String,
+    onOpenBibleGames: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onChangeVersion: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        listOf(colors.primaryContainer, colors.secondaryContainer, colors.tertiaryContainer)
-                    )
-                )
-                .padding(24.dp)
+                .height(320.dp)
         ) {
-            Column {
+            AsyncImage(
+                model = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1200&q=80",
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.85f)
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Surface(
-                    modifier = Modifier.size(54.dp),
-                    shape = RoundedCornerShape(17.dp),
-                    color = colors.surface.copy(alpha = 0.72f)
+                    modifier = Modifier.size(50.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.2f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = colors.primary, modifier = Modifier.size(29.dp))
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(22.dp))
-                Text(
-                    text = "Holy Bible",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif
-                )
-                Text(
-                    text = "Read the Word. Grow in faith.",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Text(
-                    text = "Discover Scripture, reflect on God’s promises, and continue your journey wherever you are.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onPrimaryContainer.copy(alpha = 0.82f),
-                    modifier = Modifier.padding(top = 10.dp)
-                )
-                Spacer(modifier = Modifier.height(18.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BiblePill(translationAbbreviation)
-                    BiblePill("66 Books")
-                    BiblePill("Offline")
+
+                Column {
+                    Text(
+                        text = "Holy Bible",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Read the Word. Grow in faith.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.95f),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Scrollable Hero Action Tiles (featuring Bible Games, Search, and Translation)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        HeroActionTile(
+                            title = "Bible Games",
+                            subtitle = "Play & Test",
+                            icon = Icons.Default.SportsEsports,
+                            onClick = onOpenBibleGames
+                        )
+                        HeroActionTile(
+                            title = "Search Bible",
+                            subtitle = "Find verses",
+                            icon = Icons.Default.Search,
+                            onClick = onOpenSearch
+                        )
+                        HeroActionTile(
+                            title = "Translation",
+                            subtitle = translationAbbreviation,
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            onClick = onChangeVersion
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroActionTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+        modifier = Modifier.width(140.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(36.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Column {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }
     }
@@ -473,77 +659,90 @@ private fun BiblePill(text: String) {
 @Composable
 private fun TodaysScriptureCard(
     scripture: DailyScripture?,
-    chapter: com.example.helloworld.data.bible.BibleChapter?,
+    chapter: BibleChapter?,
     bookName: String,
     translationName: String,
     onClick: () -> Unit
 ) {
-    val colors = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = colors.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = colors.primary)
+        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            AsyncImage(
+                model = "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1200&q=80",
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.4f),
+                                Color.Black.copy(alpha = 0.9f)
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.2f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Bold)
+                        Text(
+                            scripture?.themeName ?: "Daily reading",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelMedium, color = colors.primary, fontWeight = FontWeight.Bold)
+                Text(
+                    chapter?.let { loadedChapter ->
+                        loadedChapter.verses
+                            .filter { it.number in (scripture?.verseStart ?: 1)..(scripture?.verseEnd ?: 1) }
+                            .joinToString(" ") { "“${it.text}”" }
+                    } ?: "Scripture for today is not available in this translation.",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3f),
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        scripture?.themeName ?: "Daily reading",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        scripture?.let { selected ->
+                            val verses = if (selected.verseStart == selected.verseEnd) "${selected.verseStart}" else "${selected.verseStart}-${selected.verseEnd}"
+                            "${bookName} ${selected.chapter}:$verses"
+                        } ?: translationName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.weight(1f)
                     )
+                    Text("Read in Bible  ›", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
                 }
-            }
-            Text(
-                chapter?.let { loadedChapter ->
-                    loadedChapter.verses
-                        .filter { it.number in (scripture?.verseStart ?: 1)..(scripture?.verseEnd ?: 1) }
-                        .joinToString(" ") { "“${it.text}”" }
-                } ?: "Scripture for today is not available in this translation.",
-                style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.titleLarge.lineHeight * 1.3f),
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(top = 18.dp)
-            )
-            scripture?.situation?.takeIf { it.isNotBlank() }?.let { situation ->
-                Text(
-                    situation,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
-            }
-            scripture?.reflection?.takeIf { it.isNotBlank() }?.let { reflection ->
-                Text(
-                    reflection,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    scripture?.let { selected ->
-                        val verses = if (selected.verseStart == selected.verseEnd) "${selected.verseStart}" else "${selected.verseStart}-${selected.verseEnd}"
-                        "${bookName} ${selected.chapter}:$verses"
-                    } ?: translationName,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                Text("Read in Bible  ›", style = MaterialTheme.typography.labelLarge, color = colors.primary, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -555,30 +754,58 @@ private fun ContinueReadingCard(
     chapter: Int,
     onClick: () -> Unit
 ) {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shape = RoundedCornerShape(26.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            AsyncImage(
+                model = "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=1200&q=80",
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.85f)
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.2f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+                Column {
+                    Text("CONTINUE READING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Continue Reading  ›", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("CONTINUE READING", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 2.dp))
-            }
-            Text("Continue  ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
 }
