@@ -501,15 +501,8 @@ fun KFCCApp(
         navigate(backDestination())
     }
 
-    if (updateCheckFailed) {
-        BackHandler(enabled = true) {}
-        RequiredUpdateCheckFailedScreen(
-            message = updateError ?: "Unable to verify the current app version.",
-            onRetry = { scope.launch { checkMandatoryUpdate() } }
-        )
-        return
-    }
-
+    // If the update service is unavailable, do not lock users out of the installed app.
+    // A mandatory update is enforced only after the server successfully confirms one.
     if (mandatoryUpdate != null) {
         BackHandler(enabled = true) {}
 
