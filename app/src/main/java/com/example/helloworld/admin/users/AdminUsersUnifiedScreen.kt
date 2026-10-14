@@ -10,11 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.helloworld.admin.AdminUser
 import com.example.helloworld.admin.members.CommunityMembersScreen
 
 @Composable
 fun AdminUsersUnifiedScreen(
     modifier: Modifier = Modifier,
+    currentUser: AdminUser,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -46,6 +48,7 @@ fun AdminUsersUnifiedScreen(
                 1 -> AdminUsersScreen(
                     modifier = Modifier.fillMaxSize(),
                     viewModel = viewModel(factory = AdminUsersViewModel.Factory(application)),
+                    currentUser = currentUser,
                     onBack = onBack
                 )
             }
