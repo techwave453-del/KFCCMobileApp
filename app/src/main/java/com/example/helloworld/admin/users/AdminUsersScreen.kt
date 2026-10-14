@@ -137,7 +137,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
             title = { Text("Role · " + roleUser!!.username) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose the administrator role. Permissions are kept as currently assigned.")
+                    Text("Choosing a role applies its standard permissions. You can customize permissions separately afterward.")
                     listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
                         if (selectedRole == value) Button(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
                         else OutlinedButton(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
