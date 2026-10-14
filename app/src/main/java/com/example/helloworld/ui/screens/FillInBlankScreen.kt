@@ -27,6 +27,12 @@ fun FillInBlankScreen(onBack: () -> Unit, onOpenReference: (String) -> Unit = {}
     var retry by remember { mutableIntStateOf(0) }
     LaunchedEffect(retry) { loading = true; questions = BibleGameRepository().loadGameQuestions("fill_blank", 10); index = 0; selected = -1; score = 0; done = questions.isEmpty(); recorded = false; loading = false }
     LaunchedEffect(done, recorded) { if (done && questions.isNotEmpty() && !recorded) { recorded = true; progressViewModel.recordQuizResult(score, questions.size) } }
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible_games",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
     Column(Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(title = { Text("Fill in the Blank") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.Extension, "Back to Bible Games") } })
         when {
@@ -50,5 +56,6 @@ fun FillInBlankScreen(onBack: () -> Unit, onOpenReference: (String) -> Unit = {}
                 }
             }
         }
+    }
     }
 }
