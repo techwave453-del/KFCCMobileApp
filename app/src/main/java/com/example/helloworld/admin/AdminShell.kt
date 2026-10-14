@@ -205,9 +205,25 @@ private fun AdminDashboardScreen(
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings, "Administration & Security")
     )
 
-    val filteredModules = remember(searchQuery, modules) {
-        if (searchQuery.isBlank()) modules
-        else modules.filter { it.title.contains(searchQuery, true) || it.description.contains(searchQuery, true) }
+    // Hide modules the signed-in administrator cannot access. Disabled/locked
+    // module cards should not be displayed as they reveal unrelated admin areas.
+    // Super Admin retains full access through AdminUser.hasPermission().
+    val permittedModules = remember(user, modules) {
+        modules.filter { module ->
+            when (module.title) {
+                "Church Identity" -> user.canEditChurchIdentity()
+                "Services & Giving" ->
+                    user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
+                        user.hasPermission(AdminPermissions.LINKS_EDIT) ||
+                        user.hasPermission(AdminPermissions.SITE_EDIT)
+                else -> user.hasPermission(module.permission)
+            }
+        }
+    }
+
+    val filteredModules = remember(searchQuery, permittedModules) {
+        if (searchQuery.isBlank()) permittedModules
+        else permittedModules.filter { it.title.contains(searchQuery, true) || it.description.contains(searchQuery, true) }
     }
 
     val groupedModules = filteredModules.groupBy { it.category }
