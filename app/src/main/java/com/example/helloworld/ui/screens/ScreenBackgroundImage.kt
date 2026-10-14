@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import coil.ImageLoader
+import coil.imageLoader
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -45,8 +45,7 @@ fun rememberScreenBackgroundUrl(screenKey: String): String? {
                 .edit().putString(screenKey, url).apply()
         }
         imageUrl?.let { url ->
-            val loader = ImageLoader.Builder(context).build()
-            loader.enqueue(
+            context.imageLoader.enqueue(
                 ImageRequest.Builder(context)
                     .data(url)
                     .diskCachePolicy(CachePolicy.ENABLED)
