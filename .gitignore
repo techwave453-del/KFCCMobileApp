@@ -17,3 +17,6 @@ local.properties
 # Android release signing material
 *.jks
 *.keystore
+
+# Firebase & Google services config
+app/google-services.json
