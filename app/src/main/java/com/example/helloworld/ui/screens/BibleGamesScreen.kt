@@ -308,7 +308,9 @@ private fun GameHome(
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                Text("Game mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)) {
+                    Text("Game mode", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                }
                 Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier
@@ -340,7 +342,9 @@ private fun GameHome(
             }
 
             item {
-                Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)) {
+                    Text("Category", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                }
             }
 
             items(BibleGameCategory.values().toList(), key = { it.name }) { option ->
@@ -435,10 +439,18 @@ private fun GameQuestionCard(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            "Question $questionNumber of $total",
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(9.dp),
+                            color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)
+                        ) {
+                            Text(
+                                "Question $questionNumber of $total",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = androidx.compose.ui.graphics.Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Spacer(Modifier.height(4.dp))
                         LinearProgressIndicator(
                             progress = { questionNumber.toFloat() / total.coerceAtLeast(1).toFloat() },
