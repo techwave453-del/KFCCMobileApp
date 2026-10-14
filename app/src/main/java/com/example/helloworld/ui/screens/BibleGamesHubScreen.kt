@@ -99,12 +99,20 @@ fun BibleGamesHubScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible_games",
+            backgroundType = "screen",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
         TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             title = {
                 Column {
                     Text("Bible Games", fontWeight = FontWeight.Bold)
@@ -203,7 +211,10 @@ fun BibleGamesHubScreen(
                             else -> showComingSoon = game.title
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f)
+                    )
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -248,6 +259,7 @@ fun BibleGamesHubScreen(
                     }
                 }
             }
+        }
         }
     }
 
