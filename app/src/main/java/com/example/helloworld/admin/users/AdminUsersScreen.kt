@@ -148,7 +148,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                     }
                     grantablePermissions.forEach { permission ->
                         OutlinedButton(onClick = { permissions = if (permissions.contains(permission)) permissions - permission else permissions + permission }, modifier = Modifier.fillMaxWidth()) {
-                            Text((if (permissions.contains(permission)) "✓ " else "") + permissionLabel(permission) + "\\n" + permission)
+                            Text((if (permissions.contains(permission)) "✓ " else "") + permissionLabel(permission) + "\n" + permission)
                         }
                     }
                 }
