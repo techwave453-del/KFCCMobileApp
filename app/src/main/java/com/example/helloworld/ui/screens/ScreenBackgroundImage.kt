@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import coil.imageLoader
 import coil.compose.AsyncImage
@@ -86,7 +87,16 @@ fun ScreenBackgroundImage(
                 Box(
                     modifier = androidx.compose.ui.Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = overlayAlpha.coerceIn(0f, 0.85f)))
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Black.copy(alpha = 0.02f),
+                                    0.38f to Color.Black.copy(alpha = overlayAlpha * 0.22f),
+                                    0.72f to Color.Black.copy(alpha = overlayAlpha * 0.68f),
+                                    1.0f to Color.Black.copy(alpha = overlayAlpha.coerceIn(0f, 0.60f))
+                                )
+                            )
+                        )
                 )
             }
         }
