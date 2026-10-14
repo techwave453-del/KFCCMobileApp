@@ -43,7 +43,8 @@ fun AdminUsersUnifiedScreen(
             when (selectedTab) {
                 0 -> CommunityMembersScreen(
                     modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel()
+                    viewModel = viewModel(),
+                    currentUser = currentUser
                 )
                 1 -> AdminUsersScreen(
                     modifier = Modifier.fillMaxSize(),
