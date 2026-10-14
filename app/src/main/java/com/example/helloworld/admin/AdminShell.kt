@@ -268,8 +268,14 @@ private fun AdminDashboardScreen(
                 }
 
                 items(categoryModules) { module ->
-                    val allowed = user.hasPermission(module.permission) &&
-                        (module.title != "Church Identity" || user.canEditChurchIdentity())
+                    val allowed = when (module.title) {
+                        "Church Identity" -> user.canEditChurchIdentity()
+                        "Services & Giving" ->
+                            user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
+                                user.hasPermission(AdminPermissions.LINKS_EDIT) ||
+                                user.hasPermission(AdminPermissions.SITE_EDIT)
+                        else -> user.hasPermission(module.permission)
+                    }
                     val action = when (module.title) {
                         "Account Credentials" -> if (allowed) onCredentials else null
                         "Church Identity" -> if (allowed) onIdentity else null
