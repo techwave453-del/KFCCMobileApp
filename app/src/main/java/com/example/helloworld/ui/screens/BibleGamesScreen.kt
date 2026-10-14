@@ -134,7 +134,7 @@ fun BibleGamesScreen(
         ScreenBackgroundImage(
             screenKey = "bible_games",
             modifier = Modifier.fillMaxSize(),
-            overlayAlpha = 0.48f
+            overlayAlpha = 0.24f
         )
         Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -142,7 +142,7 @@ fun BibleGamesScreen(
             title = {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.72f)
+                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)
                 ) {
                     Text(
                         "Bible Games",
@@ -308,7 +308,7 @@ private fun GameHome(
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)) {
                     Text("Game mode", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
                 }
                 Spacer(Modifier.height(6.dp))
