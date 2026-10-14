@@ -1,5 +1,6 @@
 package com.example.helloworld.admin.members
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,42 +56,36 @@ fun CommunityMembersScreen(
     // intentionally excluded because it remains Super Admin-only.
     val customPermissionGroups = listOf(
         "Website Content" to listOf(
-            "site.edit" to "Full website CMS access",
-            "content.homepage.edit" to "Edit homepage content",
-            "content.about.edit" to "Edit About page content",
-            "content.services.edit" to "Edit services content",
-            "content.links.edit" to "Edit giving and external links",
-            "content.classes.edit" to "Edit classes content",
-            "content.gallery.edit" to "Edit gallery content",
-            "theme.edit" to "Edit website theme"
+            "site.edit" to "Edit CMS pages and sections (full website-content access)"
+        ),
+        "Services & Giving" to listOf(
+            "content.services.edit" to "View and edit worship services and service times",
+            "content.links.edit" to "View and edit the online giving link"
         ),
         "Media Center" to listOf(
             "media.view" to "Open and view the media library",
-            "media.upload" to "Upload new media",
-            "media.edit" to "Edit media details and URLs",
+            "media.upload" to "Upload new media and add media URLs",
+            "media.edit" to "Edit media details and publication settings",
             "media.delete" to "Delete media items"
         ),
         "Live Streaming" to listOf(
-            "live.view" to "View live-stream settings",
-            "live.edit" to "Manage stream URL and live settings",
-            "comments.view" to "View live comments",
-            "comments.moderate" to "Moderate live comments"
+            "live.edit" to "View and change stream status, title, URL and description"
         ),
         "Events & Outreach" to listOf(
-            "events.manage" to "Create and manage events",
-            "notifications.send" to "Send church notifications",
-            "daily_scripture.manage" to "Manage Today's Scripture",
-            "bible_games.manage" to "Manage Bible games and quizzes",
-            "app_update.manage" to "Configure Android app updates"
+            "events.manage" to "Create and manage church events",
+            "notifications.send" to "Create and send church notifications",
+            "daily_scripture.manage" to "Manage Today's Scripture themes and content",
+            "bible_games.manage" to "Manage Bible games and quiz content",
+            "app_update.manage" to "Configure Android app update details and APK URL"
         ),
         "Users & Security" to listOf(
-            "users.view" to "View members and administrator lists",
-            "users.create" to "Approve/create administrator accounts",
-            "users.edit" to "Edit administrator roles",
+            "users.view" to "Open member and administrator lists",
+            "users.create" to "Approve or create administrator accounts",
+            "users.edit" to "Edit administrator roles and member profiles",
             "users.disable" to "Enable or disable administrator accounts",
-            "users.delete" to "Delete administrator accounts",
-            "users.permissions" to "Change administrator permissions",
-            "audit.view" to "View system administration and audit information"
+            "users.delete" to "Delete administrator accounts or community member profiles",
+            "users.permissions" to "Assign administrator permissions within your own authority",
+            "audit.view" to "Open the System Administration overview and view assigned permissions"
         )
     )
     val assignableCustomPermissions = remember(customPermissionGroups) {
