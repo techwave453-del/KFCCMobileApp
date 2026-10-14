@@ -133,8 +133,9 @@ fun BibleGamesHubScreen(
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AsyncImage(
-                            model = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80",
+                        ScreenBackgroundImage(
+                            screenKey = "bible_games",
+                            fallbackUrl = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80",
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
