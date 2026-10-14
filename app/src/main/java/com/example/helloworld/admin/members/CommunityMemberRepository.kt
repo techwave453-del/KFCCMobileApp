@@ -1,10 +1,19 @@
 package com.example.helloworld.admin.members
 
 import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 private data class BasicMemberUpdate(
@@ -14,29 +23,40 @@ private data class BasicMemberUpdate(
 )
 
 @Serializable
-private data class RoleUpdatePayload(
-    @SerialName("admin_role") val adminRole: String
+private data class MemberManagementRequest(
+    val action: String,
+    @SerialName("user_id") val userId: String? = null,
+    val role: String? = null
 )
 
 @Serializable
-private data class AdminProfileUpsert(
-    @SerialName("auth_user_id") val authUserId: String,
-    val username: String,
-    val role: String,
-    @SerialName("is_active") val isActive: Boolean,
-    val permissions: List<String>
+private data class MemberManagementResponse(
+    val members: List<CommunityMember> = emptyList(),
+    val ok: Boolean = false,
+    val role: String? = null,
+    val error: String? = null
 )
 
 class CommunityMemberRepository {
     private val client = SupabaseProvider.client
+    private val http = HttpClient(CIO) {
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    }
+
+    private suspend fun callManagement(request: MemberManagementRequest): MemberManagementResponse {
+        val token = client.auth.currentAccessTokenOrNull()
+            ?: error("Your administrator session has expired. Please sign in again.")
+        return http.post("$FUNCTIONS_URL/admin-management") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
 
     suspend fun getMembers(): Result<List<CommunityMember>> = runCatching {
-        client.from("chat_profiles")
-            .select {
-                order("created_at", Order.DESCENDING)
-                limit(100)
-            }
-            .decodeList<CommunityMember>()
+        val response = callManagement(MemberManagementRequest(action = "community_members"))
+        if (response.error != null) error(response.error)
+        response.members
     }
 
     suspend fun updateMember(userId: String, username: String, displayName: String, bio: String): Result<Unit> = runCatching {
@@ -47,35 +67,11 @@ class CommunityMemberRepository {
     }
 
     suspend fun updateMemberRole(userId: String, username: String, role: String, permissions: List<String>): Result<Unit> = runCatching {
-        val normalizedRole = role.trim().lowercase()
-        // 1. Update chat_profiles admin_role
-        client.from("chat_profiles")
-            .update(RoleUpdatePayload(normalizedRole)) {
-                filter { eq("user_id", userId) }
-            }
-
-        // 2. If promoted to admin/moderator/leader, upsert into admin_profiles so they gain access to allowed admin modules
-        if (normalizedRole != "member") {
-            runCatching {
-                client.from("admin_profiles").upsert(
-                    AdminProfileUpsert(
-                        authUserId = userId,
-                        username = username.ifBlank { "user_$userId" },
-                        role = normalizedRole,
-                        isActive = true,
-                        permissions = permissions
-                    )
-                )
-            }
-        } else {
-            // If demoted to regular member, deactivate in admin_profiles
-            runCatching {
-                client.from("admin_profiles")
-                    .update(mapOf("is_active" to false)) {
-                        filter { eq("auth_user_id", userId) }
-                    }
-            }
-        }
+        val response = callManagement(
+            MemberManagementRequest(action = "community_role", userId = userId, role = role.trim().lowercase())
+        )
+        if (response.error != null) error(response.error)
+        if (!response.ok) error("The server did not confirm the role assignment.")
     }
 
     suspend fun deleteMember(userId: String): Result<Unit> = runCatching {
@@ -89,5 +85,9 @@ class CommunityMemberRepository {
                     filter { eq("auth_user_id", userId) }
                 }
         }
+    }
+
+    companion object {
+        private const val FUNCTIONS_URL = "https://uhzfjuquhqxhqtppispq.supabase.co/functions/v1"
     }
 }
