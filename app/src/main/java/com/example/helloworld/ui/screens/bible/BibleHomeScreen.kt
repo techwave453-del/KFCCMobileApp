@@ -279,17 +279,22 @@ fun BibleHomeScreen(
             TopAppBar(
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = {
-                    Column {
-                        Text(
-                            text = "Bible",
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Text(
-                            text = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.72f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                            Text(
+                                text = "Bible",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.86f)
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -653,20 +658,27 @@ private fun BibleHero(
                 }
 
                 Column {
-                    Text(
-                        text = "Holy Bible",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Read the Word. Grow in faith.",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White.copy(alpha = 0.95f),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.Black.copy(alpha = 0.70f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                            Text(
+                                text = "Holy Bible",
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Read the Word. Grow in faith.",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Scrollable Hero Action Tiles (featuring Bible Games, Search, and Translation)
