@@ -151,7 +151,7 @@ fun BibleChapterScreen(
         ScreenBackgroundImage(
             screenKey = "bible",
             modifier = Modifier.fillMaxSize(),
-            overlayAlpha = 0.50f
+            overlayAlpha = 0.24f
         )
         Scaffold(
         containerColor = Color.Transparent,
@@ -160,7 +160,7 @@ fun BibleChapterScreen(
                 title = {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.72f)
+                        color = Color.Black.copy(alpha = 0.42f)
                     ) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                             Text(
