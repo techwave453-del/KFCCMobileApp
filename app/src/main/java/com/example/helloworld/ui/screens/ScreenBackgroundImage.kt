@@ -71,7 +71,7 @@ fun ScreenBackgroundImage(
     contentDescription: String? = null,
     modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier,
     contentScale: androidx.compose.ui.layout.ContentScale = androidx.compose.ui.layout.ContentScale.Crop,
-    overlayAlpha: Float = 0.42f
+    overlayAlpha: Float = 0.22f
 ) {
     val url = rememberScreenBackgroundUrl(screenKey, backgroundType) ?: fallbackUrl
     if (!url.isNullOrBlank()) {
