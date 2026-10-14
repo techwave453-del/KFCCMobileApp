@@ -1,6 +1,5 @@
 package com.example.helloworld.admin.members
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -190,7 +189,7 @@ fun CommunityMembersScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Choose a community role or administrator role. Administrator roles apply their standard permission preset; Custom starts with no permissions.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Choose a community role or administrator role. Preset roles receive their standard permissions; Custom uses only the checked permissions below.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
 
                     assignableRoles.forEach { role ->
@@ -225,9 +224,7 @@ fun CommunityMembersScreen(
                             Text(groupTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             options.forEach { (permission, label) ->
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        updateCustomPermission(permission, permission !in selectedCustomPermissions)
-                                    }.padding(vertical = 2.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Checkbox(
