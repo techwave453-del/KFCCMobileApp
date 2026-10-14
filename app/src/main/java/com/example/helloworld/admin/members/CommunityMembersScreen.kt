@@ -47,9 +47,9 @@ fun CommunityMembersScreen(
         "member" to ("Standard Member" to "Standard community access. No administrator dashboard access."),
         "moderator" to ("Community Moderator" to "Community moderation role only; no administrator dashboard access."),
         "leader" to ("Ministry Leader" to "Community leadership role only; no administrator dashboard access."),
-        "content_editor" to ("Content Editor" to "Edit approved website content and theme settings."),
-        "media_manager" to ("Media Manager" to "Upload, edit, and delete media library items."),
-        "live_manager" to ("Live Manager" to "Manage live-stream features and moderate comments."),
+        "content_editor" to ("Content Editor" to "Edit website CMS pages and sections. Church Identity remains protected."),
+        "media_manager" to ("Media Manager" to "View the media library and upload, edit, or delete media items."),
+        "live_manager" to ("Live Manager" to "Manage live-stream status, title, URL, and description."),
         "custom" to ("Custom Administrator" to "Choose exact module access and capabilities below. Only selected permissions will be granted.")
     )
 
