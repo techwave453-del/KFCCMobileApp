@@ -104,7 +104,7 @@ fun BibleGamesHubScreen(
             screenKey = "bible_games",
             backgroundType = "screen",
             modifier = Modifier.fillMaxSize(),
-            overlayAlpha = 0.48f
+            overlayAlpha = 0.24f
         )
         Column(
             modifier = Modifier
@@ -116,7 +116,7 @@ fun BibleGamesHubScreen(
             title = {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.72f)
+                    color = Color.Black.copy(alpha = 0.42f)
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                         Text("Bible Games", fontWeight = FontWeight.Bold, color = Color.White)
@@ -162,7 +162,7 @@ fun BibleGamesHubScreen(
                                     Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Black.copy(alpha = 0.3f),
-                                            Color.Black.copy(alpha = 0.85f)
+                                            Color.Black.copy(alpha = 0.56f)
                                         )
                                     )
                                 )
