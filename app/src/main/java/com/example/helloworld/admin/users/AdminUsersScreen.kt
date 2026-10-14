@@ -166,8 +166,10 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Choosing a role applies its standard permissions. You can customize permissions separately afterward.")
                     listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
-                        if (selectedRole == value) Button(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
-                        else OutlinedButton(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                        if (value != AdminRoles.SYSTEM_ADMIN || canManagePermissions) {
+                            if (selectedRole == value) Button(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                            else OutlinedButton(onClick = { selectedRole = value }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                        }
                     }
                 }
             },
