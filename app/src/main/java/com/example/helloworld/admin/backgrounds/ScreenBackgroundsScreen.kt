@@ -50,6 +50,7 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
+    var showWhiteBackgroundConfirm by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -117,6 +118,21 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
                         if (loading) CircularProgressIndicator(Modifier.size(20.dp)) else Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
+                if (canEdit && backgroundKind == "screen") {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showWhiteBackgroundConfirm = true },
+                        enabled = !loading && !uploading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Remove full-screen background (use white)")
+                    }
+                    Text(
+                        "This removes the selected screen's published full-screen image. The screen will use its normal white/light surface instead; hero and card images are not changed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Text("PNG, JPG and WebP are supported. Published backgrounds are cached on devices after download for offline display.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -149,6 +165,34 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
             if (backgrounds.isEmpty()) item { Text("No backgrounds yet. Choose a background type and upload an image to get started.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
+
+    if (showWhiteBackgroundConfirm) AlertDialog(
+        onDismissRequest = { showWhiteBackgroundConfirm = false },
+        title = { Text("Use a white background?") },
+        text = { Text("Remove the published full-screen background for " + targets.first { it.key == targetKey }.label + "? The screen will return to its normal white/light background. Hero and card artwork will remain unchanged.") },
+        confirmButton = {
+            TextButton(onClick = {
+                val toUnpublish = items.filter { it.category == "screen_bg_" + targetKey && it.published }
+                showWhiteBackgroundConfirm = false
+                if (toUnpublish.isEmpty()) {
+                    vm.refresh()
+                } else {
+                    fun unpublishNext(index: Int) {
+                        if (index >= toUnpublish.size) {
+                            vm.refresh()
+                        } else {
+                            val item = toUnpublish[index]
+                            vm.save(item, item.title, item.description, item.category, false) {
+                                unpublishNext(index + 1)
+                            }
+                        }
+                    }
+                    unpublishNext(0)
+                }
+            }) { Text("Remove background") }
+        },
+        dismissButton = { TextButton(onClick = { showWhiteBackgroundConfirm = false }) { Text("Cancel") } }
+    )
 
     if (showUploadDialog) AlertDialog(
         onDismissRequest = { showUploadDialog = false },
