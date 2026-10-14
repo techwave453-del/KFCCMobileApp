@@ -23,6 +23,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.helloworld.admin.AdminErrorMessage
 import com.example.helloworld.admin.AdminUser
+import com.example.helloworld.admin.AdminPermissions
+import com.example.helloworld.admin.hasPermission
 
 @Composable
 fun CommunityMembersScreen(
@@ -411,20 +413,24 @@ fun CommunityMembersScreen(
                                         Text("Assign Role", fontSize = 11.sp)
                                     }
                                 }
-                                OutlinedButton(
-                                    onClick = { editingMember = member },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Text("Edit", fontSize = 11.sp)
+                                if (currentUser.hasPermission(AdminPermissions.USERS_EDIT)) {
+                                    OutlinedButton(
+                                        onClick = { editingMember = member },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Text("Edit", fontSize = 11.sp)
+                                    }
                                 }
-                                OutlinedButton(
-                                    onClick = { deletingMember = member },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(30.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Text("Delete", fontSize = 11.sp)
+                                if (currentUser.hasPermission(AdminPermissions.USERS_DELETE)) {
+                                    OutlinedButton(
+                                        onClick = { deletingMember = member },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                    ) {
+                                        Text("Delete", fontSize = 11.sp)
+                                    }
                                 }
                             }
                         }
