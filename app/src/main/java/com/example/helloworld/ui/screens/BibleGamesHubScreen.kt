@@ -135,10 +135,12 @@ fun BibleGamesHubScreen(
                     Box(modifier = Modifier.fillMaxSize()) {
                         ScreenBackgroundImage(
                             screenKey = "bible_games",
+                            backgroundType = "hero",
                             fallbackUrl = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80",
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            overlayAlpha = 0f
                         )
                         Box(
                             modifier = Modifier
