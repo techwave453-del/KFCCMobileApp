@@ -89,7 +89,7 @@ fun AdminShell(
                             )
                         }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
-                        ModuleFrame("Users & Members Management", { openModule = null }) { AdminUsersUnifiedScreen(Modifier.fillMaxSize()) { openModule = null } }
+                        ModuleFrame("Users & Members Management", { openModule = null }) { AdminUsersUnifiedScreen(modifier = Modifier.fillMaxSize(), currentUser = currentUser) { openModule = null } }
                     openModule == "system" && currentUser.hasPermission(AdminPermissions.AUDIT_VIEW) ->
                         ModuleFrame("System Administration", { openModule = null }) { SystemAdministrationScreen(currentUser, Modifier.fillMaxSize()) }
                     else -> AdminDashboardScreen(
