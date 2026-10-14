@@ -133,7 +133,7 @@ fun CommunityMembersScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Select a role. Permissions are automatically assigned according to the role.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Choose a community role or administrator role. Administrator roles apply their standard permission preset; Custom starts with no permissions.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
 
                     assignableRoles.forEach { role ->
@@ -166,7 +166,7 @@ fun CommunityMembersScreen(
                     },
                     enabled = !loading
                 ) {
-                    Text("Save Role & Permissions")
+                    Text("Save Role")
                 }
             },
             dismissButton = {
