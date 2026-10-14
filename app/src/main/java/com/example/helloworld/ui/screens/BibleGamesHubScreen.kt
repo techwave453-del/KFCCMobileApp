@@ -188,7 +188,7 @@ fun BibleGamesHubScreen(
                             }
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color.Black.copy(alpha = 0.72f)
+                                color = Color.Black.copy(alpha = 0.42f)
                             ) {
                                 Column(Modifier.padding(12.dp)) {
                                     Text(
