@@ -34,7 +34,7 @@ fun FillInBlankScreen(onBack: () -> Unit, onOpenReference: (String) -> Unit = {}
             overlayAlpha = 0.48f
         )
     Column(Modifier.fillMaxSize().padding(innerPadding)) {
-        TopAppBar(title = { Text("Fill in the Blank") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.Extension, "Back to Bible Games") } })
+        TopAppBar(colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent), title = { Text("Fill in the Blank") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.Extension, "Back to Bible Games") } })
         when {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             questions.isEmpty() -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) { Text("No published Fill in the Blank questions yet."); Button(onClick = { retry++ }) { Text("Try again") } }
