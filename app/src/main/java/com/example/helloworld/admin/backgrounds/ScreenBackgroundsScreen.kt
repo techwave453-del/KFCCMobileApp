@@ -44,7 +44,9 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
     val message by vm.actionMessage.collectAsState()
     val uploadMessage by vm.uploadMessage.collectAsState()
     var targetKey by remember { mutableStateOf("bible_games") }
+    var backgroundKind by remember { mutableStateOf("screen") }
     var expanded by remember { mutableStateOf(false) }
+    var kindExpanded by remember { mutableStateOf(false) }
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
@@ -57,8 +59,10 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
             showUploadDialog = true
         }
     }
-    val backgrounds = items.filter { it.category.startsWith("screen_bg_") && it.type.equals("image", true) && it.published }
-        .sortedByDescending { it.created_at }
+    val backgrounds = items.filter {
+        (it.category.startsWith("screen_bg_") || it.category.startsWith("hero_bg_")) &&
+            it.type.equals("image", true) && it.published
+    }.sortedByDescending { it.created_at }
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
         Card(Modifier.fillMaxWidth()) {
@@ -68,10 +72,25 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Screen Backgrounds", style = MaterialTheme.typography.headlineSmall)
-                        Text("Upload images and assign them to supported screens.", style = MaterialTheme.typography.bodyMedium)
+                        Text("Manage full-screen backgrounds separately from hero and card artwork.", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
+                ExposedDropdownMenuBox(expanded = kindExpanded, onExpandedChange = { kindExpanded = it }) {
+                    OutlinedTextField(
+                        value = if (backgroundKind == "screen") "Full-screen background" else "Hero / card background",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Background type") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(kindExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = kindExpanded, onDismissRequest = { kindExpanded = false }) {
+                        DropdownMenuItem(text = { Text("Full-screen background") }, onClick = { backgroundKind = "screen"; kindExpanded = false })
+                        DropdownMenuItem(text = { Text("Hero / card background") }, onClick = { backgroundKind = "hero"; kindExpanded = false })
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
                     OutlinedTextField(
                         value = targets.first { it.key == targetKey }.label,
@@ -109,7 +128,9 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
             items(backgrounds.size) { index ->
                 val item = backgrounds[index]
-                val screenKey = item.category.removePrefix("screen_bg_")
+                val isHero = item.category.startsWith("hero_bg_")
+                val prefix = if (isHero) "hero_bg_" else "screen_bg_"
+                val screenKey = item.category.removePrefix(prefix)
                 Card(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(model = item.url, contentDescription = item.title, modifier = Modifier.size(72.dp), contentScale = ContentScale.Crop)
@@ -117,6 +138,7 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
                         Column(Modifier.weight(1f)) {
                             Text(item.title, style = MaterialTheme.typography.titleSmall)
                             Text(targets.firstOrNull { it.key == screenKey }?.label ?: screenKey, style = MaterialTheme.typography.bodyMedium)
+                            Text(if (isHero) "Hero / card background" else "Full-screen background", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
                         if (canEdit) TextButton(onClick = {
                             vm.save(item, item.title, item.description, item.category, false) {}
@@ -124,20 +146,21 @@ fun ScreenBackgroundsScreen(modifier: Modifier = Modifier, canUpload: Boolean = 
                     }
                 }
             }
-            if (backgrounds.isEmpty()) item { Text("No backgrounds yet. Upload your WordArt PNG to get started.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (backgrounds.isEmpty()) item { Text("No backgrounds yet. Choose a background type and upload an image to get started.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 
     if (showUploadDialog) AlertDialog(
         onDismissRequest = { showUploadDialog = false },
-        title = { Text("Upload screen background") },
-        text = { Text("Assign " + selectedName + " to " + targets.first { it.key == targetKey }.label + "?") },
+        title = { Text(if (backgroundKind == "screen") "Upload full-screen background" else "Upload hero / card background") },
+        text = { Text("Assign " + selectedName + " to " + targets.first { it.key == targetKey }.label + " as a " + (if (backgroundKind == "screen") "full-screen background" else "hero / card background") + "?") },
         confirmButton = {
             TextButton(enabled = selectedUri != null && !uploading, onClick = {
                 val uri = selectedUri ?: return@TextButton
                 val name = selectedName.substringBeforeLast('.', selectedName)
                 val screen = targetKey
-                vm.upload(uri, name, "screen=" + screen, "screen_bg_" + screen, "image") {
+                val prefix = if (backgroundKind == "screen") "screen_bg_" else "hero_bg_"
+                vm.upload(uri, name, "screen=" + screen + ";placement=" + backgroundKind, prefix + screen, "image") {
                     showUploadDialog = false
                     selectedUri = null
                 }
