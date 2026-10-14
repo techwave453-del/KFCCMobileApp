@@ -85,6 +85,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.helloworld.data.bible.BibleChapter
 import com.example.helloworld.data.bible.BibleTranslation
+import com.example.helloworld.ui.screens.ScreenBackgroundImage
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -265,9 +266,18 @@ fun BibleHomeScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            topBar = {
             TopAppBar(
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = {
                     Column {
                         Text(
@@ -581,6 +591,7 @@ fun BibleHomeScreen(
                     }
                 }
             }
+        }
         }
     }
 }
