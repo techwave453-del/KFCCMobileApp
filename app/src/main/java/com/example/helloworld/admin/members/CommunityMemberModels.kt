@@ -21,7 +21,8 @@ data class CommunityMember(
     val safeDisplayName: String get() = displayName ?: safeUsername
     val safeBio: String get() = bio ?: ""
     val safeRole: String get() = adminRole ?: role ?: "member"
-    val safePermissions: List<String> get() = if (assignedPermissions.isNotEmpty()) assignedPermissions else when (safeRole.lowercase()) {
+    val safePermissions: List<String> get() = when (safeRole.lowercase()) {
+        "content_editor", "media_manager", "live_manager", "custom" -> assignedPermissions
         "admin" -> listOf("chat.send", "chat.moderate", "events.view", "events.manage", "media.view", "media.upload", "bible.quiz", "notifications.receive", "users.view")
         "leader" -> listOf("chat.send", "events.view", "events.manage", "media.view", "bible.quiz", "notifications.receive")
         "moderator" -> listOf("chat.send", "chat.moderate", "events.view", "media.view", "bible.quiz", "notifications.receive")
