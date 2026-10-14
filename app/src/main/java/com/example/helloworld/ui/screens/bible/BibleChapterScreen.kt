@@ -393,11 +393,14 @@ private fun BibleReader(
 
 
 
-                Column(
-
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.86f),
                     modifier = Modifier.padding(start = 12.dp)
-
                 ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
 
                     Text(
 
@@ -484,7 +487,7 @@ private fun BibleReader(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                .background(Color.White.copy(alpha = 0.86f))
                 .padding(22.dp)
         ) {
             Text(
