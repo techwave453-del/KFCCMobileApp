@@ -812,14 +812,20 @@ private fun TodaysScriptureCard(
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Bold)
-                        Text(
-                            scripture?.themeName ?: "Daily reading",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Black.copy(alpha = 0.70f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
+                            Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
+                            Text(
+                                scripture?.themeName ?: "Daily reading",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
                 Text(
@@ -898,9 +904,16 @@ private fun ContinueReadingCard(
                     }
                 }
                 Column {
-                    Text("CONTINUE READING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Black.copy(alpha = 0.70f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+                            Text("CONTINUE READING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(4.dp))
+                            Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
