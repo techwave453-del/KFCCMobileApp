@@ -56,7 +56,8 @@ fun CommunityMembersScreen(
         else members.filter { 
             it.safeUsername.contains(searchQuery, true) || 
             it.safeDisplayName.contains(searchQuery, true) ||
-            it.safeBio.contains(searchQuery, true)
+            it.safeBio.contains(searchQuery, true) ||
+            it.email.orEmpty().contains(searchQuery, true)
         }
     }
 
@@ -288,10 +289,13 @@ fun CommunityMembersScreen(
                                 )
                                 if (member.username != null) {
                                     Text(
-                                        text = "@${member.safeUsername} • Role: ${member.safeRole.uppercase()}",
+                                        text = "@${member.safeUsername} • Role: ${member.safeRole.replace('_', ' ').uppercase()}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                }
+                                if (!member.email.isNullOrBlank()) {
+                                    Text(member.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 if (member.safePermissions.isNotEmpty()) {
                                     Text(
@@ -303,12 +307,14 @@ fun CommunityMembersScreen(
                             }
                             Spacer(Modifier.width(8.dp))
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                OutlinedButton(
-                                    onClick = { roleMember = member },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(30.dp)
-                                ) {
-                                    Text("Role", fontSize = 11.sp)
+                                if (currentUser.role == "super_admin") {
+                                    OutlinedButton(
+                                        onClick = { roleMember = member },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Text("Assign Role", fontSize = 11.sp)
+                                    }
                                 }
                                 OutlinedButton(
                                     onClick = { editingMember = member },
