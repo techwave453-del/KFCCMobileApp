@@ -227,6 +227,9 @@ private fun AdminDashboardScreen(
                 "Services & Giving" ->
                     user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
                         user.hasPermission(AdminPermissions.LINKS_EDIT)
+                "Screen Backgrounds" ->
+                    user.hasPermission(AdminPermissions.MEDIA_UPLOAD) ||
+                        user.hasPermission(AdminPermissions.MEDIA_EDIT)
                 else -> user.hasPermission(module.permission)
             }
         }
@@ -285,6 +288,9 @@ private fun AdminDashboardScreen(
                             user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
                                 user.hasPermission(AdminPermissions.LINKS_EDIT) ||
                                 user.hasPermission(AdminPermissions.SITE_EDIT)
+                        "Screen Backgrounds" ->
+                            user.hasPermission(AdminPermissions.MEDIA_UPLOAD) ||
+                                user.hasPermission(AdminPermissions.MEDIA_EDIT)
                         else -> user.hasPermission(module.permission)
                     }
                     val action = when (module.title) {
