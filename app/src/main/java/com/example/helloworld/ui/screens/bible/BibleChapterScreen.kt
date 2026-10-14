@@ -426,11 +426,9 @@ private fun BibleReader(
 
                     )
 
+                    }
                 }
-
             }
-
-
 
             ChapterHeader(chapter, translationId)
 
