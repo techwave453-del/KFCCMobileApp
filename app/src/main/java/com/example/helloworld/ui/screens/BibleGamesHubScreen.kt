@@ -45,6 +45,7 @@ fun BibleGamesHubScreen(
     innerPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var showComingSoon by remember { mutableStateOf<String?>(null) }
+    val hasScreenBackground = rememberScreenBackgroundUrl("bible_games") != null
 
     val games = remember {
         listOf(
@@ -116,14 +117,14 @@ fun BibleGamesHubScreen(
             title = {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.42f)
+                    color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Text("Bible Games", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Bible Games", fontWeight = FontWeight.Bold, color = if (hasScreenBackground) Color.White else Color.Black)
                         Text(
                             "Learn Scripture through play",
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color.White.copy(alpha = 0.86f)
+                            color = if (hasScreenBackground) Color.White.copy(alpha = 0.86f) else Color.Black.copy(alpha = 0.72f)
                         )
                     }
                 }
