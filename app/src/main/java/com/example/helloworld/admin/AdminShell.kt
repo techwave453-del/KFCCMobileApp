@@ -58,13 +58,13 @@ fun AdminShell(
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
-                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)) ->
+                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.LINKS_EDIT)) ->
                         ModuleFrame("Services & Giving", { openModule = null }) {
                             AdminServicesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 viewModel = viewModel(factory = WebsiteContentViewModel.Factory(application)),
-                                canEditServices = currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT),
-                                canEditGiving = currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)
+                                canEditServices = currentUser.hasPermission(AdminPermissions.SERVICES_EDIT),
+                                canEditGiving = currentUser.hasPermission(AdminPermissions.LINKS_EDIT)
                             )
                         }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.EVENTS_MANAGE) ->
@@ -214,8 +214,7 @@ private fun AdminDashboardScreen(
                 "Church Identity" -> user.canEditChurchIdentity()
                 "Services & Giving" ->
                     user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
-                        user.hasPermission(AdminPermissions.LINKS_EDIT) ||
-                        user.hasPermission(AdminPermissions.SITE_EDIT)
+                        user.hasPermission(AdminPermissions.LINKS_EDIT)
                 else -> user.hasPermission(module.permission)
             }
         }
