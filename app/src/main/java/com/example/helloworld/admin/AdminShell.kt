@@ -31,6 +31,7 @@ import com.example.helloworld.admin.notifications.AdminNotificationsScreen
 import com.example.helloworld.admin.updates.AppUpdateAdminScreen
 import com.example.helloworld.admin.games.AdminBibleGamesScreen
 import com.example.helloworld.admin.backgrounds.ScreenBackgroundsScreen
+import com.example.helloworld.admin.backgrounds.ScreenBackgroundsScreen
 
 private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been created, but no administration permissions have been assigned yet."
 
@@ -116,6 +117,7 @@ fun AdminShell(
                         { openModule = "daily_scripture" },
                         { openModule = "live" },
                         { openModule = "media" },
+                        { openModule = "backgrounds" },
                         { openModule = "users" },
                         { openModule = "system" }
                     )
@@ -193,6 +195,7 @@ private fun AdminDashboardScreen(
     onDailyScripture: () -> Unit,
     onLive: () -> Unit,
     onMedia: () -> Unit,
+    onBackgrounds: () -> Unit,
     onUsers: () -> Unit,
     onSystem: () -> Unit
 ) {
@@ -209,7 +212,8 @@ private fun AdminDashboardScreen(
         AdminModule("Bible Games", "Create, edit and publish Bible quiz questions", AdminPermissions.BIBLE_GAMES_MANAGE, Icons.Default.SportsEsports, "Ministry & Outreach"),
         AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook, "Content & Branding"),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv, "Ministry & Outreach"),
-        AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image, "Ministry & Outreach"),\n        AdminModule("Screen Backgrounds", "Upload and assign backgrounds for app screens with offline caching", AdminPermissions.MEDIA_UPLOAD, Icons.Default.Wallpaper, "Content & Branding"),
+        AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image, "Ministry & Outreach"),
+        AdminModule("Screen Backgrounds", "Upload and assign backgrounds for app screens with offline caching", AdminPermissions.MEDIA_UPLOAD, Icons.Default.Wallpaper, "Content & Branding"),\n        AdminModule("Screen Backgrounds", "Upload and assign backgrounds for app screens with offline caching", AdminPermissions.MEDIA_UPLOAD, Icons.Default.Wallpaper, "Content & Branding"),
         AdminModule("Users & Members", "Manage app community members, roles, admin accounts & requests", AdminPermissions.USERS_VIEW, Icons.Default.People, "Administration & Security"),
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings, "Administration & Security")
     )
@@ -295,7 +299,8 @@ private fun AdminDashboardScreen(
                         "Bible Games" -> if (allowed) onBibleGames else null
                         "Today's Scripture" -> if (allowed) onDailyScripture else null
                         "Live Streaming" -> if (allowed) onLive else null
-                        "Media Center" -> if (allowed) onMedia else null\n                        "Screen Backgrounds" -> if (allowed) onBackgrounds else null
+                        "Media Center" -> if (allowed) onMedia else null
+                        "Screen Backgrounds" -> if (allowed) onBackgrounds else null\n                        "Screen Backgrounds" -> if (allowed) onBackgrounds else null
                         "Users & Members" -> if (allowed) onUsers else null
                         "System Administration" -> if (allowed) onSystem else null
                         else -> null
