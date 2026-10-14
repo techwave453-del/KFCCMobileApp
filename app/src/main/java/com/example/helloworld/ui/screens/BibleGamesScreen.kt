@@ -130,11 +130,10 @@ fun BibleGamesScreen(
         progressViewModel.recordQuizResult(score, questions.size)
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-    ) {
+    Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        ScreenBackgroundImage(screenKey = "bible_games", modifier = Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.20f)))
+        Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Bible Games") },
             navigationIcon = {
@@ -198,6 +197,7 @@ fun BibleGamesScreen(
                 )
             }
         }
+    }
     }
 }
 
