@@ -173,6 +173,10 @@ fun CommunityMembersScreen(
                     selectedCustomPermissions.filterNot { it.startsWith("users.") }.toSet()
                 permission.startsWith("users.") && permission != "users.view" && checked ->
                     selectedCustomPermissions + permission + "users.view"
+                permission == "media.view" && !checked ->
+                    selectedCustomPermissions.filterNot { it.startsWith("media.") }.toSet()
+                permission.startsWith("media.") && permission != "media.view" && checked ->
+                    selectedCustomPermissions + permission + "media.view"
                 checked -> selectedCustomPermissions + permission
                 else -> selectedCustomPermissions - permission
             }
