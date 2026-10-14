@@ -115,7 +115,12 @@ fun CommunityMembersScreen(
     }
 
     if (roleMember != null) {
-        var selectedRole by remember(roleMember) { mutableStateOf(roleMember!!.safeRole) }
+        var selectedRole by remember(roleMember) {
+            mutableStateOf(
+                roleMember!!.safeRole.takeIf { it in assignableRoles }
+                    ?: if (roleMember!!.safeRole == "admin") "content_editor" else "member"
+            )
+        }
 
         AlertDialog(
             onDismissRequest = { if (!loading) roleMember = null },
