@@ -26,7 +26,8 @@ private data class BasicMemberUpdate(
 private data class MemberManagementRequest(
     val action: String,
     @SerialName("user_id") val userId: String? = null,
-    val role: String? = null
+    val role: String? = null,
+    val permissions: List<String>? = null
 )
 
 @Serializable
@@ -72,7 +73,12 @@ class CommunityMemberRepository {
 
     suspend fun updateMemberRole(userId: String, username: String, role: String, permissions: List<String>): Result<Unit> = runCatching {
         val response = callManagement(
-            MemberManagementRequest(action = "community_role", userId = userId, role = role.trim().lowercase())
+            MemberManagementRequest(
+                action = "community_role",
+                userId = userId,
+                role = role.trim().lowercase(),
+                permissions = if (role.trim().equals("custom", ignoreCase = true)) permissions.distinct().sorted() else null
+            )
         )
         if (response.error != null) {
             val stage = response.stage?.takeIf { it.isNotBlank() }?.let { " (stage: $it)" }.orEmpty()
