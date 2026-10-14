@@ -168,6 +168,16 @@ fun CommunityMembersScreen(
         var selectedCustomPermissions by remember(roleMember) {
             mutableStateOf(roleMember!!.safePermissions.filter { it in assignableCustomPermissions }.toSet())
         }
+        fun updateCustomPermission(permission: String, checked: Boolean) {
+            selectedCustomPermissions = when {
+                permission == "users.view" && !checked ->
+                    selectedCustomPermissions.filterNot { it.startsWith("users.") }.toSet()
+                permission.startsWith("users.") && permission != "users.view" && checked ->
+                    selectedCustomPermissions + permission + "users.view"
+                checked -> selectedCustomPermissions + permission
+                else -> selectedCustomPermissions - permission
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!loading) roleMember = null },
@@ -216,22 +226,14 @@ fun CommunityMembersScreen(
                             options.forEach { (permission, label) ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth().clickable {
-                                        selectedCustomPermissions = if (permission in selectedCustomPermissions) {
-                                            selectedCustomPermissions - permission
-                                        } else {
-                                            selectedCustomPermissions + permission
-                                        }
+                                        updateCustomPermission(permission, permission !in selectedCustomPermissions)
                                     }.padding(vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Checkbox(
                                         checked = permission in selectedCustomPermissions,
                                         onCheckedChange = { checked ->
-                                            selectedCustomPermissions = if (checked) {
-                                                selectedCustomPermissions + permission
-                                            } else {
-                                                selectedCustomPermissions - permission
-                                            }
+                                            updateCustomPermission(permission, checked)
                                         }
                                     )
                                     Column(Modifier.weight(1f)) {
