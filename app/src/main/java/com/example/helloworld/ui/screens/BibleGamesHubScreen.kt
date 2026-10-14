@@ -114,13 +114,18 @@ fun BibleGamesHubScreen(
         TopAppBar(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             title = {
-                Column {
-                    Text("Bible Games", fontWeight = FontWeight.Bold)
-                    Text(
-                        "Learn Scripture through play",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.Black.copy(alpha = 0.72f)
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        Text("Bible Games", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(
+                            "Learn Scripture through play",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.86f)
+                        )
+                    }
                 }
             },
             navigationIcon = {
@@ -181,19 +186,24 @@ fun BibleGamesHubScreen(
                                     Text("BIBLE GAMING HUB", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Column {
-                                Text(
-                                    "Kanisa Bible Games",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "Learn Scripture through interactive quizzes, memory verses, and character challenges.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.9f)
-                                )
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.Black.copy(alpha = 0.72f)
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(
+                                        "Kanisa Bible Games",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "Learn Scripture through interactive quizzes, memory verses, and character challenges.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
