@@ -48,8 +48,54 @@ fun CommunityMembersScreen(
         "content_editor" to ("Content Editor" to "Edit approved website content and theme settings."),
         "media_manager" to ("Media Manager" to "Upload, edit, and delete media library items."),
         "live_manager" to ("Live Manager" to "Manage live-stream features and moderate comments."),
-        "custom" to ("Custom Administrator" to "Creates an administrator profile with no preset permissions. The Super Admin can grant specific permissions separately.")
+        "custom" to ("Custom Administrator" to "Choose exact module access and capabilities below. Only selected permissions will be granted.")
     )
+
+    // These are the permissions the app currently understands. Church Identity is
+    // intentionally excluded because it remains Super Admin-only.
+    val customPermissionGroups = listOf(
+        "Website Content" to listOf(
+            "site.edit" to "Full website CMS access",
+            "content.homepage.edit" to "Edit homepage content",
+            "content.about.edit" to "Edit About page content",
+            "content.services.edit" to "Edit services content",
+            "content.links.edit" to "Edit giving and external links",
+            "content.classes.edit" to "Edit classes content",
+            "content.gallery.edit" to "Edit gallery content",
+            "theme.edit" to "Edit website theme"
+        ),
+        "Media Center" to listOf(
+            "media.view" to "Open and view the media library",
+            "media.upload" to "Upload new media",
+            "media.edit" to "Edit media details and URLs",
+            "media.delete" to "Delete media items"
+        ),
+        "Live Streaming" to listOf(
+            "live.view" to "View live-stream settings",
+            "live.edit" to "Manage stream URL and live settings",
+            "comments.view" to "View live comments",
+            "comments.moderate" to "Moderate live comments"
+        ),
+        "Events & Outreach" to listOf(
+            "events.manage" to "Create and manage events",
+            "notifications.send" to "Send church notifications",
+            "daily_scripture.manage" to "Manage Today's Scripture",
+            "bible_games.manage" to "Manage Bible games and quizzes",
+            "app_update.manage" to "Configure Android app updates"
+        ),
+        "Users & Security" to listOf(
+            "users.view" to "View members and administrator lists",
+            "users.create" to "Approve/create administrator accounts",
+            "users.edit" to "Edit administrator roles",
+            "users.disable" to "Enable or disable administrator accounts",
+            "users.delete" to "Delete administrator accounts",
+            "users.permissions" to "Change administrator permissions",
+            "audit.view" to "View system administration and audit information"
+        )
+    )
+    val assignableCustomPermissions = remember(customPermissionGroups) {
+        customPermissionGroups.flatMap { it.second }.map { it.first }.toSet()
+    }
 
     val filteredMembers = remember(searchQuery, members) {
         if (searchQuery.isBlank()) members
@@ -122,6 +168,10 @@ fun CommunityMembersScreen(
             )
         }
 
+        var selectedCustomPermissions by remember(roleMember) {
+            mutableStateOf(roleMember!!.safePermissions.filter { it in assignableCustomPermissions }.toSet())
+        }
+
         AlertDialog(
             onDismissRequest = { if (!loading) roleMember = null },
             title = { Text("Assign Member Role") },
@@ -155,12 +205,57 @@ fun CommunityMembersScreen(
                             }
                         }
                     }
+
+                    if (selectedRole == "custom") {
+                        HorizontalDivider()
+                        Text("Custom permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Select only the capabilities this person needs. Church Identity and Super Admin access cannot be granted here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        customPermissionGroups.forEach { (groupTitle, options) ->
+                            Text(groupTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            options.forEach { (permission, label) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        selectedCustomPermissions = if (permission in selectedCustomPermissions) {
+                                            selectedCustomPermissions - permission
+                                        } else {
+                                            selectedCustomPermissions + permission
+                                        }
+                                    }.padding(vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = permission in selectedCustomPermissions,
+                                        onCheckedChange = { checked ->
+                                            selectedCustomPermissions = if (checked) {
+                                                selectedCustomPermissions + permission
+                                            } else {
+                                                selectedCustomPermissions - permission
+                                            }
+                                        }
+                                    )
+                                    Column(Modifier.weight(1f)) {
+                                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                                        Text(permission, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.updateRole(roleMember!!.userId, roleMember!!.safeUsername, selectedRole, roleMember!!.safePermissions) { success ->
+                        val permissionsToSave = if (selectedRole == "custom") {
+                            selectedCustomPermissions.toList().sorted()
+                        } else {
+                            roleMember!!.safePermissions
+                        }
+                        viewModel.updateRole(roleMember!!.userId, roleMember!!.safeUsername, selectedRole, permissionsToSave) { success ->
                             if (success) roleMember = null
                         }
                     },
