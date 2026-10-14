@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "132303526216",
+    "project_id": "church-project-5bfcc",
+    "storage_bucket": "church-project-5bfcc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132303526216:android:66ee15ed0d03840f6e7b7d",
+        "android_client_info": {
+          "package_name": "com.kfcc.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1aXjevWVVwWuxXEJDql8Ecy4DONjCKFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

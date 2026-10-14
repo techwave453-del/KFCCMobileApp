@@ -213,6 +213,15 @@ class AdminRepository(context: Context) {
         }.getOrDefault(false)
     }
 
+    @Serializable
+    private data class AdminProfileRow(
+        @SerialName("auth_user_id") val authUserId: String,
+        val username: String,
+        val role: String,
+        @SerialName("is_active") val isActive: Boolean,
+        val permissions: List<String> = emptyList()
+    )
+
     suspend fun restoreSession(): AdminUser? {
         // 1. Check if we have an authoritative admin from the current session's memory.
         authenticatedAdmin?.let { cached ->
@@ -224,33 +233,54 @@ class AdminRepository(context: Context) {
         // 2. Check if there is an active session in the Supabase SDK.
         val session = client.auth.currentSessionOrNull() ?: return null
 
-        // Sessions imported by admin-login intentionally use user = null.
-        // After an app restart the persisted session can still be in that form,
-        // so retrieve the current Auth user before reading administrator metadata.
         val user = session.user ?: runCatching {
             client.auth.retrieveUserForCurrentSession()
         }.getOrNull() ?: return null
 
-        // 3. Extract identity from metadata. Administrators have specific app_metadata.
-        val metadata = user.appMetadata ?: return null
-        if (metadata["kfcc_admin"]?.toString()?.trim('"') != "true") return null
+        // 3. First check app_metadata
+        val metadata = user.appMetadata
+        val isAppMetadataAdmin = metadata?.get("kfcc_admin")?.toString()?.trim('"') == "true"
+        if (isAppMetadataAdmin) {
+            val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
+            val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
+            val permissions = metadata["admin_permissions"]?.toString()
+                ?.let { raw -> runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull() }
+                .orEmpty()
 
-        val username = metadata["admin_username"]?.toString()?.trim('"').orEmpty()
-        val role = metadata["admin_role"]?.toString()?.trim('"').orEmpty()
-        val permissions = metadata["admin_permissions"]?.toString()
-            ?.let { raw -> runCatching { Json.decodeFromString<List<String>>(raw) }.getOrNull() }
-            .orEmpty()
+            if (username.isNotBlank() && role.isNotBlank()) {
+                return AdminUser(
+                    id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
+                    username = username,
+                    email = user.email,
+                    role = role,
+                    is_active = true,
+                    permissions = permissions
+                ).also { authenticatedAdmin = it }
+            }
+        }
 
-        if (username.isBlank() || role.isBlank()) return null
+        // 4. Fallback/Primary check: query public.admin_profiles table for this user ID
+        val adminProfile = runCatching {
+            client.from("admin_profiles")
+                .select {
+                    filter { eq("auth_user_id", user.id) }
+                }
+                .decodeList<AdminProfileRow>()
+                .firstOrNull()
+        }.getOrNull()
 
-        return AdminUser(
-            id = metadata["admin_user_id"]?.toString()?.trim('"').orEmpty(),
-            username = username,
-            email = user.email,
-            role = role,
-            is_active = true,
-            permissions = permissions
-        ).also { authenticatedAdmin = it }
+        if (adminProfile != null && adminProfile.isActive) {
+            return AdminUser(
+                id = adminProfile.authUserId,
+                username = adminProfile.username,
+                email = user.email,
+                role = adminProfile.role,
+                is_active = adminProfile.isActive,
+                permissions = adminProfile.permissions
+            ).also { authenticatedAdmin = it }
+        }
+
+        return null
     }
 
     suspend fun logout() {

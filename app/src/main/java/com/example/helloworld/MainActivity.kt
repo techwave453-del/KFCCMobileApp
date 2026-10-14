@@ -460,45 +460,34 @@ fun KFCCApp(
         drawerOpen = drawerState.isOpen
     }
 
+    val navBackStack = remember { mutableStateListOf(AppDestinations.HOME) }
+
     fun navigate(destination: AppDestinations) {
+        if (navBackStack.lastOrNull() != destination) {
+            navBackStack.add(destination)
+        }
         currentDestination = destination
         drawerOpen = false
     }
 
-    fun backDestination(): AppDestinations = when (currentDestination) {
-        AppDestinations.BIBLE_GAMES -> AppDestinations.HOME
-        AppDestinations.BIBLE_GAME_QUIZ,
-        AppDestinations.BIBLE_GAME_MEMORY_VERSE,
-        AppDestinations.BIBLE_GAME_GUESS_CHARACTER,
-        AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> AppDestinations.BIBLE_GAMES
-        AppDestinations.BIBLE_CHAPTER,
-        AppDestinations.BIBLE_SEARCH -> AppDestinations.BIBLE
-        AppDestinations.ACCOUNT -> AppDestinations.CHAT
-        AppDestinations.PROFILE,
-        AppDestinations.APPEARANCE,
-        AppDestinations.NOTIFICATIONS,
-        AppDestinations.PREFERENCES,
-        AppDestinations.SETTINGS,
-        AppDestinations.VERSION,
-        AppDestinations.SEARCH,
-        AppDestinations.SERVICES,
-        AppDestinations.EVENTS,
-        AppDestinations.MEDIA,
-        AppDestinations.GIVING -> AppDestinations.HOME
-        else -> AppDestinations.HOME
+    fun goBack() {
+        if (navBackStack.size > 1) {
+            navBackStack.removeAt(navBackStack.lastIndex)
+            currentDestination = navBackStack.lastOrNull() ?: AppDestinations.HOME
+        } else {
+            currentDestination = AppDestinations.HOME
+        }
+        drawerOpen = false
     }
 
-    val showBackButton = currentDestination != AppDestinations.HOME &&
-        currentDestination != AppDestinations.BIBLE &&
-        currentDestination != AppDestinations.CHAT &&
-        currentDestination != AppDestinations.ADMIN
+    val showBackButton = navBackStack.size > 1 && currentDestination != AppDestinations.HOME
 
     BackHandler(enabled = drawerOpen) {
         drawerOpen = false
     }
 
     BackHandler(enabled = !drawerOpen && showBackButton) {
-        navigate(backDestination())
+        goBack()
     }
 
     // If the update service is unavailable, do not lock users out of the installed app.
@@ -655,7 +644,7 @@ fun KFCCApp(
                         IconButton(
                             onClick = {
                                 if (showBackButton) {
-                                    navigate(backDestination())
+                                    goBack()
                                 } else {
                                     scope.launch { drawerState.open() }
                                 }
@@ -743,7 +732,7 @@ fun KFCCApp(
                     )
 
                     AppDestinations.BIBLE_GAMES -> BibleGamesHubScreen(
-                        onBack = { navigate(AppDestinations.HOME) },
+                        onBack = { goBack() },
                         onOpenQuiz = { navigate(AppDestinations.BIBLE_GAME_QUIZ) },
                         onOpenMemoryVerse = { navigate(AppDestinations.BIBLE_GAME_MEMORY_VERSE) },
                         onOpenGuessCharacter = { navigate(AppDestinations.BIBLE_GAME_GUESS_CHARACTER) },
@@ -752,28 +741,29 @@ fun KFCCApp(
                     )
 
                     AppDestinations.BIBLE_GAME_QUIZ -> BibleGamesScreen(
-                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onBack = { goBack() },
                          onOpenReference = { openBibleReference(it) },
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_MEMORY_VERSE -> MemoryVerseScreen(
-                         onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                         onBack = { goBack() },
                          onOpenReference = { openBibleReference(it) },
                          innerPadding = innerPadding
                      )
                      AppDestinations.BIBLE_GAME_GUESS_CHARACTER -> GuessCharacterScreen(
-                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onBack = { goBack() },
                           onOpenReference = { openBibleReference(it) },
                           innerPadding = innerPadding
                       )
                      AppDestinations.BIBLE_GAME_FILL_IN_BLANK -> FillInBlankScreen(
-                          onBack = { navigate(AppDestinations.BIBLE_GAMES) },
+                          onBack = { goBack() },
                           onOpenReference = { openBibleReference(it) },
                           innerPadding = innerPadding
                       )
                      AppDestinations.BIBLE -> BibleHomeScreen(
-                        onBack = { navigate(AppDestinations.HOME) },
+                        onBack = { goBack() },
                         onOpenSearch = { navigate(AppDestinations.BIBLE_SEARCH) },
+                        onOpenBibleGames = { navigate(AppDestinations.BIBLE_GAMES) },
                         onOpenChapter = { bookId, chapter ->
                             bibleBookId = bookId
                             bibleChapter = chapter
@@ -784,7 +774,7 @@ fun KFCCApp(
                     )
 
                     AppDestinations.BIBLE_SEARCH -> BibleSearchScreen(
-                        onBack = { navigate(AppDestinations.BIBLE) },
+                        onBack = { goBack() },
                         onOpenChapter = { bookId, chapter, verse ->
                             bibleBookId = bookId
                             bibleChapter = chapter
@@ -801,7 +791,7 @@ fun KFCCApp(
                             chapterNumber = bibleChapter,
                             initialVerse = bibleVerse.takeIf { it > 0 },
                             initialVerseExplanation = bibleVerseExplanation,
-                            onBack = { navigate(AppDestinations.BIBLE) }
+                            onBack = { goBack() }
                         )
 
                     }

@@ -44,6 +44,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Button
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.delay
@@ -113,6 +117,7 @@ fun BibleHomeScreen(
     var testamentFilter by rememberSaveable { mutableStateOf("All") }
     var showTranslations by remember { mutableStateOf(false) }
     var showBookFinder by rememberSaveable { mutableStateOf(false) }
+    var showFullScriptureDialog by remember { mutableStateOf(false) }
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
     val dailyScriptureRepository = remember { DailyScriptureRepository(repository) }
     val dailyScripture by produceState<DailyScripture>(initialValue = DailyScripture(
@@ -171,6 +176,81 @@ fun BibleHomeScreen(
                 }
             },
             confirmButton = { TextButton(onClick = { showTranslations = false }) { Text("Close") } }
+        )
+    }
+
+    if (showFullScriptureDialog && dailyScripture != null) {
+        AlertDialog(
+            onDismissRequest = { showFullScriptureDialog = false },
+            title = {
+                Column {
+                    Text("Today’s Scripture", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(dailyScripture!!.themeName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val fullVerseText = dailyChapter?.let { loadedChapter ->
+                        loadedChapter.verses
+                            .filter { it.number in (dailyScripture!!.verseStart..dailyScripture!!.verseEnd) }
+                            .joinToString(" ") { "“${it.text}”" }
+                    } ?: "Scripture text loading..."
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                fullVerseText,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4f),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            val refText = dailyScripture?.let { s ->
+                                val verses = if (s.verseStart == s.verseEnd) "${s.verseStart}" else "${s.verseStart}-${s.verseEnd}"
+                                "${books.firstOrNull { it.id == s.bookId }?.name ?: s.bookId} ${s.chapter}:$verses"
+                            } ?: ""
+                            Text(refText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    dailyScripture?.situation?.takeIf { it.isNotBlank() }?.let { situation ->
+                        Column {
+                            Text("Situation", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(4.dp))
+                            Text(situation, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    dailyScripture?.reflection?.takeIf { it.isNotBlank() }?.let { reflection ->
+                        Column {
+                            Text("Reflection & Application", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(4.dp))
+                            Text(reflection, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showFullScriptureDialog = false
+                    dailyScripture?.let { onOpenChapter(it.bookId, it.chapter) }
+                }) {
+                    Text("Read Full Chapter in Bible")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFullScriptureDialog = false }) {
+                    Text("Close")
+                }
+            }
         )
     }
 
@@ -263,13 +343,13 @@ fun BibleHomeScreen(
                     progressAnimatable.snapTo(0f)
                     progressAnimatable.animateTo(
                         1f,
-                        animationSpec = tween(8000, easing = LinearEasing)
+                        animationSpec = tween(14000, easing = LinearEasing)
                     )
                 }
 
                 LaunchedEffect(pagerState) {
                     while (true) {
-                        delay(8000L)
+                        delay(14000L)
                         if (!pagerState.isScrollInProgress && pagerState.pageCount > 0) {
                             val next = (pagerState.currentPage + 1) % pagerState.pageCount
                             try {
@@ -293,7 +373,7 @@ fun BibleHomeScreen(
                                 bookName = books.firstOrNull { it.id == dailyScripture.bookId }?.name ?: dailyScripture.bookId,
                                 translationName = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
                                 onClick = {
-                                    onOpenChapter(dailyScripture.bookId, dailyScripture.chapter)
+                                    showFullScriptureDialog = true
                                 }
                             )
                         } else {
@@ -724,9 +804,7 @@ private fun TodaysScriptureCard(
                     } ?: "Scripture for today is not available in this translation.",
                     style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3f),
                     fontWeight = FontWeight.Medium,
-                    color = Color.White,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis
+                    color = Color.White
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

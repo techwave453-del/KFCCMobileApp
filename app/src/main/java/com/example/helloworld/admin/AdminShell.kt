@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,8 +26,7 @@ import com.example.helloworld.admin.live.LiveStreamingScreen
 import com.example.helloworld.admin.media.MediaCenterScreen
 import com.example.helloworld.admin.services.AdminServicesScreen
 import com.example.helloworld.admin.content.WebsiteContentViewModel
-import com.example.helloworld.admin.users.AdminUsersScreen
-import com.example.helloworld.admin.users.AdminUsersViewModel
+import com.example.helloworld.admin.users.AdminUsersUnifiedScreen
 import com.example.helloworld.admin.notifications.AdminNotificationsScreen
 import com.example.helloworld.admin.updates.AppUpdateAdminScreen
 import com.example.helloworld.admin.games.AdminBibleGamesScreen
@@ -43,7 +43,7 @@ fun AdminShell(
     val user by viewModel.user.collectAsState()
     val loading by viewModel.isLoading.collectAsState()
     var openModule by remember { mutableStateOf<String?>(null) }
-    val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as Application
+    val application = LocalContext.current.applicationContext as Application
 
     Surface(modifier = Modifier.fillMaxSize().padding(innerPadding), color = MaterialTheme.colorScheme.background) {
         when {
@@ -89,7 +89,7 @@ fun AdminShell(
                             )
                         }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
-                        ModuleFrame("Users & Permissions", { openModule = null }) { AdminUsersScreen(Modifier.fillMaxSize(), viewModel(factory = AdminUsersViewModel.Factory(application)), { openModule = null }) }
+                        ModuleFrame("Users & Members Management", { openModule = null }) { AdminUsersUnifiedScreen(Modifier.fillMaxSize()) { openModule = null } }
                     openModule == "system" && currentUser.hasPermission(AdminPermissions.AUDIT_VIEW) ->
                         ModuleFrame("System Administration", { openModule = null }) { SystemAdministrationScreen(currentUser, Modifier.fillMaxSize()) }
                     else -> AdminDashboardScreen(
@@ -201,7 +201,7 @@ private fun AdminDashboardScreen(
         AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook, "Content & Branding"),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv, "Ministry & Outreach"),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image, "Ministry & Outreach"),
-        AdminModule("Users & Permissions", "Administrator accounts, approvals and roles", AdminPermissions.USERS_VIEW, Icons.Default.People, "Administration & Security"),
+        AdminModule("Users & Members", "Manage app community members, roles, admin accounts & requests", AdminPermissions.USERS_VIEW, Icons.Default.People, "Administration & Security"),
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings, "Administration & Security")
     )
 
@@ -266,7 +266,7 @@ private fun AdminDashboardScreen(
                         "Today's Scripture" -> if (allowed) onDailyScripture else null
                         "Live Streaming" -> if (allowed) onLive else null
                         "Media Center" -> if (allowed) onMedia else null
-                        "Users & Permissions" -> if (allowed) onUsers else null
+                        "Users & Members" -> if (allowed) onUsers else null
                         "System Administration" -> if (allowed) onSystem else null
                         else -> null
                     }
@@ -309,5 +309,3 @@ private fun AdminDashboardScreen(
         }
     }
 }
-
-

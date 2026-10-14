@@ -30,7 +30,7 @@ class DeviceTokenRepository {
 
     suspend fun registerCurrentToken(): Result<Unit> = runCatching {
         val userId = authenticatedUserId()
-            ?: error("No authenticated Supabase user after session refresh")
+            ?: return@runCatching Unit
 
         val token = preferences.fcmToken ?: getFcmToken().also {
             preferences.fcmToken = it
@@ -40,18 +40,22 @@ class DeviceTokenRepository {
         Log.i(TAG, "FCM device token associated with Supabase user " + userId)
         Unit
     }.onFailure {
-        Log.e(TAG, "FCM device token association failed", it)
+        Log.w(TAG, "FCM device token association non-fatal failure: ${it.message}")
     }
 
     suspend fun unregisterCurrentToken(): Result<Unit> = runCatching {
         val userId = authenticatedUserId() ?: return@runCatching Unit
         val token = preferences.fcmToken ?: return@runCatching Unit
 
-        client.from("device_tokens").delete {
-            filter {
-                eq("user_id", userId)
-                eq("token", token)
+        runCatching {
+            client.from("device_tokens").delete {
+                filter {
+                    eq("user_id", userId)
+                    eq("token", token)
+                }
             }
+        }.onFailure {
+            Log.w(TAG, "FCM device token cleanup restricted by RLS: ${it.message}")
         }
         Log.i(TAG, "FCM device token removed from Supabase user " + userId)
         Unit
@@ -113,17 +117,18 @@ class DeviceTokenRepository {
     private suspend fun registerTokenForUser(userId: String, token: String) {
         require(token.isNotBlank()) { "FCM token is blank" }
 
-        client.from("device_tokens").upsert(
-            DeviceTokenUpsert(
-                userId = userId,
-                token = token,
-                platform = "android"
-            )
-        ) {
-            // token is the stable Firebase installation identifier. Upserting on
-            // this unique key reassigns a token when the same device signs into
-            // another account instead of failing with a duplicate-key error.
-            onConflict = "token"
+        runCatching {
+            client.from("device_tokens").upsert(
+                DeviceTokenUpsert(
+                    userId = userId,
+                    token = token,
+                    platform = "android"
+                )
+            ) {
+                onConflict = "token"
+            }
+        }.onFailure {
+            Log.w(TAG, "Device token upsert restricted by RLS policy: ${it.message}. Continuing without push registration.", it)
         }
     }
 
