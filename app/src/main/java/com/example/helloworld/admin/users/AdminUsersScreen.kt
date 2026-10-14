@@ -42,42 +42,57 @@ private val assignablePermissions = listOf(
     AdminPermissions.USERS_DELETE,
     AdminPermissions.USERS_PERMISSIONS,
     AdminPermissions.AUDIT_VIEW,
-    AdminPermissions.IDENTITY_VIEW,
     AdminPermissions.SITE_EDIT,
-    AdminPermissions.HOMEPAGE_EDIT,
-    AdminPermissions.ABOUT_EDIT,
     AdminPermissions.SERVICES_EDIT,
     AdminPermissions.LINKS_EDIT,
-    AdminPermissions.CLASSES_EDIT,
-    AdminPermissions.GALLERY_EDIT,
     AdminPermissions.EVENTS_MANAGE,
     AdminPermissions.NOTIFICATIONS_SEND,
     AdminPermissions.APP_UPDATE_MANAGE,
     AdminPermissions.DAILY_SCRIPTURE_MANAGE,
     AdminPermissions.BIBLE_GAMES_MANAGE,
-    AdminPermissions.THEME_EDIT,
     AdminPermissions.MEDIA_VIEW,
     AdminPermissions.MEDIA_UPLOAD,
     AdminPermissions.MEDIA_EDIT,
     AdminPermissions.MEDIA_DELETE,
-    AdminPermissions.LIVE_VIEW,
-    AdminPermissions.LIVE_MANAGE,
-    AdminPermissions.COMMENTS_VIEW,
-    AdminPermissions.COMMENTS_MODERATE
+    AdminPermissions.LIVE_MANAGE
 )
+
+private fun permissionLabel(permission: String): String = when (permission) {
+    AdminPermissions.USERS_VIEW -> "Users & Members — view lists"
+    AdminPermissions.USERS_CREATE -> "Users & Members — approve/create administrators"
+    AdminPermissions.USERS_EDIT -> "Users & Members — edit roles and member profiles"
+    AdminPermissions.USERS_DISABLE -> "Users & Members — enable/disable administrators"
+    AdminPermissions.USERS_DELETE -> "Users & Members — delete administrator/member records"
+    AdminPermissions.USERS_PERMISSIONS -> "Users & Members — manage assigned permissions"
+    AdminPermissions.AUDIT_VIEW -> "System Administration — view security overview"
+    AdminPermissions.SITE_EDIT -> "Website Content — edit CMS pages and sections"
+    AdminPermissions.SERVICES_EDIT -> "Services & Giving — edit worship services"
+    AdminPermissions.LINKS_EDIT -> "Services & Giving — edit the giving link"
+    AdminPermissions.EVENTS_MANAGE -> "Events Management — create and manage events"
+    AdminPermissions.NOTIFICATIONS_SEND -> "Notifications — send church announcements"
+    AdminPermissions.APP_UPDATE_MANAGE -> "App Updates — configure app update URL/version"
+    AdminPermissions.DAILY_SCRIPTURE_MANAGE -> "Today's Scripture — manage scripture content"
+    AdminPermissions.BIBLE_GAMES_MANAGE -> "Bible Games — manage games and quizzes"
+    AdminPermissions.MEDIA_VIEW -> "Media Center — view the library"
+    AdminPermissions.MEDIA_UPLOAD -> "Media Center — upload/add media URLs"
+    AdminPermissions.MEDIA_EDIT -> "Media Center — edit media details and publishing"
+    AdminPermissions.MEDIA_DELETE -> "Media Center — delete media items"
+    AdminPermissions.LIVE_MANAGE -> "Live Streaming — manage stream status and settings"
+    else -> permission
+}
 
 private val rolePresets = mapOf(
     AdminRoles.CONTENT_EDITOR to listOf(AdminPermissions.SITE_EDIT, AdminPermissions.HOMEPAGE_EDIT, AdminPermissions.ABOUT_EDIT, AdminPermissions.SERVICES_EDIT, AdminPermissions.LINKS_EDIT, AdminPermissions.CLASSES_EDIT, AdminPermissions.GALLERY_EDIT, AdminPermissions.THEME_EDIT),
     AdminRoles.MEDIA_MANAGER to listOf(AdminPermissions.MEDIA_VIEW, AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE),
     AdminRoles.LIVE_MANAGER to listOf(AdminPermissions.LIVE_VIEW, AdminPermissions.LIVE_MANAGE, AdminPermissions.COMMENTS_VIEW, AdminPermissions.COMMENTS_MODERATE),
-    AdminRoles.SYSTEM_ADMIN to listOf(AdminPermissions.USERS_VIEW, AdminPermissions.USERS_CREATE, AdminPermissions.USERS_EDIT, AdminPermissions.USERS_DISABLE, AdminPermissions.USERS_DELETE, AdminPermissions.USERS_PERMISSIONS, AdminPermissions.AUDIT_VIEW)
+    AdminRoles.SYSTEM_ADMIN to emptyList()
 )
 
 private fun roleLabel(role: String): String = when (role) {
     AdminRoles.CONTENT_EDITOR -> "Content Editor"
     AdminRoles.MEDIA_MANAGER -> "Media Manager"
     AdminRoles.LIVE_MANAGER -> "Live Manager"
-    AdminRoles.SYSTEM_ADMIN -> "System Administrator"
+    AdminRoles.SYSTEM_ADMIN -> "Custom Permissions"
     AdminRoles.SUPER_ADMIN -> "Super Admin"
     else -> "Custom Permissions"
 }
@@ -121,7 +136,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                     }
                     grantablePermissions.forEach { permission ->
                         OutlinedButton(onClick = { permissions = if (permissions.contains(permission)) permissions - permission else permissions + permission }, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (permissions.contains(permission)) "✓ $permission" else permission)
+                            Text((if (permissions.contains(permission)) "✓ " else "") + permissionLabel(permission) + "\\n" + permission)
                         }
                     }
                 }
