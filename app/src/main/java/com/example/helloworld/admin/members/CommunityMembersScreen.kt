@@ -21,11 +21,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.helloworld.admin.AdminErrorMessage
+import com.example.helloworld.admin.AdminUser
 
 @Composable
 fun CommunityMembersScreen(
     modifier: Modifier = Modifier,
-    viewModel: CommunityMemberViewModel = viewModel()
+    viewModel: CommunityMemberViewModel = viewModel(),
+    currentUser: AdminUser
 ) {
     val members by viewModel.members.collectAsState()
     val loading by viewModel.loading.collectAsState()
