@@ -81,6 +81,21 @@ private fun permissionLabel(permission: String): String = when (permission) {
     else -> permission
 }
 
+private fun togglePermissionSelection(current: Set<String>, permission: String): Set<String> = when {
+    permission == AdminPermissions.USERS_VIEW ->
+        if (permission in current) current.filterNot { it.startsWith("users.") }.toSet()
+        else current + permission
+    permission.startsWith("users.") && permission != AdminPermissions.USERS_VIEW ->
+        current + permission + AdminPermissions.USERS_VIEW
+    permission == AdminPermissions.MEDIA_VIEW ->
+        if (permission in current) current.filterNot { it.startsWith("media.") }.toSet()
+        else current + permission
+    permission in setOf(AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE) ->
+        current + permission + AdminPermissions.MEDIA_VIEW
+    permission in current -> current - permission
+    else -> current + permission
+}
+
 private val rolePresets = mapOf(
     AdminRoles.CONTENT_EDITOR to listOf(AdminPermissions.SITE_EDIT),
     AdminRoles.MEDIA_MANAGER to listOf(AdminPermissions.MEDIA_VIEW, AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE),
@@ -147,7 +162,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                         }
                     }
                     grantablePermissions.forEach { permission ->
-                        OutlinedButton(onClick = { permissions = if (permissions.contains(permission)) permissions - permission else permissions + permission }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { permissions = togglePermissionSelection(permissions, permission) }, modifier = Modifier.fillMaxWidth()) {
                             Text((if (permissions.contains(permission)) "✓ " else "") + permissionLabel(permission) + "\n" + permission)
                         }
                     }
@@ -184,7 +199,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     grantablePermissions.forEach { permission ->
-                        OutlinedButton(onClick = { selectedPermissions = if (selectedPermissions.contains(permission)) selectedPermissions - permission else selectedPermissions + permission }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { selectedPermissions = togglePermissionSelection(selectedPermissions, permission) }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (selectedPermissions.contains(permission)) "✓ $permission" else permission)
                         }
                     }
