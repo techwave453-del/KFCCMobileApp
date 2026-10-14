@@ -270,7 +270,7 @@ fun BibleHomeScreen(
         ScreenBackgroundImage(
             screenKey = "bible",
             modifier = Modifier.fillMaxSize(),
-            overlayAlpha = 0.48f
+            overlayAlpha = 0.24f
         )
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -281,7 +281,7 @@ fun BibleHomeScreen(
                 title = {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.72f)
+                        color = Color.Black.copy(alpha = 0.42f)
                     ) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                             Text(
@@ -635,7 +635,7 @@ private fun BibleHero(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.85f)
+                                Color.Black.copy(alpha = 0.56f)
                             )
                         )
                     )
@@ -660,7 +660,7 @@ private fun BibleHero(
                 Column {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.Black.copy(alpha = 0.70f)
+                        color = Color.Black.copy(alpha = 0.42f)
                     ) {
                         Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                             Text(
