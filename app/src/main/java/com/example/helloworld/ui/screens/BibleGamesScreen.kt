@@ -334,15 +334,21 @@ private fun GameHome(
                     }
                 }
                 Spacer(Modifier.height(5.dp))
-                Text(
-                    mode.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.86f)
+                ) {
+                    Text(
+                        mode.description,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             item {
-                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)) {
                     Text("Category", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
                 }
             }
@@ -441,7 +447,7 @@ private fun GameQuestionCard(
                     Column(Modifier.weight(1f)) {
                         Surface(
                             shape = RoundedCornerShape(9.dp),
-                            color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.70f)
+                            color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)
                         ) {
                             Text(
                                 "Question $questionNumber of $total",
