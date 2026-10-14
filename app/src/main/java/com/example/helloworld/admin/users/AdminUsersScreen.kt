@@ -106,7 +106,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
 
     if (approvalRequest != null) {
         var role by remember(approvalRequest?.id) { mutableStateOf(AdminRoles.CONTENT_EDITOR) }
-        var permissions by remember(approvalRequest?.id) { mutableStateOf<Set<String>>(emptySet()) }
+        var permissions by remember(approvalRequest?.id) { mutableStateOf(rolePresets[AdminRoles.CONTENT_EDITOR]?.filter { currentUser.hasPermission(it) }?.toSet().orEmpty()) }
         AlertDialog(
             onDismissRequest = { if (!loading) approvalRequest = null },
             title = { Text("Approve ${approvalRequest!!.username}") },
