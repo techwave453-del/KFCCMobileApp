@@ -82,9 +82,9 @@ private fun permissionLabel(permission: String): String = when (permission) {
 }
 
 private val rolePresets = mapOf(
-    AdminRoles.CONTENT_EDITOR to listOf(AdminPermissions.SITE_EDIT, AdminPermissions.HOMEPAGE_EDIT, AdminPermissions.ABOUT_EDIT, AdminPermissions.SERVICES_EDIT, AdminPermissions.LINKS_EDIT, AdminPermissions.CLASSES_EDIT, AdminPermissions.GALLERY_EDIT, AdminPermissions.THEME_EDIT),
+    AdminRoles.CONTENT_EDITOR to listOf(AdminPermissions.SITE_EDIT),
     AdminRoles.MEDIA_MANAGER to listOf(AdminPermissions.MEDIA_VIEW, AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE),
-    AdminRoles.LIVE_MANAGER to listOf(AdminPermissions.LIVE_VIEW, AdminPermissions.LIVE_MANAGE, AdminPermissions.COMMENTS_VIEW, AdminPermissions.COMMENTS_MODERATE),
+    AdminRoles.LIVE_MANAGER to listOf(AdminPermissions.LIVE_MANAGE),
     AdminRoles.SYSTEM_ADMIN to emptyList()
 )
 
@@ -116,7 +116,19 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
     val canDisableUsers = currentUser.hasPermission(AdminPermissions.USERS_DISABLE)
     val canDeleteUsers = currentUser.hasPermission(AdminPermissions.USERS_DELETE)
     val canManagePermissions = currentUser.hasPermission(AdminPermissions.USERS_PERMISSIONS)
-    val grantablePermissions = assignablePermissions.filter { currentUser.hasPermission(it) }
+    val grantablePermissions = assignablePermissions.filter { permission ->
+        currentUser.hasPermission(permission) && when (permission) {
+            AdminPermissions.USERS_CREATE,
+            AdminPermissions.USERS_EDIT,
+            AdminPermissions.USERS_DISABLE,
+            AdminPermissions.USERS_DELETE,
+            AdminPermissions.USERS_PERMISSIONS -> currentUser.hasPermission(AdminPermissions.USERS_VIEW)
+            AdminPermissions.MEDIA_UPLOAD,
+            AdminPermissions.MEDIA_EDIT,
+            AdminPermissions.MEDIA_DELETE -> currentUser.hasPermission(AdminPermissions.MEDIA_VIEW)
+            else -> true
+        }
+    }
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (approvalRequest != null) {
