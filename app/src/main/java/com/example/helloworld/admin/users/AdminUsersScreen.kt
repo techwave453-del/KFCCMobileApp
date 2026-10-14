@@ -86,12 +86,12 @@ private fun togglePermissionSelection(current: Set<String>, permission: String):
         if (permission in current) current.filterNot { it.startsWith("users.") }.toSet()
         else current + permission
     permission.startsWith("users.") && permission != AdminPermissions.USERS_VIEW ->
-        current + permission + AdminPermissions.USERS_VIEW
+        if (permission in current) current - permission else current + permission + AdminPermissions.USERS_VIEW
     permission == AdminPermissions.MEDIA_VIEW ->
         if (permission in current) current.filterNot { it.startsWith("media.") }.toSet()
         else current + permission
     permission in setOf(AdminPermissions.MEDIA_UPLOAD, AdminPermissions.MEDIA_EDIT, AdminPermissions.MEDIA_DELETE) ->
-        current + permission + AdminPermissions.MEDIA_VIEW
+        if (permission in current) current - permission else current + permission + AdminPermissions.MEDIA_VIEW
     permission in current -> current - permission
     else -> current + permission
 }
