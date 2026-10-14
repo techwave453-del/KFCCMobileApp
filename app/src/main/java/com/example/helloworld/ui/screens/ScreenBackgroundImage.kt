@@ -1,11 +1,15 @@
 package com.example.helloworld.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import coil.imageLoader
 import coil.compose.AsyncImage
@@ -20,21 +24,23 @@ import io.github.jan.supabase.postgrest.from
  * persisted locally and Coil's disk cache stores image bytes for offline use.
  */
 @Composable
-fun rememberScreenBackgroundUrl(screenKey: String): String? {
+fun rememberScreenBackgroundUrl(screenKey: String, backgroundType: String = "screen"): String? {
     val context = LocalContext.current.applicationContext
-    var imageUrl by remember(screenKey) {
+    val cacheKey = backgroundType + "_" + screenKey
+    val categoryPrefix = if (backgroundType == "hero") "hero_bg_" else "screen_bg_"
+    var imageUrl by remember(cacheKey) {
         mutableStateOf(
             context.getSharedPreferences("screen_background_cache", android.content.Context.MODE_PRIVATE)
-                .getString(screenKey, null)
+                .getString(cacheKey, null)
         )
     }
-    LaunchedEffect(screenKey) {
+    LaunchedEffect(cacheKey) {
         runCatching {
             val rows = SupabaseProvider.client.from("media_items")
                 .select()
                 .decodeList<AdminMediaItem>()
             rows.filter {
-                it.category == "screen_bg_" + screenKey &&
+                it.category == categoryPrefix + screenKey &&
                     it.type.equals("image", ignoreCase = true) &&
                     it.published &&
                     it.url.startsWith("http")
@@ -42,7 +48,7 @@ fun rememberScreenBackgroundUrl(screenKey: String): String? {
         }.getOrNull()?.let { url ->
             imageUrl = url
             context.getSharedPreferences("screen_background_cache", android.content.Context.MODE_PRIVATE)
-                .edit().putString(screenKey, url).apply()
+                .edit().putString(cacheKey, url).apply()
         }
         imageUrl?.let { url ->
             context.imageLoader.enqueue(
@@ -60,18 +66,29 @@ fun rememberScreenBackgroundUrl(screenKey: String): String? {
 @Composable
 fun ScreenBackgroundImage(
     screenKey: String,
+    backgroundType: String = "screen",
     fallbackUrl: String? = null,
     contentDescription: String? = null,
     modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier,
-    contentScale: androidx.compose.ui.layout.ContentScale = androidx.compose.ui.layout.ContentScale.Crop
+    contentScale: androidx.compose.ui.layout.ContentScale = androidx.compose.ui.layout.ContentScale.Crop,
+    overlayAlpha: Float = 0.42f
 ) {
-    val url = rememberScreenBackgroundUrl(screenKey) ?: fallbackUrl
+    val url = rememberScreenBackgroundUrl(screenKey, backgroundType) ?: fallbackUrl
     if (!url.isNullOrBlank()) {
-        AsyncImage(
-            model = url,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = contentScale
-        )
+        Box(modifier = modifier) {
+            AsyncImage(
+                model = url,
+                contentDescription = contentDescription,
+                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                contentScale = contentScale
+            )
+            if (overlayAlpha > 0f) {
+                Box(
+                    modifier = androidx.compose.ui.Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = overlayAlpha.coerceIn(0f, 0.85f)))
+                )
+            }
+        }
     }
 }
