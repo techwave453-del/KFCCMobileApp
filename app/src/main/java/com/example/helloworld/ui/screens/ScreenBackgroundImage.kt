@@ -36,7 +36,7 @@ fun rememberScreenBackgroundUrl(screenKey: String, backgroundType: String = "scr
         )
     }
     LaunchedEffect(cacheKey) {
-        runCatching {
+        val lookup = runCatching {
             val rows = SupabaseProvider.client.from("media_items")
                 .select()
                 .decodeList<AdminMediaItem>()
@@ -46,10 +46,17 @@ fun rememberScreenBackgroundUrl(screenKey: String, backgroundType: String = "scr
                     it.published &&
                     it.url.startsWith("http")
             }.maxByOrNull { it.created_at }?.url
-        }.getOrNull()?.let { url ->
+        }
+        // Only clear the cached image after a successful online lookup returns no
+        // published background. On network failure, retain the cached image for offline use.
+        lookup.onSuccess { url ->
             imageUrl = url
-            context.getSharedPreferences("screen_background_cache", android.content.Context.MODE_PRIVATE)
-                .edit().putString(cacheKey, url).apply()
+            val preferences = context.getSharedPreferences("screen_background_cache", android.content.Context.MODE_PRIVATE)
+            if (url.isNullOrBlank()) {
+                preferences.edit().remove(cacheKey).apply()
+            } else {
+                preferences.edit().putString(cacheKey, url).apply()
+            }
         }
         imageUrl?.let { url ->
             context.imageLoader.enqueue(
