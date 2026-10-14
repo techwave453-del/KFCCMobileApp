@@ -815,7 +815,7 @@ private fun TodaysScriptureCard(
                     Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.70f)
+                        color = Color.Black.copy(alpha = 0.42f)
                     ) {
                         Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
                             Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
@@ -882,7 +882,7 @@ private fun ContinueReadingCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.85f)
+                                Color.Black.copy(alpha = 0.56f)
                             )
                         )
                     )
@@ -906,7 +906,7 @@ private fun ContinueReadingCard(
                 Column {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.70f)
+                        color = Color.Black.copy(alpha = 0.42f)
                     ) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
                             Text("CONTINUE READING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
