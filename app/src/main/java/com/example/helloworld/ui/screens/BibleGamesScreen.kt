@@ -181,6 +181,7 @@ fun BibleGamesScreen(
                     val question = questions[questionIndex]
                     GameQuestionCard(
                         question = question,
+                        hasScreenBackground = hasScreenBackground,
                         questionNumber = questionIndex + 1,
                         total = questions.size,
                         score = score,
@@ -207,6 +208,7 @@ fun BibleGamesScreen(
                 }
                 else -> GameHome(
                     mode = mode,
+                    hasScreenBackground = hasScreenBackground,
                     category = category,
                     onModeChange = { mode = it },
                     onCategoryChange = { category = it },
@@ -222,6 +224,7 @@ fun BibleGamesScreen(
 @Composable
 private fun GameHome(
     mode: GameMode,
+    hasScreenBackground: Boolean,
     category: BibleGameCategory,
     onModeChange: (GameMode) -> Unit,
     onCategoryChange: (BibleGameCategory) -> Unit,
@@ -424,6 +427,7 @@ private fun GameHome(
 @Composable
 private fun GameQuestionCard(
     question: BibleGameQuestion,
+    hasScreenBackground: Boolean,
     questionNumber: Int,
     total: Int,
     score: Int,
