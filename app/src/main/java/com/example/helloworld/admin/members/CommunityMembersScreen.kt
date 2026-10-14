@@ -39,13 +39,16 @@ fun CommunityMembersScreen(
     var roleMember by remember { mutableStateOf<CommunityMember?>(null) }
     var deletingMember by remember { mutableStateOf<CommunityMember?>(null) }
 
-    val assignableRoles = listOf("member", "moderator", "leader", "admin")
+    val assignableRoles = listOf("member", "moderator", "leader", "content_editor", "media_manager", "live_manager", "custom")
 
     val roleDetails = mapOf(
-        "member" to ("Standard User" to "Access to public chat, daily scriptures, and Bible games.\nPermissions: Chat Send, Events View, Media View, Bible Quiz."),
-        "moderator" to ("Community Moderator" to "Can moderate chat messages and manage community interactions.\nPermissions: Chat Send, Chat Moderate, Events View, Media View."),
-        "leader" to ("Ministry Leader" to "Can participate in leadership channels and organize events.\nPermissions: Chat Send, Events Manage, Media View, Bible Quiz."),
-        "admin" to ("System Administrator" to "Full administrative privileges over community members and profiles.\nPermissions: Full System Access.")
+        "member" to ("Standard Member" to "Standard community access. No administrator dashboard access."),
+        "moderator" to ("Community Moderator" to "Community moderation role only; no administrator dashboard access."),
+        "leader" to ("Ministry Leader" to "Community leadership role only; no administrator dashboard access."),
+        "content_editor" to ("Content Editor" to "Edit approved website content and theme settings."),
+        "media_manager" to ("Media Manager" to "Upload, edit, and delete media library items."),
+        "live_manager" to ("Live Manager" to "Manage live-stream features and moderate comments."),
+        "custom" to ("Custom Administrator" to "Creates an administrator profile with no preset permissions. The Super Admin can grant specific permissions separately.")
     )
 
     val filteredMembers = remember(searchQuery, members) {
