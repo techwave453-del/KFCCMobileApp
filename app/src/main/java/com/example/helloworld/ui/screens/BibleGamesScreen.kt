@@ -138,6 +138,7 @@ fun BibleGamesScreen(
         )
         Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             title = { Text("Bible Games") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
