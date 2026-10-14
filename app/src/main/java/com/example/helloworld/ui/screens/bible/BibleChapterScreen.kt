@@ -57,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import com.example.helloworld.ui.screens.ScreenBackgroundImage
 import android.content.Context
 import android.content.Intent
 import com.example.helloworld.data.bible.BibleChapter
@@ -145,21 +147,33 @@ fun BibleChapterScreen(
         )
     }
 
-    Scaffold(
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.50f
+        )
+        Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = book?.name ?: bookId,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Text(
-                            text = "Chapter $chapterNumber • ${currentTranslationId.uppercase()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.72f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                            Text(
+                                text = book?.name ?: bookId,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Chapter $chapterNumber • ${currentTranslationId.uppercase()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.86f)
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -193,8 +207,8 @@ fun BibleChapterScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 )
             )
         }
@@ -234,6 +248,7 @@ fun BibleChapterScreen(
                 )
             }
         }
+    }
     }
 }
 
