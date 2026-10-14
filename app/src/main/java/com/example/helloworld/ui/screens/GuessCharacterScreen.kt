@@ -50,8 +50,15 @@ fun GuessCharacterScreen(
         }
     }
 
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible_games",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
     Column(Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             title = { Text("Guess the Character", fontWeight = FontWeight.Bold) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -134,6 +141,7 @@ fun GuessCharacterScreen(
                 }
             }
         }
+    }
     }
 }
 
