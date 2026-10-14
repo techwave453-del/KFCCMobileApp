@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.admin.AdminPermissions
 import com.example.helloworld.admin.AdminRoles
+import com.example.helloworld.admin.AdminUser
+import com.example.helloworld.admin.hasPermission
 
 private val assignablePermissions = listOf(
     AdminPermissions.USERS_VIEW,
@@ -81,7 +83,7 @@ private fun roleLabel(role: String): String = when (role) {
 }
 
 @Composable
-fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewModel, onBack: () -> Unit) {
+fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewModel, currentUser: AdminUser, onBack: () -> Unit) {
     val users by viewModel.users.collectAsState()
     val requests by viewModel.requests.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -94,6 +96,12 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
     var selectedPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
     var confirmUser by remember { mutableStateOf<AdminManagedUser?>(null) }
     var confirmAction by remember { mutableStateOf<String?>(null) }
+    val canCreateUsers = currentUser.hasPermission(AdminPermissions.USERS_CREATE)
+    val canEditUsers = currentUser.hasPermission(AdminPermissions.USERS_EDIT)
+    val canDisableUsers = currentUser.hasPermission(AdminPermissions.USERS_DISABLE)
+    val canDeleteUsers = currentUser.hasPermission(AdminPermissions.USERS_DELETE)
+    val canManagePermissions = currentUser.hasPermission(AdminPermissions.USERS_PERMISSIONS)
+    val grantablePermissions = assignablePermissions.filter { currentUser.hasPermission(it) }
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (approvalRequest != null) {
@@ -107,11 +115,11 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                     Text("Choose a role preset. You can fine-tune its permissions below.")
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
-                            if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                            if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.filter { currentUser.hasPermission(it) }?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
                             else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
                         }
                     }
-                    assignablePermissions.forEach { permission ->
+                    grantablePermissions.forEach { permission ->
                         OutlinedButton(onClick = { permissions = if (permissions.contains(permission)) permissions - permission else permissions + permission }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (permissions.contains(permission)) "✓ $permission" else permission)
                         }
@@ -205,9 +213,11 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                         Text(request.username, style = MaterialTheme.typography.titleMedium)
                         Text("Expires ${request.expires_at ?: "unknown"}", style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { approvalRequest = request }, enabled = !loading) { Text("Approve") }
-                            OutlinedButton(onClick = { viewModel.reject(request) }, enabled = !loading) { Text("Decline") }
+                        if (canCreateUsers) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { approvalRequest = request }, enabled = !loading) { Text("Approve") }
+                                OutlinedButton(onClick = { viewModel.reject(request) }, enabled = !loading) { Text("Decline") }
+                            }
                         }
                     }
                 }
@@ -225,10 +235,18 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                             if (user.role != "super_admin") {
                                 Spacer(Modifier.height(8.dp))
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedButton(onClick = { selectedRole = when (user.role) { AdminRoles.MEDIA_MANAGER -> AdminRoles.MEDIA_MANAGER; AdminRoles.LIVE_MANAGER -> AdminRoles.LIVE_MANAGER; AdminRoles.SYSTEM_ADMIN -> AdminRoles.SYSTEM_ADMIN; else -> AdminRoles.CONTENT_EDITOR }; roleUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Role") }
-                                    OutlinedButton(onClick = { selectedPermissions = user.permissions.toSet(); permissionUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Permissions") }
-                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = if (user.is_active) "disable" else "enable" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(if (user.is_active) "Disable" else "Enable") }
-                                    OutlinedButton(onClick = { confirmUser = user; confirmAction = "delete" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Delete") }
+                                    if (canEditUsers) {
+                                        OutlinedButton(onClick = { selectedRole = when (user.role) { AdminRoles.MEDIA_MANAGER -> AdminRoles.MEDIA_MANAGER; AdminRoles.LIVE_MANAGER -> AdminRoles.LIVE_MANAGER; AdminRoles.SYSTEM_ADMIN -> AdminRoles.SYSTEM_ADMIN; else -> AdminRoles.CONTENT_EDITOR }; roleUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Role") }
+                                    }
+                                    if (canManagePermissions) {
+                                        OutlinedButton(onClick = { selectedPermissions = user.permissions.filter { it in grantablePermissions }.toSet(); permissionUser = user }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Permissions") }
+                                    }
+                                    if (canDisableUsers) {
+                                        OutlinedButton(onClick = { confirmUser = user; confirmAction = if (user.is_active) "disable" else "enable" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(if (user.is_active) "Disable" else "Enable") }
+                                    }
+                                    if (canDeleteUsers) {
+                                        OutlinedButton(onClick = { confirmUser = user; confirmAction = "delete" }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text("Delete") }
+                                    }
                                 }
                             }
                         }
