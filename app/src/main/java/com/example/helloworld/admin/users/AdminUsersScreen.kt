@@ -116,7 +116,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(AdminRoles.CONTENT_EDITOR, AdminRoles.MEDIA_MANAGER, AdminRoles.LIVE_MANAGER, AdminRoles.SYSTEM_ADMIN).forEach { value ->
                             if (role == value) Button(onClick = { role = value; permissions = rolePresets[value]?.filter { currentUser.hasPermission(it) }?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
-                            else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
+                            else OutlinedButton(onClick = { role = value; permissions = rolePresets[value]?.filter { currentUser.hasPermission(it) }?.toSet().orEmpty() }, modifier = Modifier.fillMaxWidth()) { Text(roleLabel(value)) }
                         }
                     }
                     grantablePermissions.forEach { permission ->
@@ -154,7 +154,7 @@ fun AdminUsersScreen(modifier: Modifier = Modifier, viewModel: AdminUsersViewMod
             title = { Text("Permissions · ${permissionUser!!.username}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    assignablePermissions.forEach { permission ->
+                    grantablePermissions.forEach { permission ->
                         OutlinedButton(onClick = { selectedPermissions = if (selectedPermissions.contains(permission)) selectedPermissions - permission else selectedPermissions + permission }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (selectedPermissions.contains(permission)) "✓ $permission" else permission)
                         }
