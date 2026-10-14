@@ -34,7 +34,8 @@ private data class MemberManagementResponse(
     val members: List<CommunityMember> = emptyList(),
     val ok: Boolean = false,
     val role: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val stage: String? = null
 )
 
 class CommunityMemberRepository {
@@ -55,7 +56,10 @@ class CommunityMemberRepository {
 
     suspend fun getMembers(): Result<List<CommunityMember>> = runCatching {
         val response = callManagement(MemberManagementRequest(action = "community_members"))
-        if (response.error != null) error(response.error)
+        if (response.error != null) {
+            val stage = response.stage?.takeIf { it.isNotBlank() }?.let { " (stage: $it)" }.orEmpty()
+            error(response.error + stage)
+        }
         response.members
     }
 
@@ -70,7 +74,10 @@ class CommunityMemberRepository {
         val response = callManagement(
             MemberManagementRequest(action = "community_role", userId = userId, role = role.trim().lowercase())
         )
-        if (response.error != null) error(response.error)
+        if (response.error != null) {
+            val stage = response.stage?.takeIf { it.isNotBlank() }?.let { " (stage: $it)" }.orEmpty()
+            error(response.error + stage)
+        }
         if (!response.ok) error("The server did not confirm the role assignment.")
     }
 
