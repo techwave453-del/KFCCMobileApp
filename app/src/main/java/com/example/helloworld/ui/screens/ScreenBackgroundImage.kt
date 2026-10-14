@@ -107,5 +107,9 @@ fun ScreenBackgroundImage(
                 )
             }
         }
+    } else {
+        // With no published image, explicitly render white rather than leaving a
+        // stale image or an unexpected parent surface visible.
+        Box(modifier = modifier.background(Color.White))
     }
 }
