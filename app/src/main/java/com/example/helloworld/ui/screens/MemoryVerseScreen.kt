@@ -79,12 +79,19 @@ fun MemoryVerseScreen(
         loadTarget(targetIndex)
     }
 
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackgroundImage(
+            screenKey = "bible_games",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
     ) {
         TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             title = {
                 Column {
                     Text("Memory Verse", fontWeight = FontWeight.Bold)
@@ -254,5 +261,6 @@ fun MemoryVerseScreen(
                 )
             }
         }
+    }
     }
 }
