@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -117,6 +118,7 @@ fun BibleGamesScreen(
         if (secondsLeft == 0 && answered == null) started = false
     }
 
+    val hasScreenBackground = rememberScreenBackgroundUrl("bible_games") != null
     val gameFinished =
         started && questions.isNotEmpty() &&
             questionIndex >= questions.lastIndex && answered != null
@@ -142,12 +144,12 @@ fun BibleGamesScreen(
             title = {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)
+                    color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent
                 ) {
                     Text(
                         "Bible Games",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = if (hasScreenBackground) Color.White else Color.Black,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -308,7 +310,7 @@ private fun GameHome(
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent) {
                     Text("Game mode", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
                 }
                 Spacer(Modifier.height(6.dp))
@@ -348,7 +350,7 @@ private fun GameHome(
             }
 
             item {
-                Surface(shape = RoundedCornerShape(9.dp), color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent) {
                     Text("Category", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
                 }
             }
@@ -447,13 +449,13 @@ private fun GameQuestionCard(
                     Column(Modifier.weight(1f)) {
                         Surface(
                             shape = RoundedCornerShape(9.dp),
-                            color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.42f)
+                            color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent
                         ) {
                             Text(
                                 "Question $questionNumber of $total",
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = androidx.compose.ui.graphics.Color.White,
+                                color = if (hasScreenBackground) Color.White else Color.Black,
                                 fontWeight = FontWeight.Bold
                             )
                         }
