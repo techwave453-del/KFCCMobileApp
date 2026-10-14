@@ -131,8 +131,11 @@ fun BibleGamesScreen(
     }
 
     Box(Modifier.fillMaxSize().padding(innerPadding)) {
-        ScreenBackgroundImage(screenKey = "bible_games", modifier = Modifier.fillMaxSize())
-        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.20f)))
+        ScreenBackgroundImage(
+            screenKey = "bible_games",
+            modifier = Modifier.fillMaxSize(),
+            overlayAlpha = 0.48f
+        )
         Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Bible Games") },
