@@ -614,11 +614,14 @@ private fun BibleHero(
                 .fillMaxWidth()
                 .height(320.dp)
         ) {
-            AsyncImage(
-                model = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1200&q=80",
+            ScreenBackgroundImage(
+                screenKey = "bible",
+                backgroundType = "hero",
+                fallbackUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1200&q=80",
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                overlayAlpha = 0f
             )
             Box(
                 modifier = Modifier
