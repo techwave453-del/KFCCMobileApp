@@ -95,6 +95,10 @@ fun DirectChatInboxScreen(
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
     var storyNotice by remember { mutableStateOf<String?>(null) }
+    var pendingStoryBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingStoryMimeType by remember { mutableStateOf("") }
+    var storyCaption by remember { mutableStateOf("") }
+    var storyUploading by remember { mutableStateOf(false) }
 
     val storyPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -113,12 +117,9 @@ fun DirectChatInboxScreen(
                 } else if (bytes == null) {
                     error = "Could not read the selected media file."
                 } else {
-                    repository.publishStory(bytes, mimeType)
-                        .onSuccess {
-                            storyNotice = "Your story was posted and will expire in 24 hours."
-                            repository.getStoryFeed().onSuccess { stories = it }
-                        }
-                        .onFailure { error = it.message ?: "Could not publish story." }
+                    pendingStoryBytes = bytes
+                    pendingStoryMimeType = mimeType
+                    storyCaption = ""
                 }
             }
         }
@@ -529,6 +530,47 @@ fun DirectChatInboxScreen(
         )
     }
 
+    if (pendingStoryBytes != null) {
+        AlertDialog(
+            onDismissRequest = { if (!storyUploading) { pendingStoryBytes = null; storyCaption = "" } },
+            title = { Text("Add story caption") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = storyCaption,
+                        onValueChange = { if (it.length <= 500) storyCaption = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Caption (optional)") },
+                        supportingText = { Text(storyCaption.length.toString() + "/500") },
+                        enabled = !storyUploading,
+                        maxLines = 4
+                    )
+                    if (storyUploading) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text("Uploading story… please keep the app open.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !storyUploading, onClick = {
+                    val bytes = pendingStoryBytes ?: return@TextButton
+                    storyUploading = true
+                    scope.launch {
+                        repository.publishStory(bytes, pendingStoryMimeType, storyCaption.trim())
+                            .onSuccess {
+                                storyNotice = "Your story was posted and will expire in 24 hours."
+                                pendingStoryBytes = null
+                                storyCaption = ""
+                                repository.getStoryFeed().onSuccess { stories = it }
+                            }
+                            .onFailure { error = it.message ?: "Could not publish story." }
+                        storyUploading = false
+                    }
+                }) { Text(if (storyUploading) "Uploading…" else "Publish") }
+            },
+            dismissButton = { TextButton(enabled = !storyUploading, onClick = { pendingStoryBytes = null; storyCaption = "" }) { Text("Cancel") } }
+        )
+    }
     selectedStory?.let { story ->
         AlertDialog(
             onDismissRequest = { selectedStory = null },
