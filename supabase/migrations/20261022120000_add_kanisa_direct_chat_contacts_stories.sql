@@ -409,4 +409,37 @@ $;
 revoke all on function public.get_direct_chat_inbox() from public;
 grant execute on function public.get_direct_chat_inbox() to authenticated;
 
+create or replace function public.get_active_chat_stories()
+returns table(
+    id uuid,
+    user_id uuid,
+    username text,
+    display_name text,
+    avatar_url text,
+    media_path text,
+    media_type text,
+    caption text,
+    created_at timestamptz,
+    expires_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+    if auth.uid() is null then raise exception 'Authentication required'; end if;
+    return query
+    select s.id, s.user_id, p.username, p.display_name, p.avatar_url,
+           s.media_path, s.media_type, s.caption, s.created_at, s.expires_at
+    from public.chat_stories s
+    join public.chat_profiles p on p.user_id = s.user_id
+    where s.expires_at > now()
+    order by s.created_at desc
+    limit 50;
+end;
+$;
+
+revoke all on function public.get_active_chat_stories() from public;
+grant execute on function public.get_active_chat_stories() to authenticated;
+
 commit;
