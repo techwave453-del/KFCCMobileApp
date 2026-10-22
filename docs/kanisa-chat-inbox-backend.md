@@ -26,7 +26,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 
 ## Android UI/data access
 
-- `DirectChatRepository.kt` provides typed inbox, member suggestions/search, existing room loading, private message, contact, and story-feed calls.
+- `DirectChatRepository.kt` provides typed inbox, member suggestions/search, existing room loading, private messages, contacts, story upload, signed story-media URLs, and story-feed calls.
 - `DirectChatInboxScreen.kt` shows a horizontally scrolling People row, Stories strip with signed private image/video playback, unread badges, private conversations, and existing community/group rooms in one Messages list.
 - Selecting a member starts or reuses a private conversation; selecting a room opens the existing community/group chat through `ChatViewModel`.
 - `ChatScreen.kt` retains the existing community chat and Kanisa Assistant.
@@ -35,7 +35,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 
 1. Build and run the Android app; verify the People row, member-to-message flow, and existing group/community room navigation.
 2. Test cross-user isolation with two ordinary member accounts and one administrator account.
-3. Implement private story-media upload and signed URL retrieval; the current story UI does not yet render private media.
+3. Test story upload, signed URL retrieval, image playback, video playback, and expiry using real member accounts.
 4. Add offline queue/retry. Direct messages subscribe to Supabase Realtime and retain bounded polling as a missed-event/reconnect fallback; unread counts and read-state use participant-checked RPCs.
 5. Add tests for RLS, conversation creation races, duplicate contacts, story expiry, and storage ownership.
 
@@ -46,5 +46,5 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 - This remains an initial UI/data foundation, not a verified production release.
 - Story viewing requests short-lived signed URLs and plays private images/videos. The Add story action uploads supported images/videos to the private bucket and then creates metadata under the authenticated user's UUID folder.
 - Direct messages use Supabase Realtime insert events to refresh the open thread, with a 15-second polling fallback and 15-second inbox polling. The direct-message and conversation tables must remain in the `supabase_realtime` publication. Offline queuing is not implemented.
-- Unread counts and read timestamps are wired to the direct-message inbox, but realtime refresh is not yet implemented.
+- Unread counts and read timestamps are wired through participant-checked RPCs; inbox counts poll every 15 seconds and refresh when direct-message realtime events update an open thread.
 - No demo contacts or stories are seeded.
