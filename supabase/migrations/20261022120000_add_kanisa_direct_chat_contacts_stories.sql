@@ -344,4 +344,35 @@ $$;
 revoke all on function public.add_chat_contact(uuid) from public;
 grant execute on function public.add_chat_contact(uuid) to authenticated;
 
+-- Return only the minimal profile fields needed to start a conversation.
+-- Search is bounded and does not expose email addresses or administrator metadata.
+create or replace function public.search_chat_members(p_query text)
+returns table(user_id uuid, username text, display_name text, avatar_url text)
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+    v_query text := lower(btrim(coalesce(p_query, '')));
+begin
+    if auth.uid() is null then
+        raise exception 'Authentication required';
+    end if;
+    if char_length(v_query) < 2 then
+        return;
+    end if;
+    return query
+    select p.user_id, p.username, p.display_name, p.avatar_url
+    from public.chat_profiles p
+    where p.user_id <> auth.uid()
+      and (lower(p.username) like '%' || v_query || '%'
+           or lower(coalesce(p.display_name, '')) like '%' || v_query || '%')
+    order by lower(coalesce(p.display_name, p.username)), lower(p.username)
+    limit 25;
+end;
+$;
+
+revoke all on function public.search_chat_members(text) from public;
+grant execute on function public.search_chat_members(text) to authenticated;
+
 commit;
