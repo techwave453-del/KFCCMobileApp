@@ -118,8 +118,22 @@ with check (
 drop policy if exists "Users can update their direct read receipts" on public.chat_direct_read_receipts;
 create policy "Users can update their direct read receipts"
 on public.chat_direct_read_receipts for update to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (
+    user_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+)
+with check (
+    user_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+);
 
 drop policy if exists "Participants can read direct messages" on public.chat_direct_messages;
 create policy "Participants can read direct messages"
@@ -145,8 +159,22 @@ with check (
 drop policy if exists "Senders can edit their own direct messages" on public.chat_direct_messages;
 create policy "Senders can edit their own direct messages"
 on public.chat_direct_messages for update to authenticated
-using (sender_id = auth.uid())
-with check (sender_id = auth.uid());
+using (
+    sender_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+)
+with check (
+    sender_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+);
 
 drop policy if exists "Users can read their own contacts" on public.chat_contacts;
 create policy "Users can read their own contacts"
@@ -209,6 +237,18 @@ with check (
         select 1 from public.chat_stories s
         where s.id = story_id and s.expires_at > now() and s.user_id <> auth.uid()
     )
+);
+
+drop policy if exists "Users can update their own story views" on public.chat_story_views;
+create policy "Users can update their own story views"
+on public.chat_story_views for update to authenticated
+using (
+    viewer_id = auth.uid()
+    and exists (select 1 from public.chat_stories s where s.id = story_id and s.expires_at > now())
+)
+with check (
+    viewer_id = auth.uid()
+    and exists (select 1 from public.chat_stories s where s.id = story_id and s.expires_at > now())
 );
 
 create or replace function public.touch_direct_conversation_after_message()
