@@ -27,7 +27,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 ## Android UI/data access
 
 - `DirectChatRepository.kt` provides typed inbox, member suggestions/search, existing room loading, private message, contact, and story-feed calls.
-- `DirectChatInboxScreen.kt` shows a horizontally scrolling People row, Stories strip, private conversations, and existing community/group rooms in one Messages list.
+- `DirectChatInboxScreen.kt` shows a horizontally scrolling People row, Stories strip with signed private image/video playback, unread badges, private conversations, and existing community/group rooms in one Messages list.
 - Selecting a member starts or reuses a private conversation; selecting a room opens the existing community/group chat through `ChatViewModel`.
 - `ChatScreen.kt` retains the existing community chat and Kanisa Assistant.
 
@@ -36,7 +36,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 1. Build and run the Android app; verify the People row, member-to-message flow, and existing group/community room navigation.
 2. Test cross-user isolation with two ordinary member accounts and one administrator account.
 3. Implement private story-media upload and signed URL retrieval; the current story UI does not yet render private media.
-4. Add direct-message realtime subscriptions and offline queue/retry; unread counts and read-state are now wired through participant-checked RPCs.
+4. Replace the current bounded polling refresh with Supabase Realtime subscriptions and add offline queue/retry; unread counts and read-state are wired through participant-checked RPCs.
 5. Add tests for RLS, conversation creation races, duplicate contacts, story expiry, and storage ownership.
 
 ## Important limitations
@@ -44,7 +44,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 - The direct-chat foundation and the member-suggestions RPC have been applied to the active KFCC Supabase project; deployment history and grants should still be rechecked before production rollout.
 - The Android app has not been built in this environment.
 - This remains an initial UI/data foundation, not a verified production release.
-- Story upload and signed-media URL handling are not implemented; the Stories strip uses real metadata but does not display the private story media.
-- Direct messages currently reload after send but do not yet subscribe to realtime changes or support offline queuing.
+- Story viewing now requests short-lived signed URLs and plays private images/videos. Story creation/upload UI is still not implemented.
+- Direct messages refresh periodically while a thread is open (5 seconds) and the inbox refreshes periodically (15 seconds); this is a polling fallback, not a Supabase Realtime subscription. Offline queuing is not implemented.
 - Unread counts and read timestamps are wired to the direct-message inbox, but realtime refresh is not yet implemented.
 - No demo contacts or stories are seeded.
