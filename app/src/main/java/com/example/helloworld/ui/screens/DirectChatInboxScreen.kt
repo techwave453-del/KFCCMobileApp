@@ -96,7 +96,17 @@ fun DirectChatInboxScreen(
     }
 
     val inboxEntries = remember(inbox, rooms) {
-        rooms.map { InboxDisplayEntry(key = "room:" + it.id, room = it) } +
+        val roomEntries = rooms.map { InboxDisplayEntry(key = "room:" + it.id, room = it) }
+        val communityFallback = if (rooms.none { it.type.equals("community", ignoreCase = true) }) {
+            listOf(
+                InboxDisplayEntry(
+                    key = "room:community-fallback",
+                    room = ChatRoom(id = "", type = "community", title = "Community Chat"),
+                    communityFallback = true
+                )
+            )
+        } else emptyList()
+        roomEntries + communityFallback +
             inbox.map { InboxDisplayEntry(key = "direct:" + it.conversationId, direct = it) }
     }
 
@@ -296,7 +306,12 @@ fun DirectChatInboxScreen(
                     items(inboxEntries, key = { it.key }) { entry ->
                         val room = entry.room
                         if (room != null) {
-                            ChatRoomInboxRow(room = room, onClick = { onOpenRoom(room.id) })
+                            ChatRoomInboxRow(
+                                room = room,
+                                onClick = {
+                                    if (entry.communityFallback) onOpenCommunity() else onOpenRoom(room.id)
+                                }
+                            )
                         } else {
                             val item = entry.direct!!
                             InboxConversationRow(item = item, onClick = {
@@ -304,6 +319,14 @@ fun DirectChatInboxScreen(
                                 messages = emptyList()
                                 error = null
                             })
+                        }
+                    }
+                    if (inbox.isEmpty()) {
+                        item {
+                            EmptyInbox(
+                                onNewChat = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() },
+                                onCommunity = onOpenCommunity
+                            )
                         }
                     }
                 }
@@ -447,6 +470,7 @@ private data class InboxDisplayEntry(
     val key: String,
     val direct: DirectInboxItem? = null,
     val room: ChatRoom? = null,
+    val communityFallback: Boolean = false,
 )
 
 @Composable
