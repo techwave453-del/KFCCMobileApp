@@ -83,7 +83,7 @@ fun ChatScreen(
             DirectChatInboxScreen(
                 onOpenCommunity = { showCommunityChat = true },
                 onOpenAssistant = { showAssistant = true },
-                modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
+                modifier = Modifier.padding(top = innerPadding.calculateTopPadding(), bottom = innerPadding.calculateBottomPadding())
             )
         }
     } else {
