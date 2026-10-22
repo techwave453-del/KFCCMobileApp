@@ -45,13 +45,18 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
         val type = message.data["type"].orEmpty()
         val isChat = type.equals("chat", true) || type.equals("chat_message", true)
         val roomId = message.data["room_id"].orEmpty()
+        val conversationId = message.data["conversation_id"].orEmpty()
+        val isDirectChat = type.equals("direct_chat_message", true) || conversationId.isNotBlank()
         val notificationId = message.data["notification_id"]?.takeIf { it.isNotBlank() } ?: body
         val image = message.data["image_url"]?.let { loadNotificationBitmap(it) }
         val senderAvatar = message.data["sender_avatar_url"]?.let { loadNotificationBitmap(it) }
 
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            if (isChat && roomId.isNotBlank()) {
+            if (isDirectChat && conversationId.isNotBlank()) {
+                putExtra(MainActivity.EXTRA_OPEN_CHAT, true)
+                putExtra(MainActivity.EXTRA_DIRECT_CONVERSATION_ID, conversationId)
+            } else if (isChat && roomId.isNotBlank()) {
                 putExtra(MainActivity.EXTRA_OPEN_CHAT, true)
                 putExtra(MainActivity.EXTRA_CHAT_ROOM_ID, roomId)
             } else {
