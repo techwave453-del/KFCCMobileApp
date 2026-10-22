@@ -1,6 +1,7 @@
 package com.example.helloworld.data
 
 import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
@@ -9,6 +10,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.time.Duration.Companion.minutes
 import java.time.Instant
+import java.util.UUID
 
 @Serializable
 data class DirectInboxItem(
@@ -205,6 +207,47 @@ class DirectChatRepository {
             "add_chat_contact",
             buildJsonObject { put("p_contact_user_id", contactUserId) }
         )
+    }
+
+    suspend fun publishStory(
+        mediaBytes: ByteArray,
+        mimeType: String,
+        caption: String = "",
+    ): Result<Unit> = runCatching {
+        require(mediaBytes.isNotEmpty()) { "Choose a media file first." }
+        require(mediaBytes.size <= 50 * 1024 * 1024) { "Stories must be 50 MB or smaller." }
+        require(mimeType in setOf("image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime")) {
+            "Choose a JPG, PNG, WebP, MP4, or MOV file."
+        }
+        require(caption.length <= 500) { "Story captions must be 500 characters or fewer." }
+        if (!SupabaseProvider.ensureSession()) error("Your session has expired. Please sign in again.")
+        val userId = client.auth.currentUserOrNull()?.id
+            ?: error("Your account is not available. Please sign in again.")
+        val extension = when (mimeType) {
+            "image/jpeg" -> "jpg"
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            "video/mp4" -> "mp4"
+            "video/quicktime" -> "mov"
+            else -> error("Unsupported story media type.")
+        }
+        val mediaType = if (mimeType.startsWith("video/")) "video" else "image"
+        val path = "$userId/${UUID.randomUUID()}.$extension"
+        val bucket = client.storage.from("kanisa-story-media")
+        bucket.upload(path = path, data = mediaBytes, upsert = false)
+        try {
+            client.from("chat_stories").insert(
+                mapOf(
+                    "user_id" to userId,
+                    "media_path" to path,
+                    "media_type" to mediaType,
+                    "caption" to caption.trim(),
+                )
+            )
+        } catch (failure: Throwable) {
+            runCatching { bucket.delete(path) }
+            throw failure
+        }
     }
 
     suspend fun getStoryMediaUrl(mediaPath: String): Result<String> = runCatching {
