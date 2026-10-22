@@ -354,11 +354,16 @@ fun DirectChatInboxScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp)
                     )
+                    val storiesByUser = stories
+                        .groupBy { it.userId }
+                        .mapNotNull { (_, userStories) -> userStories.maxByOrNull { it.createdAt } }
+                        .sortedByDescending { it.createdAt }
+
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 18.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(stories, key = { it.id }) { story ->
+                        items(storiesByUser, key = { it.userId }) { story ->
                             Column(
                                 modifier = Modifier.width(64.dp).clickable { selectedStory = story },
                                 horizontalAlignment = Alignment.CenterHorizontally
