@@ -58,6 +58,7 @@ fun DirectChatInboxScreen(
     val repository = remember { DirectChatRepository() }
     val scope = rememberCoroutineScope()
     var inbox by remember { mutableStateOf<List<DirectInboxItem>>(emptyList()) }
+    var unreadCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var rooms by remember { mutableStateOf<List<ChatRoom>>(emptyList()) }
     var members by remember { mutableStateOf<List<ChatMemberSearchResult>>(emptyList()) }
     var stories by remember { mutableStateOf<List<StoryFeedItem>>(emptyList()) }
@@ -116,6 +117,7 @@ fun DirectChatInboxScreen(
             error = null
             val inboxResult = repository.getInbox()
             inboxResult.onSuccess { inbox = it }.onFailure { error = it.message ?: "Could not load conversations." }
+            repository.getUnreadCounts().onSuccess { unreadCounts = it }
             repository.getRooms().onSuccess { rooms = it }
                 .onFailure { error = it.message ?: "Could not load group conversations." }
             repository.getMemberSuggestions().onSuccess { members = it }
@@ -129,6 +131,8 @@ fun DirectChatInboxScreen(
 
     LaunchedEffect(selected?.conversationId) {
         val conversation = selected ?: return@LaunchedEffect
+        repository.markConversationRead(conversation.conversationId)
+            .onSuccess { unreadCounts = unreadCounts - conversation.conversationId }
         repository.getMessages(conversation.conversationId)
             .onSuccess { messages = it }
             .onFailure { error = it.message ?: "Could not load messages." }
@@ -314,7 +318,7 @@ fun DirectChatInboxScreen(
                             )
                         } else {
                             val item = entry.direct!!
-                            InboxConversationRow(item = item, onClick = {
+                            InboxConversationRow(item = item, unreadCount = unreadCounts[item.conversationId] ?: 0, onClick = {
                                 selected = item
                                 messages = emptyList()
                                 error = null
@@ -512,7 +516,7 @@ private fun ChatRoomInboxRow(room: ChatRoom, onClick: () -> Unit) {
 }
 
 @Composable
-private fun InboxConversationRow(item: DirectInboxItem, onClick: () -> Unit) {
+private fun InboxConversationRow(item: DirectInboxItem, unreadCount: Int = 0, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 12.dp),
@@ -529,7 +533,15 @@ private fun InboxConversationRow(item: DirectInboxItem, onClick: () -> Unit) {
         Column(horizontalAlignment = Alignment.End) {
             Text(formatChatTime(item.lastMessageAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(7.dp))
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(8.dp)) {}
+            if (unreadCount > 0) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.defaultMinSize(minWidth = 22.dp, minHeight = 22.dp)) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)) {
+                        Text(unreadCount.coerceAtMost(99).let { if (it == 99) "99+" else it.toString() }, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Spacer(Modifier.size(8.dp))
+            }
         }
     }
 }
