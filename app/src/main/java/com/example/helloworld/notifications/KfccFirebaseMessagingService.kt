@@ -75,10 +75,10 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(body)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setCategory(if (isChat) NotificationCompat.CATEGORY_MESSAGE else NotificationCompat.CATEGORY_STATUS)
+            .setCategory(if (isChat || isDirectChat) NotificationCompat.CATEGORY_MESSAGE else NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-        if (isChat) {
+        if (isChat || isDirectChat) {
             val senderBuilder = Person.Builder().setName(title)
             if (senderAvatar != null) {
                 senderBuilder.setIcon(IconCompat.createWithBitmap(senderAvatar))
