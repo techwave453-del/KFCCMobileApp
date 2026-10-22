@@ -149,9 +149,11 @@ fun DirectChatInboxScreen(
         repository.markConversationRead(conversation.conversationId)
             .onSuccess { unreadCounts = unreadCounts - conversation.conversationId }
         suspend fun loadThread() {
-            repository.getMessages(conversation.conversationId)
-                .onSuccess { messages = it }
+            val result = repository.getMessages(conversation.conversationId)
+            result.onSuccess { messages = it }
                 .onFailure { if (messages.isEmpty()) error = it.message ?: "Could not load messages." }
+            // Advance the receipt after successfully loading the visible thread, including new realtime messages.
+            if (result.isSuccess) repository.markConversationRead(conversation.conversationId)
             repository.getUnreadCounts().onSuccess { unreadCounts = it - conversation.conversationId }
         }
         loadThread()
