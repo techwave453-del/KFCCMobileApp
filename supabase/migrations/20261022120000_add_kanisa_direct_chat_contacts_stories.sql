@@ -207,6 +207,28 @@ with check (
     )
 );
 
+create or replace function public.touch_direct_conversation_after_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+    update public.chat_direct_conversations
+       set updated_at = new.created_at,
+           last_message_at = new.created_at,
+           last_message_preview = left(new.body, 180),
+           last_message_sender_id = new.sender_id
+     where id = new.conversation_id;
+    return new;
+end;
+$;
+
+drop trigger if exists chat_direct_message_updates_conversation on public.chat_direct_messages;
+create trigger chat_direct_message_updates_conversation
+after insert on public.chat_direct_messages
+for each row execute function public.touch_direct_conversation_after_message();
+
 -- Private story media is stored under a per-user folder. Storage policies enforce
 -- the same ownership boundary as the story metadata policies.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
