@@ -171,13 +171,17 @@ using (expires_at > now());
 drop policy if exists "Users can publish their own stories" on public.chat_stories;
 create policy "Users can publish their own stories"
 on public.chat_stories for insert to authenticated
-with check (user_id = auth.uid() and expires_at > now());
+with check (
+    user_id = auth.uid()
+    and expires_at > now()
+    and media_path like auth.uid()::text || '/%'
+);
 
 drop policy if exists "Owners can update their own stories" on public.chat_stories;
 create policy "Owners can update their own stories"
 on public.chat_stories for update to authenticated
 using (user_id = auth.uid())
-with check (user_id = auth.uid());
+with check (user_id = auth.uid() and media_path like auth.uid()::text || '/%');
 
 drop policy if exists "Owners can delete their own stories" on public.chat_stories;
 create policy "Owners can delete their own stories"
@@ -201,6 +205,52 @@ with check (
         select 1 from public.chat_stories s
         where s.id = story_id and s.expires_at > now() and s.user_id <> auth.uid()
     )
+);
+
+-- Private story media is stored under a per-user folder. Storage policies enforce
+-- the same ownership boundary as the story metadata policies.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('kanisa-story-media', 'kanisa-story-media', false, 52428800,
+        array['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'])
+on conflict (id) do nothing;
+
+drop policy if exists "Users can upload their own story media" on storage.objects;
+create policy "Users can upload their own story media"
+on storage.objects for insert to authenticated
+with check (
+    bucket_id = 'kanisa-story-media'
+    and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Users can read media for active stories" on storage.objects;
+create policy "Users can read media for active stories"
+on storage.objects for select to authenticated
+using (
+    bucket_id = 'kanisa-story-media'
+    and exists (
+        select 1 from public.chat_stories s
+        where s.media_path = name and s.expires_at > now()
+    )
+);
+
+drop policy if exists "Owners can update their own story media" on storage.objects;
+create policy "Owners can update their own story media"
+on storage.objects for update to authenticated
+using (
+    bucket_id = 'kanisa-story-media'
+    and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+    bucket_id = 'kanisa-story-media'
+    and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Owners can delete their own story media" on storage.objects;
+create policy "Owners can delete their own story media"
+on storage.objects for delete to authenticated
+using (
+    bucket_id = 'kanisa-story-media'
+    and (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- The function creates/reuses one canonical conversation for a pair. Clients cannot
