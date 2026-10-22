@@ -41,6 +41,13 @@ create index if not exists chat_direct_conversations_participant_a_idx
 create index if not exists chat_direct_conversations_participant_b_idx
     on public.chat_direct_conversations (participant_b, last_message_at desc);
 
+create table if not exists public.chat_direct_read_receipts (
+    conversation_id uuid not null references public.chat_direct_conversations(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
+    last_read_at timestamptz not null default now(),
+    primary key (conversation_id, user_id)
+);
+
 create table if not exists public.chat_contacts (
     user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
     contact_user_id uuid not null references auth.users(id) on delete cascade,
@@ -73,6 +80,7 @@ create table if not exists public.chat_story_views (
 
 alter table public.chat_direct_conversations enable row level security;
 alter table public.chat_direct_messages enable row level security;
+alter table public.chat_direct_read_receipts enable row level security;
 alter table public.chat_contacts enable row level security;
 alter table public.chat_stories enable row level security;
 alter table public.chat_story_views enable row level security;
@@ -83,10 +91,35 @@ on public.chat_direct_conversations for select to authenticated
 using (auth.uid() = participant_a or auth.uid() = participant_b);
 
 drop policy if exists "Participants can update direct conversation read state" on public.chat_direct_conversations;
-create policy "Participants can update direct conversation read state"
-on public.chat_direct_conversations for update to authenticated
-using (auth.uid() = participant_a or auth.uid() = participant_b)
-with check (auth.uid() = participant_a or auth.uid() = participant_b);
+drop policy if exists "Users can read their direct read receipts" on public.chat_direct_read_receipts;
+create policy "Users can read their direct read receipts"
+on public.chat_direct_read_receipts for select to authenticated
+using (
+    user_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+);
+
+drop policy if exists "Users can write their direct read receipts" on public.chat_direct_read_receipts;
+create policy "Users can write their direct read receipts"
+on public.chat_direct_read_receipts for insert to authenticated
+with check (
+    user_id = auth.uid()
+    and exists (
+        select 1 from public.chat_direct_conversations c
+        where c.id = conversation_id
+          and auth.uid() in (c.participant_a, c.participant_b)
+    )
+);
+
+drop policy if exists "Users can update their direct read receipts" on public.chat_direct_read_receipts;
+create policy "Users can update their direct read receipts"
+on public.chat_direct_read_receipts for update to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
 drop policy if exists "Participants can read direct messages" on public.chat_direct_messages;
 create policy "Participants can read direct messages"
