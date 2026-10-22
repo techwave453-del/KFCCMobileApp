@@ -65,6 +65,7 @@ fun CopyableErrorMessage(
         if (copied) {
             delay(1800)
             copied = false
+            copyStatus = "Copy error"
         }
     }
 
