@@ -29,6 +29,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -70,6 +72,7 @@ fun DirectChatInboxScreen(
 ) {
     val repository = remember { DirectChatRepository() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var inbox by remember { mutableStateOf<List<DirectInboxItem>>(emptyList()) }
     var unreadCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var rooms by remember { mutableStateOf<List<ChatRoom>>(emptyList()) }
@@ -91,6 +94,29 @@ fun DirectChatInboxScreen(
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
     var storyNotice by remember { mutableStateOf<String?>(null) }
+
+    val storyPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val mimeType = context.contentResolver.getType(uri).orEmpty()
+                val bytes = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+                if (bytes == null) {
+                    error = "Could not read the selected media file."
+                } else {
+                    repository.publishStory(bytes, mimeType)
+                        .onSuccess {
+                            storyNotice = "Your story was posted and will expire in 24 hours."
+                            repository.getStoryFeed().onSuccess { stories = it }
+                        }
+                        .onFailure { error = it.message ?: "Could not publish story." }
+                }
+            }
+        }
+    }
 
     fun openMemberConversation(member: ChatMemberSearchResult) {
         scope.launch {
@@ -309,7 +335,11 @@ fun DirectChatInboxScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Stories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("Disappears in 24 hours", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { storyPicker.launch(arrayOf("image/*", "video/*")) }) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add story")
+                    }
                 }
                 if (stories.isEmpty()) {
                     Row(
@@ -526,7 +556,7 @@ fun DirectChatInboxScreen(
     }
 
     storyNotice?.let { notice ->
-        AlertDialog(onDismissRequest = { storyNotice = null }, title = { Text("Contacts") }, text = { Text(notice) }, confirmButton = { TextButton(onClick = { storyNotice = null }) { Text("OK") } })
+        AlertDialog(onDismissRequest = { storyNotice = null }, title = { Text("Kanisa Chat") }, text = { Text(notice) }, confirmButton = { TextButton(onClick = { storyNotice = null }) { Text("OK") } })
     }
     error?.let { message ->
         AlertDialog(
