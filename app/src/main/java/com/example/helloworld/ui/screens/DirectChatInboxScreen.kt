@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Groups
@@ -103,6 +104,7 @@ fun DirectChatInboxScreen(
                         Text("Kanisa Chat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
                         Text("Stay connected with your church family", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    IconButton(onClick = onOpenAssistant) { Icon(Icons.Default.AutoAwesome, contentDescription = "Open Kanisa Assistant") }
                     IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, contentDescription = "Refresh inbox") }
                     Box {
                         FilledTonalButton(onClick = { menuExpanded = true }, shape = RoundedCornerShape(16.dp)) {
