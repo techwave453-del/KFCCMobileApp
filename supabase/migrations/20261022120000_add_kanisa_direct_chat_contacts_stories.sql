@@ -375,4 +375,38 @@ $;
 revoke all on function public.search_chat_members(text) from public;
 grant execute on function public.search_chat_members(text) to authenticated;
 
+-- Inbox projection joins the peer's public chat identity without exposing auth emails.
+create or replace function public.get_direct_chat_inbox()
+returns table(
+    conversation_id uuid,
+    peer_user_id uuid,
+    peer_username text,
+    peer_display_name text,
+    peer_avatar_url text,
+    last_message_preview text,
+    last_message_at timestamptz,
+    last_message_sender_id uuid
+)
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+    if auth.uid() is null then raise exception 'Authentication required'; end if;
+    return query
+    select c.id,
+           case when c.participant_a = auth.uid() then c.participant_b else c.participant_a end,
+           p.username, p.display_name, p.avatar_url,
+           c.last_message_preview, c.last_message_at, c.last_message_sender_id
+    from public.chat_direct_conversations c
+    join public.chat_profiles p
+      on p.user_id = case when c.participant_a = auth.uid() then c.participant_b else c.participant_a end
+    where auth.uid() in (c.participant_a, c.participant_b)
+    order by c.last_message_at desc;
+end;
+$;
+
+revoke all on function public.get_direct_chat_inbox() from public;
+grant execute on function public.get_direct_chat_inbox() to authenticated;
+
 commit;
