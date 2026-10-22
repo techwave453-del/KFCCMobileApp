@@ -82,6 +82,10 @@ fun ChatScreen(
         } else {
             DirectChatInboxScreen(
                 onOpenCommunity = { showCommunityChat = true },
+                onOpenRoom = { roomId ->
+                    viewModel.selectRoom(roomId)
+                    showCommunityChat = true
+                },
                 onOpenAssistant = { showAssistant = true },
                 modifier = Modifier.padding(top = innerPadding.calculateTopPadding(), bottom = innerPadding.calculateBottomPadding())
             )
