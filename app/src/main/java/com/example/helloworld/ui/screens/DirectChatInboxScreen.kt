@@ -44,6 +44,10 @@ import com.example.helloworld.data.DirectChatRepository
 import com.example.helloworld.data.DirectInboxItem
 import com.example.helloworld.data.DirectMessage
 import com.example.helloworld.data.StoryFeedItem
+import com.example.helloworld.data.SupabaseProvider
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
 import com.example.helloworld.ui.components.CopyableErrorMessage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -151,10 +155,27 @@ fun DirectChatInboxScreen(
             repository.getUnreadCounts().onSuccess { unreadCounts = it - conversation.conversationId }
         }
         loadThread()
-        // Poll only while a direct thread is visible; stop automatically when the user leaves it.
-        while (isActive) {
-            delay(5_000)
-            loadThread()
+
+        // Realtime events are a refresh signal, never the sole source of truth.
+        // Periodic re-fetching remains as a fallback for dropped events/offline reconnects.
+        val realtimeChannel = SupabaseProvider.client.channel("direct-messages-${conversation.conversationId}")
+        val changeFlow = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+            table = "chat_direct_messages"
+        }
+        val realtimeJob = launch {
+            runCatching {
+                changeFlow.collect { loadThread() }
+            }
+        }
+        try {
+            runCatching { realtimeChannel.subscribe(blockUntilSubscribed = true) }
+            while (isActive) {
+                delay(15_000)
+                loadThread()
+            }
+        } finally {
+            realtimeJob.cancel()
+            runCatching { SupabaseProvider.client.realtime.removeChannel(realtimeChannel) }
         }
     }
 
