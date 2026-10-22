@@ -29,6 +29,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.viewinterop.AndroidView
@@ -91,6 +93,7 @@ fun DirectChatInboxScreen(
     var draft by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var selectedStory by remember { mutableStateOf<StoryFeedItem?>(null) }
+    var storySequence by remember { mutableStateOf<List<StoryFeedItem>>(emptyList()) }
     var storyMediaUrl by remember { mutableStateOf<String?>(null) }
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
@@ -237,6 +240,16 @@ fun DirectChatInboxScreen(
             .onSuccess { storyMediaUrl = it }
             .onFailure { storyMediaError = it.message ?: "Could not load story media." }
         storyMediaLoading = false
+        repository.markStoryViewed(story.id)
+        // Image stories advance after 5 seconds; video stories get a longer viewing window.
+        delay(if (story.mediaType.equals("video", ignoreCase = true)) 15_000L else 5_000L)
+        val currentIndex = storySequence.indexOfFirst { it.id == story.id }
+        if (currentIndex >= 0 && currentIndex < storySequence.lastIndex) {
+            selectedStory = storySequence[currentIndex + 1]
+        } else {
+            selectedStory = null
+            storySequence = emptyList()
+        }
     }
 
     Column(
@@ -365,7 +378,10 @@ fun DirectChatInboxScreen(
                     ) {
                         items(storiesByUser, key = { it.userId }) { story ->
                             Column(
-                                modifier = Modifier.width(64.dp).clickable { selectedStory = story },
+                                modifier = Modifier.width(64.dp).clickable {
+                                    storySequence = stories.filter { it.userId == story.userId }.sortedBy { it.createdAt }
+                                    selectedStory = story
+                                },
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Box(
@@ -577,31 +593,63 @@ fun DirectChatInboxScreen(
         )
     }
     selectedStory?.let { story ->
-        AlertDialog(
-            onDismissRequest = { selectedStory = null },
-            title = { Text(story.displayName?.takeIf { it.isNotBlank() } ?: story.username) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    when {
-                        storyMediaLoading -> Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType)
-                        else -> Text(storyMediaError ?: "Story media is unavailable.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        val storyIndex = storySequence.indexOfFirst { it.id == story.id }.coerceAtLeast(0)
+        Dialog(
+            onDismissRequest = { selectedStory = null; storySequence = emptyList() },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    storySequence.forEachIndexed { index, _ ->
+                        LinearProgressIndicator(
+                            progress = { if (index < storyIndex) 1f else if (index == storyIndex) 0.35f else 0f },
+                            modifier = Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(4.dp)),
+                            color = androidx.compose.ui.graphics.Color.White,
+                            trackColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.28f)
+                        )
                     }
-                    if (story.caption.isNotBlank()) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(story.caption, style = MaterialTheme.typography.bodyLarge)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text("Stories expire automatically after 24 hours.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { repository.markStoryViewed(story.id) }
-                    selectedStory = null
-                }) { Text("Close") }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MemberAvatar(story.avatarUrl, story.displayName ?: story.username, 38.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(story.displayName?.takeIf { it.isNotBlank() } ?: story.username, color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.SemiBold)
+                        Text(formatChatTime(story.createdAt), color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+                    }
+                    TextButton(onClick = { selectedStory = null; storySequence = emptyList() }) {
+                        Text("Close", color = androidx.compose.ui.graphics.Color.White)
+                    }
+                }
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    when {
+                        storyMediaLoading -> CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
+                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType)
+                        else -> Text(storyMediaError ?: "Story media is unavailable.", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(24.dp))
+                    }
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f).fillMaxHeight().clickable {
+                            if (storyIndex > 0) selectedStory = storySequence[storyIndex - 1]
+                        })
+                        Box(Modifier.weight(1f).fillMaxHeight().clickable {
+                            if (storyIndex < storySequence.lastIndex) selectedStory = storySequence[storyIndex + 1]
+                            else { selectedStory = null; storySequence = emptyList() }
+                        })
+                    }
+                }
+                if (story.caption.isNotBlank()) {
+                    Text(story.caption, color = androidx.compose.ui.graphics.Color.White, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f)).padding(horizontal = 18.dp, vertical = 14.dp))
+                }
+                Text("Tap left or right to navigate • Stories expire after 24 hours", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.labelSmall, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp))
             }
-        )
+        }
     }
 
     storyNotice?.let { notice ->
