@@ -96,6 +96,8 @@ fun DirectChatInboxScreen(
     var storySequence by remember { mutableStateOf<List<StoryFeedItem>>(emptyList()) }
     var viewedStoryIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var storyProgress by remember { mutableFloatStateOf(0f) }
+    var storyVideoDurationMs by remember { mutableLongStateOf(0L) }
+    var storyVideoEnded by remember { mutableStateOf(false) }
     var storyMediaUrl by remember { mutableStateOf<String?>(null) }
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
@@ -238,6 +240,8 @@ fun DirectChatInboxScreen(
         storyMediaUrl = null
         storyMediaError = null
         storyProgress = 0f
+        storyVideoDurationMs = 0L
+        storyVideoEnded = false
         storyMediaLoading = true
         repository.getStoryMediaUrl(story.mediaPath)
             .onSuccess { storyMediaUrl = it }
@@ -245,11 +249,21 @@ fun DirectChatInboxScreen(
         storyMediaLoading = false
         repository.markStoryViewed(story.id)
         viewedStoryIds = viewedStoryIds + story.id
-        // Image stories advance after 5 seconds; video stories get a longer viewing window.
-        val duration = if (story.mediaType.equals("video", ignoreCase = true)) 15_000L else 5_000L
-        repeat(100) { step ->
-            delay(duration / 100)
-            storyProgress = (step + 1) / 100f
+
+        if (story.mediaType.equals("video", ignoreCase = true)) {
+            // Follow ExoPlayer's duration/end events; retain a timeout for stalled media.
+            var elapsedMs = 0L
+            while (elapsedMs < 30_000L && !storyVideoEnded) {
+                delay(100)
+                elapsedMs += 100
+                val durationMs = storyVideoDurationMs.takeIf { it > 0L } ?: 30_000L
+                storyProgress = (elapsedMs.toFloat() / durationMs).coerceIn(0f, 1f)
+            }
+        } else {
+            repeat(100) { step ->
+                delay(50)
+                storyProgress = (step + 1) / 100f
+            }
         }
         val currentIndex = storySequence.indexOfFirst { it.id == story.id }
         if (currentIndex >= 0 && currentIndex < storySequence.lastIndex) {
@@ -644,7 +658,13 @@ fun DirectChatInboxScreen(
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
                         storyMediaLoading -> CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
-                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType, modifier = Modifier.fillMaxSize())
+                        storyMediaUrl != null -> StoryMediaContent(
+                            mediaUrl = storyMediaUrl!!,
+                            mediaType = story.mediaType,
+                            modifier = Modifier.fillMaxSize(),
+                            onVideoDuration = { duration -> storyVideoDurationMs = duration },
+                            onVideoEnded = { storyVideoEnded = true }
+                        )
                         else -> Text(storyMediaError ?: "Story media is unavailable.", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(24.dp))
                     }
                     Row(Modifier.fillMaxSize()) {
@@ -689,10 +709,14 @@ fun DirectChatInboxScreen(
 private fun StoryMediaContent(
     mediaUrl: String,
     mediaType: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onVideoDuration: (Long) -> Unit = {},
+    onVideoEnded: () -> Unit = {}
 ) {
     if (mediaType.equals("video", ignoreCase = true)) {
         val context = LocalContext.current
+        val currentOnVideoDuration by rememberUpdatedState(onVideoDuration)
+        val currentOnVideoEnded by rememberUpdatedState(onVideoEnded)
         val player = remember(mediaUrl) {
             ExoPlayer.Builder(context).build().apply {
                 setMediaItem(MediaItem.fromUri(mediaUrl))
@@ -701,7 +725,22 @@ private fun StoryMediaContent(
             }
         }
         DisposableEffect(player) {
-            onDispose { player.release() }
+            val listener = object : androidx.media3.common.Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == androidx.media3.common.Player.STATE_READY && player.duration > 0L) {
+                        currentOnVideoDuration(player.duration)
+                    }
+                    if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                        currentOnVideoEnded()
+                    }
+                }
+            }
+            player.addListener(listener)
+            if (player.duration > 0L) currentOnVideoDuration(player.duration)
+            onDispose {
+                player.removeListener(listener)
+                player.release()
+            }
         }
         AndroidView(
             factory = { viewContext -> PlayerView(viewContext).apply { this.player = player; useController = false } },
