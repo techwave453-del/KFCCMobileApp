@@ -216,7 +216,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
     update public.chat_direct_conversations
        set updated_at = new.created_at,
@@ -226,7 +226,7 @@ begin
      where id = new.conversation_id;
     return new;
 end;
-$;
+$$;
 
 drop trigger if exists chat_direct_message_updates_conversation on public.chat_direct_messages;
 create trigger chat_direct_message_updates_conversation
