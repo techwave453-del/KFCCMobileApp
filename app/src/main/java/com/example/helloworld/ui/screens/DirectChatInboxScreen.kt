@@ -94,6 +94,8 @@ fun DirectChatInboxScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var selectedStory by remember { mutableStateOf<StoryFeedItem?>(null) }
     var storySequence by remember { mutableStateOf<List<StoryFeedItem>>(emptyList()) }
+    var viewedStoryIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var storyProgress by remember { mutableFloatStateOf(0f) }
     var storyMediaUrl by remember { mutableStateOf<String?>(null) }
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
@@ -235,14 +237,20 @@ fun DirectChatInboxScreen(
         }
         storyMediaUrl = null
         storyMediaError = null
+        storyProgress = 0f
         storyMediaLoading = true
         repository.getStoryMediaUrl(story.mediaPath)
             .onSuccess { storyMediaUrl = it }
             .onFailure { storyMediaError = it.message ?: "Could not load story media." }
         storyMediaLoading = false
         repository.markStoryViewed(story.id)
+        viewedStoryIds = viewedStoryIds + story.id
         // Image stories advance after 5 seconds; video stories get a longer viewing window.
-        delay(if (story.mediaType.equals("video", ignoreCase = true)) 15_000L else 5_000L)
+        val duration = if (story.mediaType.equals("video", ignoreCase = true)) 15_000L else 5_000L
+        repeat(100) { step ->
+            delay(duration / 100)
+            storyProgress = (step + 1) / 100f
+        }
         val currentIndex = storySequence.indexOfFirst { it.id == story.id }
         if (currentIndex >= 0 && currentIndex < storySequence.lastIndex) {
             selectedStory = storySequence[currentIndex + 1]
@@ -386,7 +394,10 @@ fun DirectChatInboxScreen(
                             ) {
                                 Box(
                                     modifier = Modifier.size(54.dp).clip(CircleShape)
-                                        .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
+                                        .background(
+                                            if (story.id in viewedStoryIds) MaterialTheme.colorScheme.outlineVariant
+                                            else Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary))
+                                        )
                                         .padding(3.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -607,7 +618,7 @@ fun DirectChatInboxScreen(
                 ) {
                     storySequence.forEachIndexed { index, _ ->
                         LinearProgressIndicator(
-                            progress = { if (index < storyIndex) 1f else if (index == storyIndex) 0.35f else 0f },
+                            progress = { if (index < storyIndex) 1f else if (index == storyIndex) storyProgress else 0f },
                             modifier = Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(4.dp)),
                             color = androidx.compose.ui.graphics.Color.White,
                             trackColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.28f)
