@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.helloworld.data.ChatMemberSearchResult
+import com.example.helloworld.data.ChatRoom
 import com.example.helloworld.data.DirectChatRepository
 import com.example.helloworld.data.DirectInboxItem
 import com.example.helloworld.data.DirectMessage
@@ -47,12 +49,15 @@ private enum class NewChatAction { MESSAGE, CONTACT }
 @Composable
 fun DirectChatInboxScreen(
     onOpenCommunity: () -> Unit,
+    onOpenRoom: (String) -> Unit,
     onOpenAssistant: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val repository = remember { DirectChatRepository() }
     val scope = rememberCoroutineScope()
     var inbox by remember { mutableStateOf<List<DirectInboxItem>>(emptyList()) }
+    var rooms by remember { mutableStateOf<List<ChatRoom>>(emptyList()) }
+    var members by remember { mutableStateOf<List<ChatMemberSearchResult>>(emptyList()) }
     var stories by remember { mutableStateOf<List<StoryFeedItem>>(emptyList()) }
     var messages by remember { mutableStateOf<List<DirectMessage>>(emptyList()) }
     var selected by remember { mutableStateOf<DirectInboxItem?>(null) }
@@ -68,12 +73,41 @@ fun DirectChatInboxScreen(
     var selectedStory by remember { mutableStateOf<StoryFeedItem?>(null) }
     var storyNotice by remember { mutableStateOf<String?>(null) }
 
+    fun openMemberConversation(member: ChatMemberSearchResult) {
+        scope.launch {
+            repository.startConversation(member.userId).onSuccess { id ->
+                val row = DirectInboxItem(
+                    conversationId = id,
+                    peerUserId = member.userId,
+                    peerUsername = member.username,
+                    peerDisplayName = member.displayName,
+                    peerAvatarUrl = member.avatarUrl,
+                    lastMessagePreview = null,
+                    lastMessageAt = Instant.now().toString()
+                )
+                inbox = listOf(row) + inbox.filterNot { it.conversationId == id }
+                selected = row
+                messages = emptyList()
+                error = null
+            }.onFailure { error = it.message ?: "Could not start conversation." }
+        }
+    }
+
+    val inboxEntries = remember(inbox, rooms) {
+        rooms.map { InboxDisplayEntry(key = "room:" + it.id, room = it) } +
+            inbox.map { InboxDisplayEntry(key = "direct:" + it.conversationId, direct = it) }
+    }
+
     fun refresh() {
         scope.launch {
             loading = true
             error = null
             val inboxResult = repository.getInbox()
             inboxResult.onSuccess { inbox = it }.onFailure { error = it.message ?: "Could not load conversations." }
+            repository.getRooms().onSuccess { rooms = it }
+                .onFailure { error = it.message ?: "Could not load group conversations." }
+            repository.getMemberSuggestions().onSuccess { members = it }
+                .onFailure { /* Keep chat usable even if suggestions cannot be loaded. */ }
             repository.getStoryFeed().onSuccess { stories = it }
             loading = false
         }
@@ -404,6 +438,50 @@ fun DirectChatInboxScreen(
             },
             confirmButton = { TextButton(onClick = { error = null }) { Text("Close") } }
         )
+    }
+}
+
+private data class InboxDisplayEntry(
+    val key: String,
+    val direct: DirectInboxItem? = null,
+    val room: ChatRoom? = null,
+)
+
+@Composable
+private fun ChatRoomInboxRow(room: ChatRoom, onClick: () -> Unit) {
+    val isCommunity = room.type.equals("community", ignoreCase = true)
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(54.dp),
+            shape = CircleShape,
+            color = if (isCommunity) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    if (isCommunity) Icons.Default.Groups else Icons.Default.Group,
+                    contentDescription = null,
+                    tint = if (isCommunity) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(room.title.ifBlank { if (isCommunity) "Community Chat" else "Group Chat" }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (isCommunity) "Church community conversation" else "Group conversation",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "Open room", tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
