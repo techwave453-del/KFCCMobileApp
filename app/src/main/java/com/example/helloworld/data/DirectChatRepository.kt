@@ -63,6 +63,20 @@ data class ChatStory(
 )
 
 @Serializable
+data class StoryFeedItem(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    val username: String,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("media_path") val mediaPath: String,
+    @SerialName("media_type") val mediaType: String,
+    val caption: String = "",
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("expires_at") val expiresAt: String,
+)
+
+@Serializable
 data class SavedChatContact(
     @SerialName("user_id") val userId: String,
     @SerialName("contact_user_id") val contactUserId: String,
@@ -151,6 +165,11 @@ class DirectChatRepository {
             "add_chat_contact",
             mapOf("p_contact_user_id" to contactUserId)
         )
+    }
+
+    suspend fun getStoryFeed(): Result<List<StoryFeedItem>> = runCatching {
+        client.postgrest.rpc("get_active_chat_stories")
+            .decodeList<StoryFeedItem>()
     }
 
     suspend fun getActiveStories(): Result<List<ChatStory>> = runCatching {
