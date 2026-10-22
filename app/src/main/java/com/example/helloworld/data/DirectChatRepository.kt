@@ -29,6 +29,12 @@ data class ChatMemberSearchResult(
 )
 
 @Serializable
+data class DirectUnreadCount(
+    @SerialName("conversation_id") val conversationId: String,
+    @SerialName("unread_count") val unreadCount: Int,
+)
+
+@Serializable
 data class DirectConversation(
     val id: String,
     @SerialName("participant_a") val participantA: String,
@@ -98,6 +104,20 @@ class DirectChatRepository {
     suspend fun getInbox(): Result<List<DirectInboxItem>> = runCatching {
         client.postgrest.rpc("get_direct_chat_inbox")
             .decodeList<DirectInboxItem>()
+    }
+
+    suspend fun getUnreadCounts(): Result<Map<String, Int>> = runCatching {
+        client.postgrest.rpc("get_direct_chat_unread_counts")
+            .decodeList<DirectUnreadCount>()
+            .associate { it.conversationId to it.unreadCount }
+    }
+
+    suspend fun markConversationRead(conversationId: String): Result<Unit> = runCatching {
+        require(conversationId.isNotBlank()) { "Conversation is unavailable." }
+        client.postgrest.rpc(
+            "mark_direct_conversation_read",
+            buildJsonObject { put("p_conversation_id", conversationId) }
+        )
     }
 
     suspend fun getMemberSuggestions(): Result<List<ChatMemberSearchResult>> = runCatching {
