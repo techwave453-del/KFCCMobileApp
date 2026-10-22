@@ -8,7 +8,7 @@ create table if not exists public.chat_direct_conversations (
     id uuid primary key default gen_random_uuid(),
     participant_a uuid not null references auth.users(id) on delete cascade,
     participant_b uuid not null references auth.users(id) on delete cascade,
-    created_by uuid not null references auth.users(id) on delete restrict default auth.uid(),
+    created_by uuid not null references auth.users(id) on delete cascade default auth.uid(),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     last_message_at timestamptz not null default now(),
@@ -156,7 +156,11 @@ using (user_id = auth.uid());
 drop policy if exists "Users can add their own contacts" on public.chat_contacts;
 create policy "Users can add their own contacts"
 on public.chat_contacts for insert to authenticated
-with check (user_id = auth.uid() and contact_user_id <> auth.uid());
+with check (
+    user_id = auth.uid()
+    and contact_user_id <> auth.uid()
+    and exists (select 1 from public.chat_profiles p where p.user_id = contact_user_id)
+);
 
 drop policy if exists "Users can remove their own contacts" on public.chat_contacts;
 create policy "Users can remove their own contacts"
