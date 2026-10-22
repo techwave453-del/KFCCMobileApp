@@ -50,6 +50,7 @@ import com.example.helloworld.data.SupabaseProvider
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import com.example.helloworld.ui.components.CopyableErrorMessage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -192,7 +193,7 @@ fun DirectChatInboxScreen(
 
         // Realtime events are a refresh signal, never the sole source of truth.
         // Periodic re-fetching remains as a fallback for dropped events/offline reconnects.
-        val realtimeChannel = SupabaseProvider.client.channel("direct-messages-${conversation.conversationId}")
+        val realtimeChannel = SupabaseProvider.client.realtime.channel("direct-messages-${conversation.conversationId}")
         val changeFlow = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "chat_direct_messages"
         }
