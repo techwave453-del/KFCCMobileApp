@@ -234,7 +234,7 @@ class DirectChatRepository {
         val mediaType = if (mimeType.startsWith("video/")) "video" else "image"
         val path = "$userId/${UUID.randomUUID()}.$extension"
         val bucket = client.storage.from("kanisa-story-media")
-        bucket.upload(path = path, data = mediaBytes, upsert = false)
+        bucket.upload(path = path, data = mediaBytes) { upsert = false }
         try {
             client.from("chat_stories").insert(
                 mapOf(
