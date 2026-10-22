@@ -44,6 +44,7 @@ import com.example.helloworld.ui.ChurchViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     innerPadding: PaddingValues,
