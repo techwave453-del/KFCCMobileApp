@@ -57,6 +57,7 @@ fun ChatScreen(
     val signedIn by viewModel.signedIn.collectAsState()
     val adminUser by adminViewModel.user.collectAsState()
     var showAssistant by rememberSaveable { mutableStateOf(false) }
+    var showCommunityChat by rememberSaveable { mutableStateOf(false) }
 
     if (signedIn || adminUser != null) {
         if (showAssistant) {
@@ -68,14 +69,21 @@ fun ChatScreen(
                     onOpenBibleReference(reference)
                 }
             )
-        } else {
+        } else if (showCommunityChat) {
             CommunityChat(
                 viewModel,
                 adminUser,
                 churchInfo.churchName,
                 innerPadding,
                 onOpenAssistant = { showAssistant = true },
-                onOpenBibleReference = onOpenBibleReference
+                onOpenBibleReference = onOpenBibleReference,
+                onBackToInbox = { showCommunityChat = false }
+            )
+        } else {
+            DirectChatInboxScreen(
+                onOpenCommunity = { showCommunityChat = true },
+                onOpenAssistant = { showAssistant = true },
+                modifier = Modifier.padding(top = innerPadding.calculateTopPadding(), bottom = innerPadding.calculateBottomPadding())
             )
         }
     } else {
@@ -98,7 +106,8 @@ private fun CommunityChat(
     churchName: String,
     innerPadding: PaddingValues,
     onOpenAssistant: () -> Unit = {},
-    onOpenBibleReference: (String) -> Unit = {}
+    onOpenBibleReference: (String) -> Unit = {},
+    onBackToInbox: () -> Unit = {}
 ) {
     val messages by viewModel.messages.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -134,6 +143,9 @@ private fun CommunityChat(
         ) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBackToInbox, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back to inbox")
+                    }
                     Icon(
                         if (currentRoom?.type == "group") Icons.Default.Group else Icons.AutoMirrored.Filled.Chat, 
                         null, 
