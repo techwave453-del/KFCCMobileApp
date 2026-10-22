@@ -753,7 +753,7 @@ private fun DirectMessageThread(
     onBack: () -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().imePadding()) {
+    Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 6.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -796,7 +796,7 @@ private fun DirectMessageThread(
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
+            Modifier.fillMaxWidth().imePadding().padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
