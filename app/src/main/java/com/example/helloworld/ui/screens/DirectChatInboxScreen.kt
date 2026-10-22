@@ -664,8 +664,24 @@ fun DirectChatInboxScreen(
         val storyIndex = storySequence.indexOfFirst { it.id == story.id }.coerceAtLeast(0)
         Dialog(
             onDismissRequest = { selectedStory = null; storySequence = emptyList() },
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
         ) {
+            // Explicitly size the dialog window itself, not only its Compose content.
+            // Some Android window configurations otherwise keep a platform-sized dialog
+            // for stories opened from another member's tray item.
+            val dialogView = androidx.compose.ui.platform.LocalView.current
+            SideEffect {
+                (dialogView.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.apply {
+                    setBackgroundDrawableResource(android.R.color.transparent)
+                    setLayout(
+                        android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                        android.view.WindowManager.LayoutParams.MATCH_PARENT
+                    )
+                }
+            }
             Column(
                 modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)
             ) {
