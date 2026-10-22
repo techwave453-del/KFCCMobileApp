@@ -51,7 +51,9 @@ fun ChatScreen(
     viewModel: ChatViewModel = viewModel(),
     adminViewModel: AdminViewModel = viewModel(factory = AdminViewModel.Factory(LocalContext.current.applicationContext as Application)),
     onAdminLoginSuccess: () -> Unit = {},
-    onOpenBibleReference: (String) -> Unit = {}
+    onOpenBibleReference: (String) -> Unit = {},
+    openDirectConversationId: String? = null,
+    onDirectConversationOpened: () -> Unit = {}
 ) {
     val churchViewModel: ChurchViewModel = viewModel()
     val churchInfo by churchViewModel.churchInfo.collectAsState()
@@ -82,6 +84,8 @@ fun ChatScreen(
             )
         } else {
             DirectChatInboxScreen(
+                initialConversationId = openDirectConversationId,
+                onInitialConversationOpened = onDirectConversationOpened,
                 onOpenCommunity = { showCommunityChat = true },
                 onOpenRoom = { roomId ->
                     viewModel.selectRoom(roomId)
