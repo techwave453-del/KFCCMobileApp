@@ -700,6 +700,7 @@ private fun MemberAvatar(url: String?, label: String, size: androidx.compose.ui.
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DirectMessageThread(
     item: DirectInboxItem,
