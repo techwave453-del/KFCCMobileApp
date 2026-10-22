@@ -87,7 +87,7 @@ fun ChatScreen(
                     showCommunityChat = true
                 },
                 onOpenAssistant = { showAssistant = true },
-                modifier = Modifier.padding(top = innerPadding.calculateTopPadding(), bottom = innerPadding.calculateBottomPadding())
+                modifier = Modifier.padding(top = innerPadding.calculateTopPadding(), bottom = if (WindowInsets.isImeVisible) 0.dp else innerPadding.calculateBottomPadding())
             )
         }
     } else {
