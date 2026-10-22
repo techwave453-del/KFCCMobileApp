@@ -1,5 +1,8 @@
 package com.example.helloworld.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,8 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -42,7 +44,8 @@ fun CopyableErrorMessage(
     title: String = "Something went wrong",
     onRetry: (() -> Unit)? = null
 ) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    var copyStatus by remember { mutableStateOf("Copy error") }
     var copied by remember { mutableStateOf(false) }
 
     val safeMessage = sanitizeErrorText(message)
@@ -100,12 +103,20 @@ fun CopyableErrorMessage(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(copyText))
-                        copied = true
+                        val result = runCatching {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText(title, copyText))
+                        }
+                        if (result.isSuccess) {
+                            copyStatus = "Copied"
+                            copied = true
+                        } else {
+                            copyStatus = "Copy failed — tap to retry"
+                        }
                     }
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy error")
-                    Text(if (copied) "Copied" else "Copy error")
+                    Text(if (copied) "Copied" else copyStatus)
                 }
 
                 if (onRetry != null) {
