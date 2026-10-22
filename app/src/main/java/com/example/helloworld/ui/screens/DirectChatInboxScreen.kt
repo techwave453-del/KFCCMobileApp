@@ -644,7 +644,7 @@ fun DirectChatInboxScreen(
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
                         storyMediaLoading -> CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
-                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType)
+                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType, modifier = Modifier.fillMaxSize())
                         else -> Text(storyMediaError ?: "Story media is unavailable.", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(24.dp))
                     }
                     Row(Modifier.fillMaxSize()) {
@@ -686,7 +686,11 @@ fun DirectChatInboxScreen(
 
 
 @Composable
-private fun StoryMediaContent(mediaUrl: String, mediaType: String) {
+private fun StoryMediaContent(
+    mediaUrl: String,
+    mediaType: String,
+    modifier: Modifier = Modifier
+) {
     if (mediaType.equals("video", ignoreCase = true)) {
         val context = LocalContext.current
         val player = remember(mediaUrl) {
@@ -700,16 +704,16 @@ private fun StoryMediaContent(mediaUrl: String, mediaType: String) {
             onDispose { player.release() }
         }
         AndroidView(
-            factory = { viewContext -> PlayerView(viewContext).apply { this.player = player; useController = true } },
+            factory = { viewContext -> PlayerView(viewContext).apply { this.player = player; useController = false } },
             update = { it.player = player },
-            modifier = Modifier.fillMaxWidth().height(340.dp).clip(RoundedCornerShape(16.dp))
+            modifier = modifier.clip(RoundedCornerShape(8.dp))
         )
     } else {
         AsyncImage(
             model = mediaUrl,
             contentDescription = "Story media",
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).clip(RoundedCornerShape(16.dp))
+            modifier = modifier.clip(RoundedCornerShape(8.dp))
         )
     }
 }
