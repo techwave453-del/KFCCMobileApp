@@ -34,6 +34,7 @@ import com.example.helloworld.data.DirectChatRepository
 import com.example.helloworld.data.DirectInboxItem
 import com.example.helloworld.data.DirectMessage
 import com.example.helloworld.data.StoryFeedItem
+import com.example.helloworld.ui.components.CopyableErrorMessage
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -358,8 +359,14 @@ fun DirectChatInboxScreen(
         AlertDialog(
             onDismissRequest = { error = null },
             title = { Text("Chat") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = { error = null }) { Text("OK") } }
+            text = {
+                CopyableErrorMessage(
+                    message = message,
+                    technicalDetails = message,
+                    title = "Chat error"
+                )
+            },
+            confirmButton = { TextButton(onClick = { error = null }) { Text("Close") } }
         )
     }
 }
