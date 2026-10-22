@@ -42,6 +42,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.example.helloworld.data.ChatMemberSearchResult
 import com.example.helloworld.data.ChatRoom
 import com.example.helloworld.data.DirectChatRepository
@@ -99,6 +102,8 @@ fun DirectChatInboxScreen(
     var storyVideoDurationMs by remember { mutableLongStateOf(0L) }
     var storyVideoEnded by remember { mutableStateOf(false) }
     var storyMediaUrl by remember { mutableStateOf<String?>(null) }
+    var preloadedStoryUrls by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var storyImageReady by remember { mutableStateOf(false) }
     var storyMediaLoading by remember { mutableStateOf(false) }
     var storyMediaError by remember { mutableStateOf<String?>(null) }
     var storyNotice by remember { mutableStateOf<String?>(null) }
@@ -185,6 +190,28 @@ fun DirectChatInboxScreen(
 
     LaunchedEffect(Unit) { refresh() }
 
+    LaunchedEffect(stories) {
+        // Warm the image cache for the first stories users are most likely to open.
+        // Video URLs are signed on demand to avoid pre-downloading large files.
+        val candidates = stories.filter { !it.mediaType.equals("video", ignoreCase = true) }.take(12)
+        candidates.forEach { candidate ->
+            if (preloadedStoryUrls[candidate.id] == null) {
+                repository.getStoryMediaUrl(candidate.mediaPath).onSuccess { url ->
+                    preloadedStoryUrls = preloadedStoryUrls + (candidate.id to url)
+                    val request = ImageRequest.Builder(context)
+                        .data(url)
+                        .memoryCacheKey(url)
+                        .diskCacheKey(url)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                    context.imageLoader.enqueue(request)
+                }
+            }
+        }
+    }
+
+
     LaunchedEffect(selected?.conversationId) {
         val conversation = selected ?: return@LaunchedEffect
         repository.markConversationRead(conversation.conversationId)
@@ -242,8 +269,11 @@ fun DirectChatInboxScreen(
         storyProgress = 0f
         storyVideoDurationMs = 0L
         storyVideoEnded = false
+        storyImageReady = false
         storyMediaLoading = true
-        repository.getStoryMediaUrl(story.mediaPath)
+        val cachedUrl = preloadedStoryUrls[story.id]
+        val urlResult = if (cachedUrl != null) Result.success(cachedUrl) else repository.getStoryMediaUrl(story.mediaPath)
+        urlResult
             .onSuccess { storyMediaUrl = it }
             .onFailure { storyMediaError = it.message ?: "Could not load story media." }
         storyMediaLoading = false
@@ -260,9 +290,20 @@ fun DirectChatInboxScreen(
                 storyProgress = (elapsedMs.toFloat() / durationMs).coerceIn(0f, 1f)
             }
         } else {
-            repeat(100) { step ->
-                delay(50)
-                storyProgress = (step + 1) / 100f
+            // Start the five-second viewing period only after Coil confirms the image is ready.
+            var waitMs = 0L
+            while (!storyImageReady && storyMediaError == null && waitMs < 15_000L) {
+                delay(100)
+                waitMs += 100
+            }
+            if (storyImageReady) {
+                repeat(100) { step ->
+                    delay(50)
+                    storyProgress = (step + 1) / 100f
+                }
+            } else {
+                // Avoid getting stuck indefinitely if the image cannot be loaded.
+                delay(1_000)
             }
         }
         val currentIndex = storySequence.indexOfFirst { it.id == story.id }
@@ -663,7 +704,8 @@ fun DirectChatInboxScreen(
                             mediaType = story.mediaType,
                             modifier = Modifier.fillMaxSize(),
                             onVideoDuration = { duration -> storyVideoDurationMs = duration },
-                            onVideoEnded = { storyVideoEnded = true }
+                            onVideoEnded = { storyVideoEnded = true },
+                            onImageReady = { storyImageReady = true }
                         )
                         else -> Text(storyMediaError ?: "Story media is unavailable.", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(24.dp))
                     }
@@ -711,7 +753,8 @@ private fun StoryMediaContent(
     mediaType: String,
     modifier: Modifier = Modifier,
     onVideoDuration: (Long) -> Unit = {},
-    onVideoEnded: () -> Unit = {}
+    onVideoEnded: () -> Unit = {},
+    onImageReady: () -> Unit = {}
 ) {
     if (mediaType.equals("video", ignoreCase = true)) {
         val context = LocalContext.current
@@ -749,9 +792,15 @@ private fun StoryMediaContent(
         )
     } else {
         AsyncImage(
-            model = mediaUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(mediaUrl)
+                .memoryCacheKey(mediaUrl)
+                .diskCacheKey(mediaUrl)
+                .crossfade(false)
+                .build(),
             contentDescription = "Story media",
             contentScale = ContentScale.Fit,
+            onSuccess = { onImageReady() },
             modifier = modifier.clip(RoundedCornerShape(8.dp))
         )
     }
