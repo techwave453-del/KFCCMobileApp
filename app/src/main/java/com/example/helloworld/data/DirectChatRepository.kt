@@ -1,11 +1,13 @@
 package com.example.helloworld.data
 
+import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlin.time.Duration.Companion.minutes
 import java.time.Instant
 
 @Serializable
@@ -203,6 +205,17 @@ class DirectChatRepository {
             "add_chat_contact",
             buildJsonObject { put("p_contact_user_id", contactUserId) }
         )
+    }
+
+    suspend fun getStoryMediaUrl(mediaPath: String): Result<String> = runCatching {
+        require(mediaPath.isNotBlank()) { "Story media is unavailable." }
+        val normalizedPath = mediaPath.trim().removePrefix("/")
+            .removePrefix("kanisa-story-media/")
+        require(!normalizedPath.startsWith("http", ignoreCase = true)) {
+            "Story media must use a private storage object path."
+        }
+        client.storage.from("kanisa-story-media")
+            .createSignedUrl(path = normalizedPath, expiresIn = 30.minutes)
     }
 
     suspend fun getStoryFeed(): Result<List<StoryFeedItem>> = runCatching {
