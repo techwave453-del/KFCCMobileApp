@@ -712,12 +712,12 @@ private fun DirectMessageThread(
 ) {
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 8.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 6.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back to inbox") }
-            MemberAvatar(item.peerAvatarUrl, item.peerDisplayName ?: item.peerUsername, 42.dp)
-            Spacer(Modifier.width(10.dp))
+            MemberAvatar(item.peerAvatarUrl, item.peerDisplayName ?: item.peerUsername, 36.dp)
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(item.peerDisplayName?.takeIf { it.isNotBlank() } ?: item.peerUsername, fontWeight = FontWeight.Bold)
                 Text("@${item.peerUsername}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -731,8 +731,8 @@ private fun DirectMessageThread(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 reverseLayout = false
             ) {
                 items(messages, key = { it.id }) { message ->
@@ -742,9 +742,9 @@ private fun DirectMessageThread(
                             shape = RoundedCornerShape(topStart = 5.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp),
                             modifier = Modifier.widthIn(max = 300.dp)
                         ) {
-                            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                                Text(message.body, style = MaterialTheme.typography.bodyLarge)
-                                Spacer(Modifier.height(3.dp))
+                            Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp)) {
+                                Text(message.body, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.height(2.dp))
                                 Text(formatChatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -753,7 +753,7 @@ private fun DirectMessageThread(
             }
         }
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -764,7 +764,7 @@ private fun DirectMessageThread(
                 shape = RoundedCornerShape(24.dp),
                 maxLines = 4
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             FilledIconButton(onClick = onSend, enabled = draft.isNotBlank() && !sending) {
                 if (sending) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(Icons.Default.Send, contentDescription = "Send message")
