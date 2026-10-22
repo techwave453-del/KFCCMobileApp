@@ -753,7 +753,7 @@ private fun DirectMessageThread(
             }
         }
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 10.dp, vertical = 5.dp),
+            Modifier.fillMaxWidth().then(if (WindowInsets.isImeVisible) Modifier.imePadding() else Modifier.navigationBarsPadding()).padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
