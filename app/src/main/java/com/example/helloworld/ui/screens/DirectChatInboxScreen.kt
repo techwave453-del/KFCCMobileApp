@@ -101,10 +101,15 @@ fun DirectChatInboxScreen(
         if (uri != null) {
             scope.launch {
                 val mimeType = context.contentResolver.getType(uri).orEmpty()
-                val bytes = runCatching {
+                val declaredSize = runCatching {
+                    context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+                }.getOrDefault(-1L)
+                val bytes = if (declaredSize > 50L * 1024L * 1024L) null else runCatching {
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }.getOrNull()
-                if (bytes == null) {
+                if (declaredSize > 50L * 1024L * 1024L) {
+                    error = "Stories must be 50 MB or smaller."
+                } else if (bytes == null) {
                     error = "Could not read the selected media file."
                 } else {
                     repository.publishStory(bytes, mimeType)
