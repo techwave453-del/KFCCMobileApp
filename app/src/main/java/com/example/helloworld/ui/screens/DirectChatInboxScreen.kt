@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import coil.compose.AsyncImage
 import com.example.helloworld.data.ChatMemberSearchResult
 import com.example.helloworld.data.DirectChatRepository
@@ -360,11 +363,24 @@ fun DirectChatInboxScreen(
             onDismissRequest = { error = null },
             title = { Text("Chat") },
             text = {
-                CopyableErrorMessage(
-                    message = message,
-                    technicalDetails = message,
-                    title = "Chat error"
-                )
+                val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = screenHeight * 0.62f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        CopyableErrorMessage(
+                            message = message,
+                            technicalDetails = message,
+                            title = "Chat error"
+                        )
+                    }
+                }
             },
             confirmButton = { TextButton(onClick = { error = null }) { Text("Close") } }
         )
