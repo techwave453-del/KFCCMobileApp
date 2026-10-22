@@ -48,3 +48,8 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 - Direct messages use Supabase Realtime insert events to refresh the open thread, with a 15-second polling fallback and 15-second inbox polling. The direct-message and conversation tables must remain in the `supabase_realtime` publication. Offline queuing is not implemented.
 - Unread counts and read timestamps are wired through participant-checked RPCs; inbox counts poll every 15 seconds and refresh when direct-message realtime events update an open thread.
 - No demo contacts or stories are seeded.
+
+
+## Inbox density pass
+
+The inbox layout now uses a compact single-row header, puts creation actions in the plus menu, reduces member/story avatars to 54 dp, removes the empty-story placeholder, and only renders the Stories strip when active stories exist. This keeps the Messages list higher on screen, especially on small Android devices. The UI still requires a device build and visual QA.
