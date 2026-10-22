@@ -7,6 +7,26 @@ import kotlinx.serialization.Serializable
 import java.time.Instant
 
 @Serializable
+data class DirectInboxItem(
+    @SerialName("conversation_id") val conversationId: String,
+    @SerialName("peer_user_id") val peerUserId: String,
+    @SerialName("peer_username") val peerUsername: String,
+    @SerialName("peer_display_name") val peerDisplayName: String? = null,
+    @SerialName("peer_avatar_url") val peerAvatarUrl: String? = null,
+    @SerialName("last_message_preview") val lastMessagePreview: String? = null,
+    @SerialName("last_message_at") val lastMessageAt: String,
+    @SerialName("last_message_sender_id") val lastMessageSenderId: String? = null,
+)
+
+@Serializable
+data class ChatMemberSearchResult(
+    @SerialName("user_id") val userId: String,
+    val username: String,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+)
+
+@Serializable
 data class DirectConversation(
     val id: String,
     @SerialName("participant_a") val participantA: String,
@@ -58,6 +78,20 @@ data class SavedChatContact(
  */
 class DirectChatRepository {
     private val client get() = SupabaseProvider.client
+
+    suspend fun getInbox(): Result<List<DirectInboxItem>> = runCatching {
+        client.postgrest.rpc("get_direct_chat_inbox")
+            .decodeList<DirectInboxItem>()
+    }
+
+    suspend fun searchMembers(query: String): Result<List<ChatMemberSearchResult>> = runCatching {
+        val normalized = query.trim()
+        require(normalized.length >= 2) { "Enter at least two characters to search members." }
+        client.postgrest.rpc(
+            "search_chat_members",
+            mapOf("p_query" to normalized)
+        ).decodeList<ChatMemberSearchResult>()
+    }
 
     suspend fun getConversations(): Result<List<DirectConversation>> = runCatching {
         client.from("chat_direct_conversations")
