@@ -27,6 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +46,8 @@ import com.example.helloworld.data.DirectMessage
 import com.example.helloworld.data.StoryFeedItem
 import com.example.helloworld.ui.components.CopyableErrorMessage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -74,6 +82,9 @@ fun DirectChatInboxScreen(
     var draft by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var selectedStory by remember { mutableStateOf<StoryFeedItem?>(null) }
+    var storyMediaUrl by remember { mutableStateOf<String?>(null) }
+    var storyMediaLoading by remember { mutableStateOf(false) }
+    var storyMediaError by remember { mutableStateOf<String?>(null) }
     var storyNotice by remember { mutableStateOf<String?>(null) }
 
     fun openMemberConversation(member: ChatMemberSearchResult) {
@@ -133,9 +144,42 @@ fun DirectChatInboxScreen(
         val conversation = selected ?: return@LaunchedEffect
         repository.markConversationRead(conversation.conversationId)
             .onSuccess { unreadCounts = unreadCounts - conversation.conversationId }
-        repository.getMessages(conversation.conversationId)
-            .onSuccess { messages = it }
-            .onFailure { error = it.message ?: "Could not load messages." }
+        suspend fun loadThread() {
+            repository.getMessages(conversation.conversationId)
+                .onSuccess { messages = it }
+                .onFailure { if (messages.isEmpty()) error = it.message ?: "Could not load messages." }
+            repository.getUnreadCounts().onSuccess { unreadCounts = it - conversation.conversationId }
+        }
+        loadThread()
+        // Poll only while a direct thread is visible; stop automatically when the user leaves it.
+        while (isActive) {
+            delay(5_000)
+            loadThread()
+        }
+    }
+
+    LaunchedEffect(selected == null) {
+        if (selected != null) return@LaunchedEffect
+        while (isActive) {
+            delay(15_000)
+            repository.getInbox().onSuccess { inbox = it }
+            repository.getUnreadCounts().onSuccess { unreadCounts = it }
+        }
+    }
+
+    LaunchedEffect(selectedStory?.id) {
+        val story = selectedStory ?: run {
+            storyMediaUrl = null
+            storyMediaError = null
+            return@LaunchedEffect
+        }
+        storyMediaUrl = null
+        storyMediaError = null
+        storyMediaLoading = true
+        repository.getStoryMediaUrl(story.mediaPath)
+            .onSuccess { storyMediaUrl = it }
+            .onFailure { storyMediaError = it.message ?: "Could not load story media." }
+        storyMediaLoading = false
     }
 
     Column(
@@ -435,11 +479,17 @@ fun DirectChatInboxScreen(
             title = { Text(story.displayName?.takeIf { it.isNotBlank() } ?: story.username) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    MemberAvatar(story.avatarUrl, story.displayName ?: story.username, 72.dp)
-                    Spacer(Modifier.height(12.dp))
-                    Text(story.caption.ifBlank { "Story" }, style = MaterialTheme.typography.bodyLarge)
+                    when {
+                        storyMediaLoading -> Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        storyMediaUrl != null -> StoryMediaContent(mediaUrl = storyMediaUrl!!, mediaType = story.mediaType)
+                        else -> Text(storyMediaError ?: "Story media is unavailable.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                    if (story.caption.isNotBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(story.caption, style = MaterialTheme.typography.bodyLarge)
+                    }
                     Spacer(Modifier.height(8.dp))
-                    Text("Story media preview is being prepared. Stories expire automatically.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Stories expire automatically after 24 hours.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
@@ -466,6 +516,36 @@ fun DirectChatInboxScreen(
                 )
             },
             confirmButton = { TextButton(onClick = { error = null }) { Text("Close") } }
+        )
+    }
+}
+
+
+@Composable
+private fun StoryMediaContent(mediaUrl: String, mediaType: String) {
+    if (mediaType.equals("video", ignoreCase = true)) {
+        val context = LocalContext.current
+        val player = remember(mediaUrl) {
+            ExoPlayer.Builder(context).build().apply {
+                setMediaItem(MediaItem.fromUri(mediaUrl))
+                prepare()
+                playWhenReady = true
+            }
+        }
+        DisposableEffect(player) {
+            onDispose { player.release() }
+        }
+        AndroidView(
+            factory = { viewContext -> PlayerView(viewContext).apply { this.player = player; useController = true } },
+            update = { it.player = player },
+            modifier = Modifier.fillMaxWidth().height(340.dp).clip(RoundedCornerShape(16.dp))
+        )
+    } else {
+        AsyncImage(
+            model = mediaUrl,
+            contentDescription = "Story media",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).clip(RoundedCornerShape(16.dp))
         )
     }
 }
