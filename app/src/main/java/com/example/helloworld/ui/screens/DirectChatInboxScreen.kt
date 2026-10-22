@@ -296,10 +296,10 @@ fun DirectChatInboxScreen(
                 Text("${inboxEntries.size} chats", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             when {
-                loading && inboxEntries.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                loading && inboxEntries.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 inboxEntries.isEmpty() -> EmptyInbox(onNewChat = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() }, onCommunity = onOpenCommunity)
                 else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
