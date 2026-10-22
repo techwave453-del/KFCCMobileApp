@@ -391,7 +391,7 @@ returns table(user_id uuid, username text, display_name text, avatar_url text)
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
     v_query text := lower(btrim(coalesce(p_query, '')));
 begin
@@ -410,7 +410,7 @@ begin
     order by lower(coalesce(p.display_name, p.username)), lower(p.username)
     limit 25;
 end;
-$;
+$$;
 
 revoke all on function public.search_chat_members(text) from public;
 grant execute on function public.search_chat_members(text) to authenticated;
@@ -430,7 +430,7 @@ returns table(
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
     if auth.uid() is null then raise exception 'Authentication required'; end if;
     return query
@@ -444,7 +444,7 @@ begin
     where auth.uid() in (c.participant_a, c.participant_b)
     order by c.last_message_at desc;
 end;
-$;
+$$;
 
 revoke all on function public.get_direct_chat_inbox() from public;
 grant execute on function public.get_direct_chat_inbox() to authenticated;
@@ -465,7 +465,7 @@ returns table(
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
     if auth.uid() is null then raise exception 'Authentication required'; end if;
     return query
@@ -477,7 +477,7 @@ begin
     order by s.created_at desc
     limit 50;
 end;
-$;
+$$;
 
 revoke all on function public.get_active_chat_stories() from public;
 grant execute on function public.get_active_chat_stories() to authenticated;
