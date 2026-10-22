@@ -395,8 +395,10 @@ fun DirectChatInboxScreen(
                                 Box(
                                     modifier = Modifier.size(54.dp).clip(CircleShape)
                                         .background(
-                                            if (story.id in viewedStoryIds) MaterialTheme.colorScheme.outlineVariant
-                                            else Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary))
+                                            Brush.linearGradient(
+                                                if (story.id in viewedStoryIds) listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant)
+                                                else listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+                                            )
                                         )
                                         .padding(3.dp),
                                     contentAlignment = Alignment.Center
