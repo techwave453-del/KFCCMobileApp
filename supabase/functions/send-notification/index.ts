@@ -39,7 +39,7 @@ async function supabaseRequest(path: string, init: RequestInit = {}) {
   });
 }
 
-async function sendToToken(projectId: string, accessToken: string, token: string, title: string, message: string, notificationId: string, type: string, imageUrl: string | null = null, senderAvatarUrl: string | null = null, roomId: string | null = null) {
+async function sendToToken(projectId: string, accessToken: string, token: string, title: string, message: string, notificationId: string, type: string, imageUrl: string | null = null, senderAvatarUrl: string | null = null, roomId: string | null = null, conversationId: string | null = null) {
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -54,6 +54,7 @@ async function sendToToken(projectId: string, accessToken: string, token: string
           ...(imageUrl ? { image_url: imageUrl } : {}),
           ...(senderAvatarUrl ? { sender_avatar_url: senderAvatarUrl } : {}),
           ...(roomId ? { room_id: roomId } : {}),
+          ...(conversationId ? { conversation_id: conversationId } : {}),
         },
         android: { priority: "HIGH" },
       },
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
 
     let notificationId: string, title: string, message: string, type: string;
     let targets: { token: string; userId: string }[], imageUrl: string | null = null;
-    let senderAvatarUrl: string | null = null, roomId: string | null = null;
+    let senderAvatarUrl: string | null = null, roomId: string | null = null, conversationId: string | null = null;
 
     if (payload?.type === "INSERT" && payload?.schema === "public" && payload?.table === "app_notifications") {
       const notification = payload.record;
@@ -129,6 +130,7 @@ Deno.serve(async (req) => {
       type = notification.type ?? "general";
       imageUrl = notification.image_url ?? null;
       roomId = notification.room_id ?? null;
+      conversationId = notification.conversation_id ?? null;
       targets = await getNotificationTargets(notification);
       senderAvatarUrl = await getSenderAvatar(notification.sender_id);
     } else {
@@ -146,7 +148,7 @@ Deno.serve(async (req) => {
       const result = await sendToToken(
         projectId, accessToken, target.token,
         personalize(title, username), personalize(message, username),
-        notificationId, type, imageUrl, senderAvatarUrl, roomId,
+        notificationId, type, imageUrl, senderAvatarUrl, roomId, conversationId,
       );
       if (result.ok) {
         sent++;
