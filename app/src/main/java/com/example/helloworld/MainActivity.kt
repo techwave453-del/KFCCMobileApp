@@ -424,6 +424,13 @@ fun KFCCApp(
         chatViewModel.selectRoom(roomId)
         onChatOpened()
     }
+
+    LaunchedEffect(openDirectConversationId, chatSignedIn, adminUser?.id) {
+        if (openDirectConversationId.isNullOrBlank()) return@LaunchedEffect
+        // Wait for auth restoration before displaying the private inbox target.
+        if (!chatSignedIn && adminUser == null) return@LaunchedEffect
+        currentDestination = AppDestinations.CHAT
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
