@@ -223,8 +223,8 @@ private fun CommunityChat(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         state = listState,
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         val grouped = visibleMessages.groupBy { it.createdAt.substringBefore("T") }
                         grouped.forEach { (date, messagesInDate) ->
@@ -449,7 +449,7 @@ private fun DateHeader(dateStr: String) {
         } catch (_: Exception) { dateStr }
     }
     
-    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
             shape = RoundedCornerShape(12.dp)
@@ -495,7 +495,7 @@ private fun ChatBubble(
         if (!own) {
             // ... (Avatar code remains same)
             Surface(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
                 shape = CircleShape,
                 color = if (isKanisa) MaterialTheme.colorScheme.primaryContainer else if (isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
             ) {
@@ -573,11 +573,11 @@ private fun ChatBubble(
                             onClick = {}
                         )
                 ) {
-                    Column(Modifier.padding(horizontal = if (isKanisa) 14.dp else 12.dp, vertical = if (isKanisa) 10.dp else 8.dp)) {
+                    Column(Modifier.padding(horizontal = if (isKanisa) 11.dp else 10.dp, vertical = if (isKanisa) 8.dp else 6.dp)) {
                         if (isKanisa) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(bottom = 7.dp)
+                                modifier = Modifier.padding(bottom = 5.dp)
                             ) {
                                 Icon(
                                     Icons.Default.AutoAwesome,
@@ -622,7 +622,7 @@ private fun ChatBubble(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.padding(bottom = 7.dp).fillMaxWidth()
                             ) {
-                                Row(Modifier.padding(horizontal = 9.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         Modifier.width(3.dp).heightIn(min = 30.dp).clip(RoundedCornerShape(3.dp))
                                             .background(replyAccent.copy(alpha = if (repliedIsKanisa) 0.95f else 0.7f))
@@ -731,7 +731,7 @@ private fun ChatBubble(
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
+                            modifier = Modifier.align(Alignment.End).padding(top = 1.dp)
                         ) {
                             if (message.editedAt != null) {
                                 Text(
