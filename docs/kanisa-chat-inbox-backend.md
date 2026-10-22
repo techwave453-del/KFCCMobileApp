@@ -19,6 +19,8 @@ This branch adds the first backend slice for the planned inbox, direct messaging
 - `get_chat_member_suggestions()`: returns at most 25 member identities for the horizontal People row, excluding the signed-in user and all email/admin metadata.
 - `get_direct_chat_inbox()`: returns the authenticated user's conversations with the other participant's minimal public chat identity.
 - `get_active_chat_stories()`: returns active story metadata with the owner's minimal chat identity.
+- `get_direct_chat_unread_counts()`: returns per-conversation unread message counts for the authenticated participant.
+- `mark_direct_conversation_read(p_conversation_id uuid)`: upserts the caller's read timestamp after validating conversation membership.
 
 The migration is additive and does not alter policies on `chat_rooms` or `chat_messages`. Private message updates and story-view updates include participant/owner checks.
 
@@ -34,7 +36,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 1. Build and run the Android app; verify the People row, member-to-message flow, and existing group/community room navigation.
 2. Test cross-user isolation with two ordinary member accounts and one administrator account.
 3. Implement private story-media upload and signed URL retrieval; the current story UI does not yet render private media.
-4. Add direct-message realtime subscriptions, read-state/unread counts, and offline queue/retry.
+4. Add direct-message realtime subscriptions and offline queue/retry; unread counts and read-state are now wired through participant-checked RPCs.
 5. Add tests for RLS, conversation creation races, duplicate contacts, story expiry, and storage ownership.
 
 ## Important limitations
@@ -44,5 +46,5 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 - This remains an initial UI/data foundation, not a verified production release.
 - Story upload and signed-media URL handling are not implemented; the Stories strip uses real metadata but does not display the private story media.
 - Direct messages currently reload after send but do not yet subscribe to realtime changes or support offline queuing.
-- Unread counts/read receipts are not wired to the UI yet.
+- Unread counts and read timestamps are wired to the direct-message inbox, but realtime refresh is not yet implemented.
 - No demo contacts or stories are seeded.
