@@ -242,26 +242,30 @@ fun DirectChatInboxScreen(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
         if (selected == null) {
-            Column(
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
                 modifier = Modifier.fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                        MaterialTheme.colorScheme.background
-                    )))
-                    .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Kanisa Chat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                        Text("Stay connected with your church family", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Chats",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onOpenAssistant) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Open Kanisa Assistant")
                     }
-                    IconButton(onClick = onOpenAssistant) { Icon(Icons.Default.AutoAwesome, contentDescription = "Open Kanisa Assistant") }
-                    IconButton(onClick = { refresh() }) { Icon(Icons.Default.Refresh, contentDescription = "Refresh inbox") }
+                    IconButton(onClick = { refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh inbox")
+                    }
                     Box {
-                        FilledTonalButton(onClick = { menuExpanded = true }, shape = RoundedCornerShape(16.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("New Chat")
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Create chat, contact, community or story")
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                             DropdownMenuItem(
@@ -279,17 +283,22 @@ fun DirectChatInboxScreen(
                                 leadingIcon = { Icon(Icons.Default.Groups, null) },
                                 onClick = { menuExpanded = false; onOpenCommunity() }
                             )
+                            DropdownMenuItem(
+                                text = { Text("Add Story") },
+                                leadingIcon = { Icon(Icons.Default.Add, null) },
+                                onClick = { menuExpanded = false; storyPicker.launch(arrayOf("image/*", "video/*")) }
+                            )
                         }
                     }
                 }
             }
 
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp)) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("People", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("People", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     TextButton(onClick = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() }) {
                         Text("Find people")
                     }
@@ -308,21 +317,21 @@ fun DirectChatInboxScreen(
                     ) {
                         items(members, key = { it.userId }) { member ->
                             Column(
-                                modifier = Modifier.width(70.dp).clickable { openMemberConversation(member) },
+                                modifier = Modifier.width(64.dp).clickable { openMemberConversation(member) },
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Box(
-                                    modifier = Modifier.size(62.dp).clip(CircleShape)
+                                    modifier = Modifier.size(54.dp).clip(CircleShape)
                                         .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
                                         .padding(2.dp)
                                 ) {
                                     MemberAvatar(
                                         member.avatarUrl,
                                         member.displayName?.takeIf { it.isNotBlank() } ?: member.username,
-                                        58.dp
+                                        50.dp
                                     )
                                 }
-                                Spacer(Modifier.height(5.dp))
+                                Spacer(Modifier.height(3.dp))
                                 Text(
                                     member.displayName?.takeIf { it.isNotBlank() } ?: member.username,
                                     style = MaterialTheme.typography.labelSmall,
@@ -335,51 +344,33 @@ fun DirectChatInboxScreen(
                 }
             }
 
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Stories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { storyPicker.launch(arrayOf("image/*", "video/*")) }) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add story")
-                    }
-                }
-                if (stories.isEmpty()) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(46.dp)) {
-                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text("No active stories yet", fontWeight = FontWeight.SemiBold)
-                            Text("Stories from members will appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                } else {
-                    androidx.compose.foundation.lazy.LazyRow(
+            // Keep the inbox focused: do not reserve space for an empty Stories section.
+            if (stories.isNotEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp)) {
+                    Text(
+                        "Stories",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp)
+                    )
+                    LazyRow(
                         contentPadding = PaddingValues(horizontal = 18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(stories, key = { it.id }) { story ->
                             Column(
-                                modifier = Modifier.width(72.dp).clickable { selectedStory = story },
+                                modifier = Modifier.width(64.dp).clickable { selectedStory = story },
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Box(
-                                    modifier = Modifier.size(64.dp).clip(CircleShape)
+                                    modifier = Modifier.size(54.dp).clip(CircleShape)
                                         .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
                                         .padding(3.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize().padding(1.dp)) {
                                         if (!story.avatarUrl.isNullOrBlank()) {
-                                            AsyncImage(model = story.avatarUrl, contentDescription = story.displayName ?: story.username, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                                            AsyncImage(model = story.avatarUrl, contentDescription = story.displayName ?: story.username, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
                                         } else {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Text(story.username.take(1).uppercase(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -387,8 +378,13 @@ fun DirectChatInboxScreen(
                                         }
                                     }
                                 }
-                                Spacer(Modifier.height(5.dp))
-                                Text(story.displayName?.takeIf { it.isNotBlank() } ?: story.username, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    story.displayName?.takeIf { it.isNotBlank() } ?: story.username,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -397,10 +393,10 @@ fun DirectChatInboxScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Messages", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Messages", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Text("${inboxEntries.size} chats", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             when {
