@@ -36,7 +36,7 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 1. Build and run the Android app; verify the People row, member-to-message flow, and existing group/community room navigation.
 2. Test cross-user isolation with two ordinary member accounts and one administrator account.
 3. Implement private story-media upload and signed URL retrieval; the current story UI does not yet render private media.
-4. Replace the current bounded polling refresh with Supabase Realtime subscriptions and add offline queue/retry; unread counts and read-state are wired through participant-checked RPCs.
+4. Add offline queue/retry. Direct messages now subscribe to Supabase Realtime and retain bounded polling as a missed-event/reconnect fallback; unread counts and read-state use participant-checked RPCs.
 5. Add tests for RLS, conversation creation races, duplicate contacts, story expiry, and storage ownership.
 
 ## Important limitations
@@ -45,6 +45,6 @@ The migration is additive and does not alter policies on `chat_rooms` or `chat_m
 - The Android app has not been built in this environment.
 - This remains an initial UI/data foundation, not a verified production release.
 - Story viewing now requests short-lived signed URLs and plays private images/videos. Story creation/upload UI is still not implemented.
-- Direct messages refresh periodically while a thread is open (5 seconds) and the inbox refreshes periodically (15 seconds); this is a polling fallback, not a Supabase Realtime subscription. Offline queuing is not implemented.
+- Direct messages use Supabase Realtime insert events to refresh the open thread, with a 15-second polling fallback and 15-second inbox polling. The direct-message and conversation tables must remain in the `supabase_realtime` publication. Offline queuing is not implemented.
 - Unread counts and read timestamps are wired to the direct-message inbox, but realtime refresh is not yet implemented.
 - No demo contacts or stories are seeded.
