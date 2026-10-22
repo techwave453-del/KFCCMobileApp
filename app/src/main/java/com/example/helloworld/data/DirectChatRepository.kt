@@ -100,6 +100,22 @@ class DirectChatRepository {
             .decodeList<DirectInboxItem>()
     }
 
+    suspend fun getMemberSuggestions(): Result<List<ChatMemberSearchResult>> = runCatching {
+        client.postgrest.rpc("get_chat_member_suggestions")
+            .decodeList<ChatMemberSearchResult>()
+    }
+
+    suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
+        if (!SupabaseProvider.ensureSession()) {
+            error("Chat session is not available. Please sign in again.")
+        }
+        client.from("chat_rooms")
+            .select()
+            .decodeList<ChatRoom>()
+            .distinctBy { it.id }
+            .sortedWith(compareBy<ChatRoom> { if (it.type == "community") 0 else 1 }.thenBy { it.title.lowercase() })
+    }
+
     suspend fun searchMembers(query: String): Result<List<ChatMemberSearchResult>> = runCatching {
         val normalized = query.trim()
         require(normalized.length >= 2) { "Enter at least two characters to search members." }
