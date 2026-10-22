@@ -134,7 +134,58 @@ fun DirectChatInboxScreen(
                 }
             }
 
-            Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("People", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() }) {
+                        Text("Find people")
+                    }
+                }
+                if (members.isEmpty()) {
+                    Text(
+                        if (loading) "Loading members…" else "Search for a member to start chatting.",
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(members, key = { it.userId }) { member ->
+                            Column(
+                                modifier = Modifier.width(70.dp).clickable { openMemberConversation(member) },
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(62.dp).clip(CircleShape)
+                                        .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
+                                        .padding(2.dp)
+                                ) {
+                                    MemberAvatar(
+                                        member.avatarUrl,
+                                        member.displayName?.takeIf { it.isNotBlank() } ?: member.username,
+                                        58.dp
+                                    )
+                                }
+                                Spacer(Modifier.height(5.dp))
+                                Text(
+                                    member.displayName?.takeIf { it.isNotBlank() } ?: member.username,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -196,29 +247,27 @@ fun DirectChatInboxScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Messages", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${inbox.size} chats", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${inboxEntries.size} chats", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             when {
-                loading && inbox.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                inbox.isEmpty() -> EmptyInbox(onNewChat = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() }, onCommunity = onOpenCommunity)
+                loading && inboxEntries.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                inboxEntries.isEmpty() -> EmptyInbox(onNewChat = { action = NewChatAction.MESSAGE; searchText = ""; searchResults = emptyList() }, onCommunity = onOpenCommunity)
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(inbox, key = { it.conversationId }) { item ->
-                        InboxConversationRow(item = item, onClick = {
-                            selected = item
-                            messages = emptyList()
-                            error = null
-                        })
-                    }
-                    item {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = onOpenCommunity, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                            Icon(Icons.Default.Groups, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Open Community Chat")
+                    items(inboxEntries, key = { it.key }) { entry ->
+                        val room = entry.room
+                        if (room != null) {
+                            ChatRoomInboxRow(room = room, onClick = { onOpenRoom(room.id) })
+                        } else {
+                            val item = entry.direct!!
+                            InboxConversationRow(item = item, onClick = {
+                                selected = item
+                                messages = emptyList()
+                                error = null
+                            })
                         }
                     }
                 }
@@ -292,21 +341,8 @@ fun DirectChatInboxScreen(
                                             .onFailure { error = it.message ?: "Could not add contact." }
                                         action = null
                                     } else {
-                                        repository.startConversation(member.userId).onSuccess { id ->
-                                            val row = DirectInboxItem(
-                                                conversationId = id,
-                                                peerUserId = member.userId,
-                                                peerUsername = member.username,
-                                                peerDisplayName = member.displayName,
-                                                peerAvatarUrl = member.avatarUrl,
-                                                lastMessagePreview = null,
-                                                lastMessageAt = Instant.now().toString()
-                                            )
-                                            selected = row
-                                            inbox = listOf(row) + inbox.filterNot { it.conversationId == id }
-                                            messages = emptyList()
-                                            action = null
-                                        }.onFailure { error = it.message ?: "Could not start conversation." }
+                                        action = null
+                                        openMemberConversation(member)
                                     }
                                 }
                             }.padding(vertical = 10.dp),
