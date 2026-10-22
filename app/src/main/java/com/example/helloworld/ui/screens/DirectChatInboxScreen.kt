@@ -71,6 +71,8 @@ private enum class NewChatAction { MESSAGE, CONTACT }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DirectChatInboxScreen(
+    initialConversationId: String? = null,
+    onInitialConversationOpened: () -> Unit = {},
     onOpenCommunity: () -> Unit,
     onOpenRoom: (String) -> Unit,
     onOpenAssistant: () -> Unit,
@@ -189,6 +191,13 @@ fun DirectChatInboxScreen(
     }
 
     LaunchedEffect(Unit) { refresh() }
+
+    LaunchedEffect(initialConversationId, inbox) {
+        val targetId = initialConversationId ?: return@LaunchedEffect
+        val target = inbox.firstOrNull { it.conversationId == targetId } ?: return@LaunchedEffect
+        selected = target
+        onInitialConversationOpened()
+    }
 
     LaunchedEffect(stories) {
         // Warm the image cache for the first stories users are most likely to open.
