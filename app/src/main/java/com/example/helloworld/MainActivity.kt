@@ -118,18 +118,17 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleNotificationIntent(intent)
-        if (intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)) {
-            openNotifications = true
-        }
-        intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }?.let {
-            openChatRoomId = it
-        }
-        intent.getStringExtra(EXTRA_DIRECT_CONVERSATION_ID)?.takeIf { it.isNotBlank() }?.let {
-            openDirectConversationId = it
-        }
-        intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }?.let {
-            openBibleReference = it
-        }
+        val directConversationId = intent.getStringExtra(EXTRA_DIRECT_CONVERSATION_ID)?.takeIf { it.isNotBlank() }
+        val roomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
+        val bibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
+
+        // A new notification tap must replace stale navigation state. In particular,
+        // a previously opened Notifications screen must not win over a chat deep link.
+        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false) &&
+            directConversationId == null && roomId == null && bibleReference == null
+        openDirectConversationId = directConversationId
+        openChatRoomId = roomId
+        openBibleReference = bibleReference
     }
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
