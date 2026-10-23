@@ -71,6 +71,7 @@ private enum class NewChatAction { MESSAGE, CONTACT }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DirectChatInboxScreen(
+    currentUserId: String? = null,
     initialConversationId: String? = null,
     onInitialConversationOpened: () -> Unit = {},
     onOpenCommunity: () -> Unit,
@@ -962,16 +963,33 @@ private fun DirectMessageThread(
                 reverseLayout = false
             ) {
                 items(messages, key = { it.id }) { message ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                    val isOwnMessage = !currentUserId.isNullOrBlank() && message.senderId == currentUserId
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
+                    ) {
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(topStart = 5.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp),
+                            color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = if (isOwnMessage) {
+                                RoundedCornerShape(topStart = 18.dp, topEnd = 5.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+                            } else {
+                                RoundedCornerShape(topStart = 5.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+                            },
                             modifier = Modifier.widthIn(max = 300.dp)
                         ) {
-                            Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp)) {
+                            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                 Text(message.body, style = MaterialTheme.typography.bodyMedium)
-                                Spacer(Modifier.height(2.dp))
-                                Text(formatChatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    formatChatTime(message.createdAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    modifier = Modifier.align(Alignment.End)
+                                )
                             }
                         }
                     }
