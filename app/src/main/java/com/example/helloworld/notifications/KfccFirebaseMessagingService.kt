@@ -47,6 +47,8 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
         val roomId = message.data["room_id"].orEmpty()
         val conversationId = message.data["conversation_id"].orEmpty()
         val isDirectChat = type.equals("direct_chat_message", true) || conversationId.isNotBlank()
+        // Direct-chat notification titles contain the sender identity, not a role label.
+        val senderDisplayName = if (isDirectChat) title.substringAfter("New message from ", title).trim() else title
         val notificationId = message.data["notification_id"]?.takeIf { it.isNotBlank() } ?: body
         val image = message.data["image_url"]?.let { loadNotificationBitmap(it) }
         val senderAvatar = message.data["sender_avatar_url"]?.let { loadNotificationBitmap(it) }
@@ -71,7 +73,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
 
         val builder = NotificationCompat.Builder(this, KfccNotificationWorker.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
-            .setContentTitle(title)
+            .setContentTitle(if (isDirectChat) senderDisplayName else title)
             .setContentText(body)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -79,7 +81,8 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         if (isChat || isDirectChat) {
-            val senderBuilder = Person.Builder().setName(title)
+            val chatSenderName = if (isDirectChat) senderDisplayName else title
+            val senderBuilder = Person.Builder().setName(chatSenderName)
             if (senderAvatar != null) {
                 senderBuilder.setIcon(IconCompat.createWithBitmap(senderAvatar))
                 builder.setLargeIcon(senderAvatar)
@@ -87,6 +90,7 @@ class KfccFirebaseMessagingService : FirebaseMessagingService() {
             val sender = senderBuilder.build()
             builder.setStyle(
                 NotificationCompat.MessagingStyle(Person.Builder().setName("Kanisa").build())
+                    .setConversationTitle(if (isDirectChat) null else title)
                     .addMessage(NotificationCompat.MessagingStyle.Message(body, System.currentTimeMillis(), sender))
             )
             builder.addPerson(sender)
