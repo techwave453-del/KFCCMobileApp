@@ -84,6 +84,7 @@ fun ChatScreen(
             )
         } else {
             DirectChatInboxScreen(
+                currentUserId = viewModel.currentUserId(),
                 initialConversationId = openDirectConversationId,
                 onInitialConversationOpened = onDirectConversationOpened,
                 onOpenCommunity = { showCommunityChat = true },
