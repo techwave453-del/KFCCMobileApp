@@ -84,10 +84,13 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         handleNotificationIntent(intent)
-        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         openChatRoomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
         openDirectConversationId = intent.getStringExtra(EXTRA_DIRECT_CONVERSATION_ID)?.takeIf { it.isNotBlank() }
         openBibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
+        // Deep links take priority over the generic notifications destination on cold start.
+        // This ensures a direct-message notification opens the specific conversation.
+        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false) &&
+            openDirectConversationId == null && openChatRoomId == null && openBibleReference == null
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
