@@ -538,6 +538,7 @@ fun DirectChatInboxScreen(
         } else {
             DirectMessageThread(
                 item = selected!!,
+                currentUserId = currentUserId,
                 messages = messages,
                 draft = draft,
                 sending = sending,
@@ -930,6 +931,7 @@ private fun MemberAvatar(url: String?, label: String, size: androidx.compose.ui.
 @Composable
 private fun DirectMessageThread(
     item: DirectInboxItem,
+    currentUserId: String?,
     messages: List<DirectMessage>,
     draft: String,
     sending: Boolean,
