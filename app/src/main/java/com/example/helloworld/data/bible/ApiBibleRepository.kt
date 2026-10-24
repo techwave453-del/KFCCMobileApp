@@ -160,7 +160,7 @@ class ApiBibleRepository(context: Context) {
                     .replace(Regex("[\u00a0\\s]+"), " ")
                     .trim().trim(' ', '¶', '·')
                 if (text.isBlank()) null else BibleVerseEntity(translationId, bookId, chapter, marker.second, text)
-            }.distinctBy { it.verse }
+            }
         }
 
         // Some editions return plain text or omit verse-number markup. Preserve
