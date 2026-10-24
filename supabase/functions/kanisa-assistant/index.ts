@@ -160,28 +160,33 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     })
     .sort((a, b) => b.alias.length - a.alias.length);
 
-  // Resolve both chapter-only references (e.g. "Explain Psalm 23") and
-  // verse references/ranges. Book aliases always come from the Bible catalogue.
+  // Resolve chapter-only, verse, same-chapter range, and cross-chapter range
+  // references, while enforcing an exact and bounded set of retrieved verses.
   for (const candidate of candidates) {
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(?:(\\d{1,3}):)?(\\d{1,3}))?)?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
     if (!match) continue;
 
-    const chapter = Number(match[1]);
+    const chapterStart = Number(match[1]);
     const chapterOnly = !match[2];
     const verseStart = chapterOnly ? 1 : Number(match[2]);
-    const verseEnd = chapterOnly ? null : Number(match[3] || match[2]);
+    const chapterEnd = match[3] ? Number(match[3]) : chapterStart;
+    const verseEnd = chapterOnly ? null : Number(match[4] || match[2]);
     const canonicalReference = chapterOnly
-      ? `${candidate.book.name} ${chapter}`
-      : `${candidate.book.name} ${chapter}:${verseStart}` +
-        (verseEnd !== verseStart ? `-${verseEnd}` : "");
-    const invalidRange = chapter < 1 || verseStart < 1 ||
-      (!chapterOnly && (verseEnd! < verseStart || verseEnd! - verseStart > 29));
+      ? `${candidate.book.name} ${chapterStart}`
+      : `${candidate.book.name} ${chapterStart}:${verseStart}` +
+        (chapterEnd !== chapterStart
+          ? `-${chapterEnd}:${verseEnd}`
+          : (verseEnd !== verseStart ? `-${verseEnd}` : ""));
+    const invalidRange = chapterStart < 1 || verseStart < 1 ||
+      chapterEnd < chapterStart || chapterEnd - chapterStart > 2 ||
+      (!chapterOnly && (verseEnd! < 1 ||
+        (chapterEnd === chapterStart && verseEnd! < verseStart)));
 
     if (invalidRange) {
       return {
@@ -194,25 +199,43 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
       };
     }
 
-    let query = supabase.from("bible_verses")
-      .select("book_id,chapter,verse,text")
-      .eq("translation_id", translation)
-      .eq("book_id", candidate.book.id)
-      .eq("chapter", chapter)
-      .order("verse");
-    if (!chapterOnly) query = query.gte("verse", verseStart).lte("verse", verseEnd);
-    // A chapter-only request is accepted only when the whole chapter can be
-    // supplied. Never label a partial first-40-verse result as the full chapter.
-    const { data: verses, error: verseError } = await query.limit(chapterOnly ? 41 : 30);
-    const rows = verses || [];
-    const chapterWithinLimit = !chapterOnly || rows.length <= 40;
-    const exactRangeFound = !verseError && rows.length > 0 && chapterWithinLimit &&
-      (chapterOnly
-        ? rows.every((verse: any, index: number) =>
-            Number(verse.verse) === index + 1 && Boolean(String(verse.text || "").trim()))
-        : rows.length === verseEnd! - verseStart + 1 &&
-          rows.every((verse: any, index: number) =>
-            Number(verse.verse) === verseStart + index && Boolean(String(verse.text || "").trim())));
+    const rowsByChapter: any[][] = [];
+    let queryFailed = false;
+    for (let currentChapter = chapterStart; currentChapter <= chapterEnd; currentChapter++) {
+      let query = supabase.from("bible_verses")
+        .select("book_id,chapter,verse,text")
+        .eq("translation_id", translation)
+        .eq("book_id", candidate.book.id)
+        .eq("chapter", currentChapter)
+        .order("verse");
+      if (!chapterOnly && currentChapter === chapterStart) query = query.gte("verse", verseStart);
+      if (!chapterOnly && currentChapter === chapterEnd) query = query.lte("verse", verseEnd);
+      const { data, error } = await query.limit(41);
+      if (error) {
+        queryFailed = true;
+        console.error("Bible passage lookup failed", { reference: canonicalReference, error });
+        break;
+      }
+      rowsByChapter.push(data || []);
+    }
+
+    const rows = rowsByChapter.flat();
+    const tooLarge = rows.length > 40 || (!chapterOnly && rows.length > 30);
+    const exactRangeFound = !queryFailed && rows.length > 0 && !tooLarge &&
+      rowsByChapter.every((chapterRows: any[], index: number) => {
+        if (!chapterRows.length) return false;
+        const expectedStart = !chapterOnly && index === 0 ? verseStart : 1;
+        const expectedEnd = !chapterOnly && index === rowsByChapter.length - 1
+          ? verseEnd!
+          : Number(chapterRows[chapterRows.length - 1].verse);
+        return chapterRows.every((verse: any, rowIndex: number) =>
+          Number(verse.verse) === expectedStart + rowIndex &&
+          Boolean(String(verse.text || "").trim())
+        ) && (chapterOnly || index !== rowsByChapter.length - 1 ||
+          Number(chapterRows[chapterRows.length - 1].verse) === expectedEnd);
+      }) &&
+      (chapterOnly || rowsByChapter[rowsByChapter.length - 1].some((verse: any) =>
+        Number(verse.verse) === verseEnd));
 
     return {
       books: books || [], translation,
@@ -222,6 +245,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
       reference: canonicalReference,
       referenceNotFound: !exactRangeFound,
       chapterTooLong: chapterOnly && rows.length > 40,
+      passageTooLong: !chapterOnly && rows.length > 30,
       references: exactRangeFound ? [canonicalReference] : [],
       verses: exactRangeFound ? rows : []
     };
