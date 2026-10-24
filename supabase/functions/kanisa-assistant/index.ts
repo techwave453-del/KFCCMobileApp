@@ -452,6 +452,40 @@ async function persistRoomMessage(
   return messageId;
 }
 
+function normalizeCitationText(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[’']/g, "'")
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/[^a-z0-9:-]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function answerCitesReference(answer: string, reference: string): boolean {
+  const answerText = normalizeCitationText(answer);
+  const refText = normalizeCitationText(reference);
+  if (!answerText || !refText) return false;
+  if (answerText.includes(refText)) return true;
+
+  // If the retrieved context is a range, also accept a citation to its first
+  // verse (for example, "John 3:16" when context contains "John 3:16-18").
+  const range = refText.match(/^(.*?)\s+(\d+):(\d+)-(\d+)$/);
+  if (range) {
+    const firstVerse = `${range[1]} ${range[2]}:${range[3]}`;
+    return answerText.includes(firstVerse);
+  }
+  return false;
+}
+
+function citedVerifiedReferences(answer: string, bible: any): string[] {
+  const available = Array.isArray(bible?.references) ? bible.references : [];
+  const requested = String(bible?.reference || "").trim();
+  const candidates = [...available, ...(requested ? [requested] : [])];
+  return [...new Set(candidates.filter(reference => answerCitesReference(answer, String(reference))))].slice(0, 12);
+}
+
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
     const value = obj?.[key];
@@ -739,11 +773,9 @@ Deno.serve(async (req: Request) => {
     providerName: string,
     modelName: string | null
   ) => {
-    const references = usableBible.references?.length
-      ? usableBible.references
-      : usableBible.reference && !usableBible.referenceNotFound
-        ? [usableBible.reference]
-        : [];
+    // Only expose references that the answer actually cites, and only from
+    // passages retrieved and verified in the selected translation.
+    const references = citedVerifiedReferences(answer, usableBible);
     const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
       const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
       const transAbbr = usableBible.translationAbbreviation ||
@@ -756,7 +788,11 @@ Deno.serve(async (req: Request) => {
         : null;
     }).filter(Boolean);
     const bibleQuotes = allBibleQuotes
-      .filter((quote: any) => answer.includes(quote.reference) || answer.includes(quote.reference.replace("-", "–")))
+      .filter((quote: any) => answerCitesReference(answer, quote.reference))
+      .filter((quote: any) => references.some((reference: string) =>
+        answerCitesReference(reference, quote.reference) ||
+        answerCitesReference(reference, quote.reference.replace(/:(\d+)$/, ":$1"))
+      ))
       .slice(0, 6);
     // Never attach Bible cards merely because Bible context was available.
     // A Scripture card is shown only when the answer itself cites that passage.
