@@ -8,12 +8,6 @@ import com.example.helloworld.data.offline.BibleTranslationEntity
 import com.example.helloworld.data.offline.BibleVerseEntity
 import com.example.helloworld.data.offline.KfccDatabase
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -103,28 +97,27 @@ class ApiBibleRepository(context: Context) {
         total = chaptersToDownload.size
         if (total == 0) throw IllegalStateException("No downloadable chapters were found.")
 
-        // API.Bible requires one request per chapter. Keep a small bounded pool so
-        // downloads run concurrently without overwhelming the provider or device.
-        val concurrency = Semaphore(5)
-        val completed = AtomicInteger(0)
-        val downloadedVerses = coroutineScope {
-            chaptersToDownload.map { (book, bookId, chapterInfo) ->
-                async {
-                    concurrency.withPermit {
-                        val (chapterId, chapterNo) = chapterInfo
-                        progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + completed.get() + "/" + total + ")")
-                        val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
-                        val html = response.optJSONObject("data")?.optString("content").orEmpty()
-                        val verses = parseVerses(html, bookId, chapterNo, translationId)
-                        val finished = completed.incrementAndGet()
-                        progress("Downloaded " + finished + " of " + total + " chapters")
-                        verses
-                    }
-                }
-            }.awaitAll().flatten()
-        }
-        if (downloadedVerses.isNotEmpty()) {
-            downloadedVerses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
+        // Persist each chapter immediately. If a later request fails or the app
+        // closes, completed chapters remain available offline instead of being lost.
+        // Keep requests sequential to avoid bursts against the user's limited API quota.
+        var completed = 0
+        var parsedVerses = 0
+        for ((book, bookId, chapterInfo) in chaptersToDownload) {
+            val (chapterId, chapterNo) = chapterInfo
+            progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + completed + "/" + total + ")")
+            val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
+            val html = response.optJSONObject("data")?.optString("content").orEmpty()
+            val verses = parseVerses(html, bookId, chapterNo, translationId)
+            if (verses.isEmpty()) {
+                throw IllegalStateException(
+                    "No verses could be parsed from " + book.optString("name", bookId) + " " + chapterNo +
+                        ". Previously saved chapters have been kept; correct the parser before retrying."
+                )
+            }
+            verses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
+            parsedVerses += verses.size
+            completed++
+            progress("Saved " + completed + " of " + total + " chapters (" + parsedVerses + " verses)")
         }
         val count = db.bibleVerseDao().count(translationId)
         if (count == 0) throw IllegalStateException("No verse text was returned. This edition may not permit downloading through API.Bible.")
