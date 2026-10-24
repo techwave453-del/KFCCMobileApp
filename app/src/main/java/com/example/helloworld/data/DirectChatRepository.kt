@@ -5,6 +5,8 @@ import io.github.jan.supabase.auth.auth
 import io.ktor.http.ContentType
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.result.decodeAs
+import io.github.jan.supabase.postgrest.result.decodeList
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
@@ -122,7 +124,7 @@ class DirectChatRepository {
         require(conversationId.isNotBlank()) { "Conversation is unavailable." }
         client.postgrest.rpc(
             "mark_direct_conversation_read",
-            buildJsonObject { put("p_conversation_id", conversationId) }
+            buildJsonObject { put("p_conversation_id", JsonPrimitive(conversationId)) }
         )
     }
 
