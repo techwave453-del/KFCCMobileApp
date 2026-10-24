@@ -2,7 +2,6 @@
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -123,6 +121,10 @@ fun BibleChapterScreen(
         mutableStateOf<BibleVerse?>(null)
     }
     var comparedVerse by remember { mutableStateOf<Pair<BibleTranslation, BibleVerse>?>(null) }
+    var cardTranslations by remember { mutableStateOf<Map<Int, Pair<BibleTranslation, BibleVerse>>>(emptyMap()) }
+    LaunchedEffect(bookId, chapterNumber, currentTranslationId) {
+        cardTranslations = emptyMap()
+    }
 
     // References opened from games, chat, search, and notifications land on the
     // exact verse and automatically show the same centered verse-actions dialog
@@ -295,6 +297,28 @@ fun BibleChapterScreen(
                     initialVerse = initialVerse,
                     prefs = prefs,
                     uiRefresh = verseUiRefresh,
+                    cardTranslations = cardTranslations,
+                    onSwipeVerseTranslation = { verse, direction ->
+                        if (translations.isNotEmpty()) {
+                            val activeId = cardTranslations[verse.number]?.first?.id ?: currentTranslationId
+                            val activeIndex = translations.indexOfFirst { it.id == activeId }.let { if (it < 0) 0 else it }
+                            val nextIndex = (activeIndex + direction + translations.size) % translations.size
+                            val targetTranslation = translations[nextIndex]
+                            if (targetTranslation.id == currentTranslationId) {
+                                cardTranslations = cardTranslations - verse.number
+                            } else {
+                                scope.launch {
+                                    val targetChapter = runCatching {
+                                        repository.getChapter(targetTranslation.id, bookId, chapterNumber)
+                                    }.getOrNull()
+                                    val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verse.number }
+                                    if (translatedVerse != null) {
+                                        cardTranslations = cardTranslations + (verse.number to (targetTranslation to translatedVerse))
+                                    }
+                                }
+                            }
+                        }
+                    },
                     onVerseClick = { verse ->
                         selectedVerse = verse
                         comparedVerse = null
@@ -325,26 +349,6 @@ fun BibleChapterScreen(
                     },
                     onTranslate = { showVerseTranslations = true },
                     comparison = comparedVerse,
-                    onSwipeTranslation = { direction ->
-                        if (translations.isNotEmpty()) {
-                            val activeTranslationId = comparedVerse?.first?.id ?: currentTranslationId
-                            val currentIndex = translations.indexOfFirst { it.id == activeTranslationId }
-                            val safeIndex = if (currentIndex >= 0) currentIndex else 0
-                            val nextIndex = (safeIndex + direction + translations.size) % translations.size
-                            val targetTranslation = translations[nextIndex]
-                            if (targetTranslation.id == currentTranslationId) {
-                                comparedVerse = null
-                            } else {
-                                scope.launch {
-                                    val targetChapter = runCatching {
-                                        repository.getChapter(targetTranslation.id, bookId, chapterNumber)
-                                    }.getOrNull()
-                                    val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verse.number }
-                                    if (translatedVerse != null) comparedVerse = targetTranslation to translatedVerse
-                                }
-                            }
-                        }
-                    },
                     onHighlight = { color ->
                         prefs.edit().putInt(verseHighlightKey(currentTranslationId, bookId, chapterNumber, verse.number), color).apply()
                         verseUiRefresh++
@@ -424,6 +428,8 @@ private fun BibleReader(
     initialVerse: Int? = null,
     prefs: android.content.SharedPreferences,
     uiRefresh: Int,
+    cardTranslations: Map<Int, Pair<BibleTranslation, BibleVerse>>,
+    onSwipeVerseTranslation: (BibleVerse, Int) -> Unit,
     onVerseClick: (BibleVerse) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -561,6 +567,9 @@ private fun BibleReader(
                     prefs.getInt(verseHighlightKey(translationId, chapter.bookId, chapter.chapterNumber, verse.number), 0)
                 },
                 hasNote = prefs.getString(verseNoteKey(translationId, chapter.bookId, chapter.chapterNumber, verse.number), "").orEmpty().isNotBlank(),
+                displayedVerse = cardTranslations[verse.number]?.second ?: verse,
+                displayedTranslation = cardTranslations[verse.number]?.first,
+                onSwipe = { direction -> onSwipeVerseTranslation(verse, direction) },
                 onClick = { onVerseClick(verse) }
             )
 
@@ -618,12 +627,28 @@ private fun BibleReader(
         verse: BibleVerse,
         highlightColor: Int,
         hasNote: Boolean,
+        displayedVerse: BibleVerse = verse,
+        displayedTranslation: BibleTranslation? = null,
+        onSwipe: (Int) -> Unit = {},
         onClick: () -> Unit
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
+                .pointerInput(verse.number, displayedTranslation?.id) {
+                    var horizontalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            horizontalDrag += dragAmount
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            if (horizontalDrag < -60f) onSwipe(1)
+                            else if (horizontalDrag > 60f) onSwipe(-1)
+                        }
+                    )
+                }
                 .clickable(onClick = onClick),
             color = if (highlightColor != 0) Color(highlightColor) else MaterialTheme.colorScheme.surfaceContainerLow
         ) {
@@ -641,8 +666,16 @@ private fun BibleReader(
                     modifier = Modifier.width(30.dp).padding(top = 3.dp)
                 )
                 Column(modifier = Modifier.weight(1f)) {
+                if (displayedTranslation != null) {
+                    Text(
+                        text = displayedTranslation.abbreviation.uppercase() + " • Swipe left/right to change version",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
                 Text(
-                    text = verse.text,
+                    text = displayedVerse.text,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = FontFamily.Serif,
                         fontSize = MaterialTheme.typography.bodyLarge.fontSize * 1.08f,
@@ -672,7 +705,6 @@ private fun BibleReader(
         onEditNote: () -> Unit,
         onTranslate: () -> Unit,
         comparison: Pair<BibleTranslation, BibleVerse>?,
-        onSwipeTranslation: (Int) -> Unit,
         onHighlight: (Int) -> Unit
     ) {
         Box(
@@ -747,34 +779,14 @@ private fun BibleReader(
                     }
 
                     Text(
-                        text = comparison?.second?.text ?: verse.text,
+                        text = verse.text,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.35
                         ),
-                        modifier = Modifier
-                            .padding(
-                                top = 16.dp,
-                                bottom = if (explanation.isNullOrBlank()) 8.dp else 12.dp
-                            )
-                            .pointerInput(translationId, comparison?.first?.id) {
-                                var horizontalDrag = 0f
-                                detectHorizontalDragGestures(
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        horizontalDrag += dragAmount
-                                        change.consume()
-                                    },
-                                    onDragEnd = {
-                                        if (horizontalDrag < -60f) onSwipeTranslation(1)
-                                        else if (horizontalDrag > 60f) onSwipeTranslation(-1)
-                                    }
-                                )
-                            }
-                    )
-                    Text(
-                        text = "Viewing " + (comparison?.first?.abbreviation ?: translationId.uppercase()) + " • Swipe left/right to switch versions",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(
+                            top = 16.dp,
+                            bottom = if (explanation.isNullOrBlank()) 18.dp else 12.dp
+                        )
                     )
 
                     if (!explanation.isNullOrBlank()) {
@@ -794,20 +806,10 @@ private fun BibleReader(
                         )
                     }
 
-                    comparison?.let { (translation, _) ->
+                    comparison?.let { (translation, translatedVerse) ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Text(
-                            text = "Original in " + translationId.uppercase() + ":",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 10.dp)
-                        )
-                        Text(
-                            text = verse.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                        )
+                        Text("In ${translation.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
+                        Text(translatedVerse.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 12.dp))
                     }
 
                     Text("Highlight verse", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
