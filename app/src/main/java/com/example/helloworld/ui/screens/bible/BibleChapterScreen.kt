@@ -120,6 +120,7 @@ fun BibleChapterScreen(
     var selectedVerse by remember {
         mutableStateOf<BibleVerse?>(null)
     }
+    var comparedVerse by remember { mutableStateOf<Pair<BibleTranslation, BibleVerse>?>(null) }
 
     // References opened from games, chat, search, and notifications land on the
     // exact verse and automatically show the same centered verse-actions dialog
@@ -171,11 +172,7 @@ fun BibleChapterScreen(
                             scope.launch {
                                 val targetChapter = runCatching { repository.getChapter(translation.id, bookId, chapterNumber) }.getOrNull()
                                 val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verseNumber }
-                                if (translatedVerse != null) {
-                                    currentTranslationId = translation.id
-                                    prefs.edit().putString("translation_id", translation.id).apply()
-                                    selectedVerse = translatedVerse
-                                }
+                                if (translatedVerse != null) comparedVerse = translation to translatedVerse
                                 showVerseTranslations = false
                             }
                         }, modifier = Modifier.fillMaxWidth()) {
@@ -296,7 +293,10 @@ fun BibleChapterScreen(
                     initialVerse = initialVerse,
                     prefs = prefs,
                     uiRefresh = verseUiRefresh,
-                    onVerseClick = { verse -> selectedVerse = verse }
+                    onVerseClick = { verse ->
+                        selectedVerse = verse
+                        comparedVerse = null
+                    }
                 )
             } ?: ChapterNotLoaded(
                 bookName = book?.name ?: bookId,
@@ -322,6 +322,7 @@ fun BibleChapterScreen(
                         showNoteEditor = true
                     },
                     onTranslate = { showVerseTranslations = true },
+                    comparison = comparedVerse,
                     onHighlight = { color ->
                         prefs.edit().putInt(verseHighlightKey(currentTranslationId, bookId, chapterNumber, verse.number), color).apply()
                         verseUiRefresh++
@@ -648,6 +649,7 @@ private fun BibleReader(
         highlightColor: Int,
         onEditNote: () -> Unit,
         onTranslate: () -> Unit,
+        comparison: Pair<BibleTranslation, BibleVerse>?,
         onHighlight: (Int) -> Unit
     ) {
         Box(
@@ -747,6 +749,12 @@ private fun BibleReader(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
                         )
+                    }
+
+                    comparison?.let { (translation, translatedVerse) ->
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Text("In ${translation.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
+                        Text(translatedVerse.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 12.dp))
                     }
 
                     Text("Highlight verse", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
