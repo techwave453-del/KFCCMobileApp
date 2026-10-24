@@ -118,7 +118,7 @@ class ApiBibleRepository(context: Context) {
                 else Triple(book, bookId, chapterId to chapterNo)
             }
         }
-        total = chaptersToDownload.size
+        val total = chaptersToDownload.size
         if (total == 0) throw IllegalStateException("No downloadable chapters were found.")
 
         // Persist each chapter immediately and skip saved chapters. Two workers overlap
