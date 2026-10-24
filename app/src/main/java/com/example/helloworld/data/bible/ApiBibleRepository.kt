@@ -47,21 +47,21 @@ class ApiBibleRepository(context: Context) {
     }
 
     suspend fun listVersions(): List<ApiBibleVersion> {
-        val result = mutableListOf<ApiBibleVersion>()
-        for (page in 1..20) {
-            val response = request(JSONObject().put("action", "catalog").put("language", "all").put("page", page))
-            val data = response.optJSONArray("data") ?: break
-            for (i in 0 until data.length()) {
-                val item = data.optJSONObject(i) ?: continue
-                val language = item.optJSONObject("language")
-                val id = item.optString("id")
-                if (id.isBlank()) continue
-                result += ApiBibleVersion(id, item.optString("name", id), item.optString("abbreviation").ifBlank { id.take(8).uppercase() }, language?.optString("name").orEmpty().ifBlank { "English" }, language?.optString("id").orEmpty().ifBlank { "eng" })
-            }
-            if (data.length() == 0) break
-            if (data.length() < 100) break
-        }
-        return result.distinctBy { it.id }.sortedBy { it.name.lowercase() }
+        val response = request(JSONObject().put("action", "catalog").put("language", "all"))
+        val data = response.optJSONArray("data") ?: return emptyList()
+        return (0 until data.length()).mapNotNull { index ->
+            val item = data.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optString("id")
+            if (id.isBlank()) return@mapNotNull null
+            val language = item.optJSONObject("language")
+            ApiBibleVersion(
+                id = id,
+                name = item.optString("name", id),
+                abbreviation = item.optString("abbreviation").ifBlank { id.take(8).uppercase() },
+                language = language?.optString("name").orEmpty().ifBlank { "Unknown language" },
+                languageCode = language?.optString("id").orEmpty().ifBlank { "und" }
+            )
+        }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
     }
 
     suspend fun download(version: ApiBibleVersion, progress: (String) -> Unit) {
