@@ -26,7 +26,7 @@ class DailyScriptureRepository(
     private val bibleRepository: BibleRepository = KfccBibleRepository()
 ) {
     suspend fun getToday(translationId: String, date: LocalDate = LocalDate.now()): DailyScripture? {
-        val entries = runCatching {
+        var entries = runCatching {
             SupabaseProvider.client.from("daily_scriptures").select {
                 filter {
                     eq("translation_id", translationId)
@@ -35,6 +35,18 @@ class DailyScriptureRepository(
                 order("priority", Order.DESCENDING)
             }.decodeList<DailyScriptureRow>()
         }.getOrDefault(emptyList())
+
+        if (entries.isEmpty()) {
+            entries = runCatching {
+                SupabaseProvider.client.from("daily_scriptures").select {
+                    filter {
+                        eq("translation_id", "kjv")
+                        eq("is_active", true)
+                    }
+                    order("priority", Order.DESCENDING)
+                }.decodeList<DailyScriptureRow>()
+            }.getOrDefault(emptyList())
+        }
 
         if (entries.isEmpty()) return null
 

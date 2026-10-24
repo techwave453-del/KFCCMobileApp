@@ -1,12 +1,19 @@
 package com.example.helloworld.data
 
+import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.auth.auth
+import io.ktor.http.ContentType
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.time.Instant
+import java.util.UUID
 
 @Serializable
 data class DirectInboxItem(
@@ -26,6 +33,12 @@ data class ChatMemberSearchResult(
     val username: String,
     @SerialName("display_name") val displayName: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
+)
+
+@Serializable
+data class DirectUnreadCount(
+    @SerialName("conversation_id") val conversationId: String,
+    @SerialName("unread_count") val unreadCount: Int,
 )
 
 @Serializable
@@ -100,11 +113,42 @@ class DirectChatRepository {
             .decodeList<DirectInboxItem>()
     }
 
+    suspend fun getUnreadCounts(): Result<Map<String, Int>> = runCatching {
+        client.postgrest.rpc("get_direct_chat_unread_counts")
+            .decodeList<DirectUnreadCount>()
+            .associate { it.conversationId to it.unreadCount }
+    }
+
+    suspend fun markConversationRead(conversationId: String): Result<Unit> = runCatching {
+        require(conversationId.isNotBlank()) { "Conversation is unavailable." }
+        client.postgrest.rpc(
+            "mark_direct_conversation_read",
+            buildJsonObject { put("p_conversation_id", conversationId) }
+        )
+    }
+
+    suspend fun getMemberSuggestions(): Result<List<ChatMemberSearchResult>> = runCatching {
+        client.postgrest.rpc("get_chat_member_suggestions")
+            .decodeList<ChatMemberSearchResult>()
+    }
+
+    suspend fun getRooms(): Result<List<ChatRoom>> = runCatching {
+        if (!SupabaseProvider.ensureSession()) {
+            error("Chat session is not available. Please sign in again.")
+        }
+        client.from("chat_rooms")
+            .select()
+            .decodeList<ChatRoom>()
+            .distinctBy { it.id }
+            .sortedWith(compareBy<ChatRoom> { if (it.type == "community") 0 else 1 }.thenBy { it.title.lowercase() })
+    }
+
     suspend fun searchMembers(query: String): Result<List<ChatMemberSearchResult>> = runCatching {
         val normalized = query.trim()
         require(normalized.length >= 2) { "Enter at least two characters to search members." }
         client.postgrest.rpc(
             "search_chat_members",
+            buildJsonObject { put("p_query", normalized) }
             buildJsonObject { put("p_query", JsonPrimitive(normalized)) }
         ).decodeList<ChatMemberSearchResult>()
     }
@@ -120,6 +164,7 @@ class DirectChatRepository {
         require(otherUserId.isNotBlank()) { "Choose a member first." }
         val response = client.postgrest.rpc(
             "start_direct_conversation",
+            buildJsonObject { put("p_other_user_id", otherUserId) }
             buildJsonObject { put("p_other_user_id", JsonPrimitive(otherUserId)) }
         )
         response.decodeAs<String>()
@@ -165,8 +210,64 @@ class DirectChatRepository {
         require(contactUserId.isNotBlank()) { "Choose a member first." }
         client.postgrest.rpc(
             "add_chat_contact",
+            buildJsonObject { put("p_contact_user_id", contactUserId) }
             buildJsonObject { put("p_contact_user_id", JsonPrimitive(contactUserId)) }
         )
+    }
+
+    suspend fun publishStory(
+        mediaBytes: ByteArray,
+        mimeType: String,
+        caption: String = "",
+    ): Result<Unit> = runCatching {
+        require(mediaBytes.isNotEmpty()) { "Choose a media file first." }
+        require(mediaBytes.size <= 50 * 1024 * 1024) { "Stories must be 50 MB or smaller." }
+        require(mimeType in setOf("image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime")) {
+            "Choose a JPG, PNG, WebP, MP4, or MOV file."
+        }
+        require(caption.length <= 500) { "Story captions must be 500 characters or fewer." }
+        if (!SupabaseProvider.ensureSession()) error("Your session has expired. Please sign in again.")
+        val userId = client.auth.currentUserOrNull()?.id
+            ?: error("Your account is not available. Please sign in again.")
+        val extension = when (mimeType) {
+            "image/jpeg" -> "jpg"
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            "video/mp4" -> "mp4"
+            "video/quicktime" -> "mov"
+            else -> error("Unsupported story media type.")
+        }
+        val mediaType = if (mimeType.startsWith("video/")) "video" else "image"
+        val path = "$userId/${UUID.randomUUID()}.$extension"
+        val bucket = client.storage.from("kanisa-story-media")
+        bucket.upload(path = path, data = mediaBytes) {
+            upsert = false
+            contentType = ContentType.parse(mimeType)
+        }
+        try {
+            client.from("chat_stories").insert(
+                mapOf(
+                    "user_id" to userId,
+                    "media_path" to path,
+                    "media_type" to mediaType,
+                    "caption" to caption.trim(),
+                )
+            )
+        } catch (failure: Throwable) {
+            runCatching { bucket.delete(path) }
+            throw failure
+        }
+    }
+
+    suspend fun getStoryMediaUrl(mediaPath: String): Result<String> = runCatching {
+        require(mediaPath.isNotBlank()) { "Story media is unavailable." }
+        val normalizedPath = mediaPath.trim().removePrefix("/")
+            .removePrefix("kanisa-story-media/")
+        require(!normalizedPath.startsWith("http", ignoreCase = true)) {
+            "Story media must use a private storage object path."
+        }
+        client.storage.from("kanisa-story-media")
+            .createSignedUrl(path = normalizedPath, expiresIn = 30.minutes)
     }
 
     suspend fun getStoryFeed(): Result<List<StoryFeedItem>> = runCatching {

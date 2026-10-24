@@ -31,6 +31,8 @@ import com.example.helloworld.admin.notifications.AdminNotificationsScreen
 import com.example.helloworld.admin.updates.AppUpdateAdminScreen
 import com.example.helloworld.admin.games.AdminBibleGamesScreen
 import com.example.helloworld.admin.backgrounds.ScreenBackgroundsScreen
+import com.example.helloworld.ui.utils.WindowSizeClass
+import com.example.helloworld.ui.utils.rememberWindowSizeClass
 
 private const val NO_ADMIN_PERMISSIONS = "Your administrator account has been created, but no administration permissions have been assigned yet."
 
@@ -59,13 +61,13 @@ fun AdminShell(
                         ModuleFrame("Church Identity", { openModule = null }) { ChurchIdentityScreen(Modifier.fillMaxSize()) }
                     openModule == "content" && currentUser.hasPermission(AdminPermissions.SITE_EDIT) ->
                         ModuleFrame("Website Content", { openModule = null }) { WebsiteContentScreen(Modifier.fillMaxSize()) }
-                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.LINKS_EDIT)) ->
+                    openModule == "services" && (currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)) ->
                         ModuleFrame("Services & Giving", { openModule = null }) {
                             AdminServicesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 viewModel = viewModel(factory = WebsiteContentViewModel.Factory(application)),
-                                canEditServices = currentUser.hasPermission(AdminPermissions.SERVICES_EDIT),
-                                canEditGiving = currentUser.hasPermission(AdminPermissions.LINKS_EDIT)
+                                canEditServices = currentUser.hasPermission(AdminPermissions.SERVICES_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT),
+                                canEditGiving = currentUser.hasPermission(AdminPermissions.LINKS_EDIT) || currentUser.hasPermission(AdminPermissions.SITE_EDIT)
                             )
                         }
                     openModule == "events" && currentUser.hasPermission(AdminPermissions.EVENTS_MANAGE) ->
@@ -80,14 +82,6 @@ fun AdminShell(
                         ModuleFrame("Today's Scripture", { openModule = null }) { AdminDailyScriptureScreen(Modifier.fillMaxSize()) }
                     openModule == "live" && currentUser.hasPermission(AdminPermissions.LIVE_MANAGE) ->
                         ModuleFrame("Live Streaming", { openModule = null }) { LiveStreamingScreen(Modifier.fillMaxSize()) }
-                    openModule == "backgrounds" && (currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD) || currentUser.hasPermission(AdminPermissions.MEDIA_EDIT)) ->
-                        ModuleFrame("Screen Backgrounds", { openModule = null }) {
-                            ScreenBackgroundsScreen(
-                                modifier = Modifier.fillMaxSize(),
-                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD),
-                                canEdit = currentUser.hasPermission(AdminPermissions.MEDIA_EDIT)
-                            )
-                        }
                     openModule == "media" && currentUser.hasPermission(AdminPermissions.MEDIA_VIEW) ->
                         ModuleFrame("Media Center", { openModule = null }) {
                             MediaCenterScreen(
@@ -97,8 +91,16 @@ fun AdminShell(
                                 canDelete = currentUser.hasPermission(AdminPermissions.MEDIA_DELETE)
                             )
                         }
+                    openModule == "backgrounds" && (currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD) || currentUser.hasPermission(AdminPermissions.MEDIA_EDIT)) ->
+                        ModuleFrame("Screen Backgrounds", { openModule = null }) {
+                            ScreenBackgroundsScreen(
+                                Modifier.fillMaxSize(),
+                                canUpload = currentUser.hasPermission(AdminPermissions.MEDIA_UPLOAD),
+                                canEdit = currentUser.hasPermission(AdminPermissions.MEDIA_EDIT)
+                            )
+                        }
                     openModule == "users" && currentUser.hasPermission(AdminPermissions.USERS_VIEW) ->
-                        ModuleFrame("Users & Members Management", { openModule = null }) { AdminUsersUnifiedScreen(modifier = Modifier.fillMaxSize(), currentUser = currentUser) { openModule = null } }
+                        ModuleFrame("Users & Members Management", { openModule = null }) { AdminUsersUnifiedScreen(Modifier.fillMaxSize(), currentUser = currentUser, onBack = { openModule = null }) }
                     openModule == "system" && currentUser.hasPermission(AdminPermissions.AUDIT_VIEW) ->
                         ModuleFrame("System Administration", { openModule = null }) { SystemAdministrationScreen(currentUser, Modifier.fillMaxSize()) }
                     else -> AdminDashboardScreen(
@@ -199,6 +201,8 @@ private fun AdminDashboardScreen(
     onSystem: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val windowSize = rememberWindowSizeClass()
+    val columns = if (windowSize == WindowSizeClass.COMPACT) 1 else 2
 
     val modules = listOf(
         AdminModule("Account Credentials", "Administrator username, email, role and status", AdminPermissions.ACCOUNT_CREDENTIALS_VIEW, Icons.Default.AccountCircle, "Administration & Security"),
@@ -212,21 +216,19 @@ private fun AdminDashboardScreen(
         AdminModule("Today's Scripture", "Manage themes, Bible references, situations and reflections", AdminPermissions.DAILY_SCRIPTURE_MANAGE, Icons.Default.MenuBook, "Content & Branding"),
         AdminModule("Live Streaming", "Enable broadcasts, manage the stream URL and public live message", AdminPermissions.LIVE_MANAGE, Icons.Default.LiveTv, "Ministry & Outreach"),
         AdminModule("Media Center", "Images, videos, audio, URLs and featured media", AdminPermissions.MEDIA_VIEW, Icons.Default.Image, "Ministry & Outreach"),
-        AdminModule("Screen Backgrounds", "Upload and assign backgrounds for app screens with offline caching", AdminPermissions.MEDIA_UPLOAD, Icons.Default.Wallpaper, "Content & Branding"),
+        AdminModule("Screen Backgrounds", "Upload and assign backgrounds for app screens", AdminPermissions.MEDIA_UPLOAD, Icons.Default.Wallpaper, "Content & Branding"),
         AdminModule("Users & Members", "Manage app community members, roles, admin accounts & requests", AdminPermissions.USERS_VIEW, Icons.Default.People, "Administration & Security"),
         AdminModule("System Administration", "Security, permissions and audit", AdminPermissions.AUDIT_VIEW, Icons.Default.AdminPanelSettings, "Administration & Security")
     )
 
-    // Hide modules the signed-in administrator cannot access. Disabled/locked
-    // module cards should not be displayed as they reveal unrelated admin areas.
-    // Super Admin retains full access through AdminUser.hasPermission().
     val permittedModules = remember(user, modules) {
         modules.filter { module ->
             when (module.title) {
                 "Church Identity" -> user.canEditChurchIdentity()
                 "Services & Giving" ->
                     user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
-                        user.hasPermission(AdminPermissions.LINKS_EDIT)
+                        user.hasPermission(AdminPermissions.LINKS_EDIT) ||
+                        user.hasPermission(AdminPermissions.SITE_EDIT)
                 "Screen Backgrounds" ->
                     user.hasPermission(AdminPermissions.MEDIA_UPLOAD) ||
                         user.hasPermission(AdminPermissions.MEDIA_EDIT)
@@ -281,70 +283,121 @@ private fun AdminDashboardScreen(
                     )
                 }
 
-                items(categoryModules) { module ->
-                    val allowed = when (module.title) {
-                        "Church Identity" -> user.canEditChurchIdentity()
-                        "Services & Giving" ->
-                            user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
-                                user.hasPermission(AdminPermissions.LINKS_EDIT) ||
-                                user.hasPermission(AdminPermissions.SITE_EDIT)
-                        "Screen Backgrounds" ->
-                            user.hasPermission(AdminPermissions.MEDIA_UPLOAD) ||
-                                user.hasPermission(AdminPermissions.MEDIA_EDIT)
-                        else -> user.hasPermission(module.permission)
-                    }
-                    val action = when (module.title) {
-                        "Account Credentials" -> if (allowed) onCredentials else null
-                        "Church Identity" -> if (allowed) onIdentity else null
-                        "Website Content" -> if (allowed) onContent else null
-                        "Services & Giving" -> if (allowed) onServices else null
-                        "Events Management" -> if (allowed) onEvents else null
-                        "Notifications" -> if (allowed) onNotifications else null
-                        "App Updates" -> if (allowed) onAppUpdate else null
-                        "Bible Games" -> if (allowed) onBibleGames else null
-                        "Today's Scripture" -> if (allowed) onDailyScripture else null
-                        "Live Streaming" -> if (allowed) onLive else null
-                        "Media Center" -> if (allowed) onMedia else null
-                        "Screen Backgrounds" -> if (allowed) onBackgrounds else null
-                        "Users & Members" -> if (allowed) onUsers else null
-                        "System Administration" -> if (allowed) onSystem else null
-                        else -> null
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (allowed) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                items(categoryModules.chunked(columns)) { rowModules ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                modifier = Modifier.size(40.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (allowed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (allowed) module.icon else Icons.Default.Lock,
-                                        contentDescription = null,
-                                        tint = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                                Text(module.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(module.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (allowed) "Access available" else "Permission not assigned",
-                                    color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                        rowModules.forEach { module ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                AdminModuleCard(
+                                    module = module,
+                                    user = user,
+                                    onCredentials = onCredentials,
+                                    onIdentity = onIdentity,
+                                    onContent = onContent,
+                                    onServices = onServices,
+                                    onEvents = onEvents,
+                                    onNotifications = onNotifications,
+                                    onAppUpdate = onAppUpdate,
+                                    onBibleGames = onBibleGames,
+                                    onDailyScripture = onDailyScripture,
+                                    onLive = onLive,
+                                    onMedia = onMedia,
+                                    onBackgrounds = onBackgrounds,
+                                    onUsers = onUsers,
+                                    onSystem = onSystem
                                 )
                             }
                         }
+                        if (rowModules.size < columns && columns > 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminModuleCard(
+    module: AdminModule,
+    user: AdminUser,
+    onCredentials: () -> Unit,
+    onIdentity: () -> Unit,
+    onContent: () -> Unit,
+    onServices: () -> Unit,
+    onEvents: () -> Unit,
+    onNotifications: () -> Unit,
+    onAppUpdate: () -> Unit,
+    onBibleGames: () -> Unit,
+    onDailyScripture: () -> Unit,
+    onLive: () -> Unit,
+    onMedia: () -> Unit,
+    onBackgrounds: () -> Unit,
+    onUsers: () -> Unit,
+    onSystem: () -> Unit
+) {
+    val allowed = when (module.title) {
+        "Church Identity" -> user.canEditChurchIdentity()
+        "Services & Giving" ->
+            user.hasPermission(AdminPermissions.SERVICES_EDIT) ||
+                user.hasPermission(AdminPermissions.LINKS_EDIT) ||
+                user.hasPermission(AdminPermissions.SITE_EDIT)
+        "Screen Backgrounds" ->
+            user.hasPermission(AdminPermissions.MEDIA_UPLOAD) ||
+                user.hasPermission(AdminPermissions.MEDIA_EDIT)
+        else -> user.hasPermission(module.permission)
+    }
+    val action = when (module.title) {
+        "Account Credentials" -> if (allowed) onCredentials else null
+        "Church Identity" -> if (allowed) onIdentity else null
+        "Website Content" -> if (allowed) onContent else null
+        "Services & Giving" -> if (allowed) onServices else null
+        "Events Management" -> if (allowed) onEvents else null
+        "Notifications" -> if (allowed) onNotifications else null
+        "App Updates" -> if (allowed) onAppUpdate else null
+        "Bible Games" -> if (allowed) onBibleGames else null
+        "Today's Scripture" -> if (allowed) onDailyScripture else null
+        "Live Streaming" -> if (allowed) onLive else null
+        "Media Center" -> if (allowed) onMedia else null
+        "Screen Backgrounds" -> if (allowed) onBackgrounds else null
+        "Users & Members" -> if (allowed) onUsers else null
+        "System Administration" -> if (allowed) onSystem else null
+        else -> null
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().then(if (action != null) Modifier.clickable(onClick = action) else Modifier),
+        colors = CardDefaults.cardColors(
+            containerColor = if (allowed) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = if (allowed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (allowed) module.icon else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text(module.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(module.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (allowed) "Access available" else "Permission not assigned",
+                    color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

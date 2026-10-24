@@ -50,13 +50,12 @@ fun NotificationsScreen(
     // chat messages. Read chat messages are not repeated here.
     val orderedNotifications = notifications
         .filterNot { notification ->
-            notification.type.equals("chat_message", true) && notification.readAt != null
+            notification.type.equals("chat_message", true) || notification.type.equals("chat", true)
         }
         .sortedWith(
             compareBy<AppNotification> {
                 when {
                     it.type.equals("daily_scripture", true) -> 0
-                    it.type.equals("chat_message", true) -> 2
                     else -> 1
                 }
             }.thenBy { it.readAt != null }

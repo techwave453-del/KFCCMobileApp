@@ -1,10 +1,16 @@
 package com.example.helloworld.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Button
@@ -20,8 +26,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -42,7 +48,8 @@ fun CopyableErrorMessage(
     title: String = "Something went wrong",
     onRetry: (() -> Unit)? = null
 ) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    var copyStatus by remember { mutableStateOf("Copy error") }
     var copied by remember { mutableStateOf(false) }
 
     val safeMessage = sanitizeErrorText(message)
@@ -62,11 +69,14 @@ fun CopyableErrorMessage(
         if (copied) {
             delay(1800)
             copied = false
+            copyStatus = "Copy error"
         }
     }
 
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().heightIn(max = screenHeight * 0.62f),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
@@ -81,31 +91,45 @@ fun CopyableErrorMessage(
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
 
-            Text(
-                text = safeMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-
-            if (!safeTechnicalDetails.isNullOrBlank() && safeTechnicalDetails != safeMessage) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    text = safeTechnicalDetails,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    maxLines = 8,
-                    overflow = TextOverflow.Ellipsis
+                    text = safeMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
+
+                if (!safeTechnicalDetails.isNullOrBlank() && safeTechnicalDetails != safeMessage) {
+                    Text(
+                        text = safeTechnicalDetails,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(copyText))
-                        copied = true
+                        val result = runCatching {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText(title, copyText))
+                        }
+                        if (result.isSuccess) {
+                            copyStatus = "Copied"
+                            copied = true
+                        } else {
+                            copyStatus = "Copy failed — tap to retry"
+                        }
                     }
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy error")
-                    Text(if (copied) "Copied" else "Copy error")
+                    Text(if (copied) "Copied" else copyStatus)
                 }
 
                 if (onRetry != null) {

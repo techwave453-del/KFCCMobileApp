@@ -26,6 +26,42 @@ object BibleOfflineSeeder {
                     abbreviation = "GNB",
                     name = "Good News Bible (online availability required)",
                     language = "English",
+                    isOffline = true,
+                    isEnabled = true,
+                    sortOrder = 20
+                ),
+                BibleTranslationEntity(
+                    id = "kam",
+                    abbreviation = "KAM",
+                    name = "Kamba Bible (Mbivilia)",
+                    language = "Kamba",
+                    isOffline = true,
+                    isEnabled = true,
+                    sortOrder = 25
+                )
+            )
+        )
+
+        // Always parse Kamba XML from assets to ensure correct Mbivilia verses are loaded
+        runCatching {
+            val inputStream = context.assets.open("bible/kamba/KambaMBIVLIABible.xml")
+            db.bibleVerseDao().deleteTranslation("kam")
+            BebliaXmlParser.parseAndStore(
+                context = context,
+                inputStream = inputStream,
+                translationId = "kam",
+                abbreviation = "KAM",
+                name = "Kamba Bible (Mbivilia)",
+                language = "Kamba"
+            )
+        }
+
+        if (db.bibleVerseDao().count("kjv") >= 31_102) {
+            if (db.bibleVerseDao().count("gnb") < 31_102) {
+                db.bibleVerseDao().copyTranslation("kjv", "gnb")
+            }
+            return
+        }
                     isOffline = false,
                     isEnabled = false,
                     sortOrder = 90

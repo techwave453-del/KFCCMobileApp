@@ -58,14 +58,40 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const bibleSearchQuestion = contextualFollowUp && lastAssistant
     ? q + " " + lastAssistant
     : q;
-  const translation = requestedTranslation && ["kjv", "gnb", "web"].includes(requestedTranslation.toLowerCase())
-    ? requestedTranslation.toLowerCase()
+  const translation = requestedTranslation && requestedTranslation.trim().length > 0
+    ? requestedTranslation.toLowerCase().trim()
     : /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
-  const { data: books } = await supabase
-    .from("bible_books")
-    .select("id,name,abbreviation")
-    .order("id");
+  const [
+    { data: books },
+    { data: translationRecord, error: translationError },
+    { data: translationProbe, error: translationProbeError }
+  ] = await Promise.all([
+    supabase.from("bible_books").select("id,name,abbreviation").order("id"),
+    supabase.from("bible_translations")
+      .select("id,abbreviation,name,language_code,language_name")
+      .eq("id", translation)
+      .eq("is_enabled", true)
+      .maybeSingle(),
+    supabase.from("bible_verses")
+      .select("book_id")
+      .eq("translation_id", translation)
+      .limit(1)
+  ]);
+
+  // Never silently substitute KJV when the user has selected another translation.
+  // Verify both its metadata and that at least some verse text is actually stored.
+  if (translationError || !translationRecord || translationProbeError || !translationProbe?.length) {
+    console.error("Selected Bible translation is unavailable", translation, translationError);
+    return {
+      books: books || [],
+      translation,
+      translationNotAvailable: true,
+      reference: "",
+      references: [],
+      verses: []
+    };
+  }
 
   const escapeRegex = (value: string) =>
     value.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
@@ -106,52 +132,122 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     }
   };
 
+  const kambaBookNames: Record<string, string> = {
+    GEN: "Mwambĩlĩlyo", EXO: "Kuma", LEV: "Alivai", NUM: "Motalo",
+    DEU: "Kũtũngĩlĩlwa Kwa Mĩao", JOS: "Yosua", JDG: "Asili", RUT: "Luthi",
+    "1SA": "1 Samueli", "2SA": "2 Samueli", "1KI": "1 Asumbĩ", "2KI": "2 Asumbĩ",
+    "1CH": "1 Mavinda", "2CH": "2 Mavinda", EZR: "Esala", NEH: "Neemia",
+    EST: "Esita", JOB: "Yovu", PSA: "Savuli", PRO: "Nthimo", ECC: "Mũtavan'ya",
+    SNG: "Wathi", ISA: "Isaia", JER: "Yelemai", LAM: "Iĩo", EZK: "Esekieli",
+    DAN: "Ndanieli", HOS: "Osea", JOL: "Yoeli", AMO: "Amosi", OBA: "Ovatia",
+    JON: "Yona", MIC: "Mika", NAM: "Naumu", HAB: "Avakuki", ZEP: "Nzevania",
+    HAG: "Akai", ZEC: "Nzekalia", MAL: "Malaki", MAT: "Mathayo", MRK: "Maliko",
+    LUK: "Luka", JHN: "Yoana", ACT: "Meko Ma Atũmwa", ROM: "Alomi",
+    "1CO": "1 Akolintho", "2CO": "2 Akolintho", GAL: "Akalatia", EPH: "Aeveso",
+    PHP: "Avilivi", COL: "Akolosai", "1TH": "1 Athesalonika", "2TH": "2 Athesalonika",
+    "1TI": "1 Timotheo", "2TI": "2 Timotheo", TIT: "Tito", PHM: "Vilemona",
+    HEB: "Aevelania", JAS: "Yakobo", "1PE": "1 Vetelo", "2PE": "2 Vetelo",
+    "1JN": "1 Yoana", "2JN": "2 Yoana", "3JN": "3 Yoana", JUD: "Yuta", REV: "Ũvuan'yo"
+  };
+
   const candidates = (books || [])
     .flatMap((book: any) => {
       const aliases = new Set<string>();
       addAlias(aliases, book.name);
       addAlias(aliases, book.abbreviation);
+      if (translation === "kam") addAlias(aliases, kambaBookNames[String(book.id)] || "");
       return [...aliases].map(alias => ({ book, alias }));
     })
     .sort((a, b) => b.alias.length - a.alias.length);
 
-  // Match a real Bible book followed by chapter:verse. The book name must come
-  // from bible_books, so question words such as "does", "say", or "mean" can
-  // never accidentally become part of the book name.
+  // Resolve chapter-only, verse, same-chapter range, and cross-chapter range
+  // references, while enforcing an exact and bounded set of retrieved verses.
   for (const candidate of candidates) {
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\s*(?:chapter\s*)?(\\d{1,3})\s*[:;,]\s*(\\d{1,3})(?:\s*[-–]\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*(?:[-–]|\\bto\\b|\\bthrough\\b)\\s*(?:(\\d{1,3}):)?(\\d{1,3}))?)?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
     if (!match) continue;
 
-    const chapter = Number(match[1]);
-    const verseStart = Number(match[2]);
-    const verseEnd = match[3] ? Number(match[3]) : verseStart;
+    const chapterStart = Number(match[1]);
+    const chapterOnly = !match[2];
+    const verseStart = chapterOnly ? 1 : Number(match[2]);
+    const chapterEnd = match[3] ? Number(match[3]) : chapterStart;
+    const verseEnd = chapterOnly ? null : Number(match[4] || match[2]);
+    const canonicalReference = chapterOnly
+      ? `${candidate.book.name} ${chapterStart}`
+      : `${candidate.book.name} ${chapterStart}:${verseStart}` +
+        (chapterEnd !== chapterStart
+          ? `-${chapterEnd}:${verseEnd}`
+          : (verseEnd !== verseStart ? `-${verseEnd}` : ""));
+    const invalidRange = chapterStart < 1 || verseStart < 1 ||
+      chapterEnd < chapterStart || chapterEnd - chapterStart > 2 ||
+      (!chapterOnly && (verseEnd! < 1 ||
+        (chapterEnd === chapterStart && verseEnd! < verseStart)));
 
-    const { data: verses } = await supabase
-      .from("bible_verses")
-      .select("book_id,chapter,verse,text")
-      .eq("translation_id", translation)
-      .eq("book_id", candidate.book.id)
-      .eq("chapter", chapter)
-      .gte("verse", verseStart)
-      .lte("verse", verseEnd)
-      .order("verse")
-      .limit(30);
+    if (invalidRange) {
+      return {
+        books: books || [], translation,
+        translationName: translationRecord.name,
+        translationAbbreviation: translationRecord.abbreviation,
+        translationLanguageCode: translationRecord.language_code,
+        reference: canonicalReference, referenceNotFound: true,
+        references: [], verses: []
+      };
+    }
 
-    const canonicalReference =
-      `${candidate.book.name} ${chapter}:${verseStart}` +
-      (verseEnd !== verseStart ? `-${verseEnd}` : "");
+    const rowsByChapter: any[][] = [];
+    let queryFailed = false;
+    for (let currentChapter = chapterStart; currentChapter <= chapterEnd; currentChapter++) {
+      let query = supabase.from("bible_verses")
+        .select("book_id,chapter,verse,text")
+        .eq("translation_id", translation)
+        .eq("book_id", candidate.book.id)
+        .eq("chapter", currentChapter)
+        .order("verse");
+      if (!chapterOnly && currentChapter === chapterStart) query = query.gte("verse", verseStart);
+      if (!chapterOnly && currentChapter === chapterEnd) query = query.lte("verse", verseEnd);
+      const { data, error } = await query.limit(41);
+      if (error) {
+        queryFailed = true;
+        console.error("Bible passage lookup failed", { reference: canonicalReference, error });
+        break;
+      }
+      rowsByChapter.push(data || []);
+    }
+
+    const rows = rowsByChapter.flat();
+    const tooLarge = rows.length > 40 || (!chapterOnly && rows.length > 30);
+    const exactRangeFound = !queryFailed && rows.length > 0 && !tooLarge &&
+      rowsByChapter.every((chapterRows: any[], index: number) => {
+        if (!chapterRows.length) return false;
+        const expectedStart = !chapterOnly && index === 0 ? verseStart : 1;
+        const expectedEnd = !chapterOnly && index === rowsByChapter.length - 1
+          ? verseEnd!
+          : Number(chapterRows[chapterRows.length - 1].verse);
+        return chapterRows.every((verse: any, rowIndex: number) =>
+          Number(verse.verse) === expectedStart + rowIndex &&
+          Boolean(String(verse.text || "").trim())
+        ) && (chapterOnly || index !== rowsByChapter.length - 1 ||
+          Number(chapterRows[chapterRows.length - 1].verse) === expectedEnd);
+      }) &&
+      (chapterOnly || rowsByChapter[rowsByChapter.length - 1].some((verse: any) =>
+        Number(verse.verse) === verseEnd));
 
     return {
-      translation,
+      books: books || [], translation,
+      translationName: translationRecord.name,
+      translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: canonicalReference,
-      references: [canonicalReference],
-      verses: verses ?? []
+      referenceNotFound: !exactRangeFound,
+      chapterTooLong: chapterOnly && rows.length > 40,
+      passageTooLong: !chapterOnly && rows.length > 30,
+      references: exactRangeFound ? [canonicalReference] : [],
+      verses: exactRangeFound ? rows : []
     };
   }
 
@@ -159,7 +255,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // for Bible/Scripture material. Otherwise ordinary church questions such as
   // "what are the service times?" must not silently inject Bible context.
   const explicitBibleRequest =
-    /\bbible\b|\bscripture\b|\bverse\b|\bverses\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b/i.test(q);
+    /\bbible\b|\bbiblia\b|\bmbivilia\b|\bscripture\b|\bmaandiko\b|\bverse\b|\bverses\b|\bmstari\b|\bmistari\b|\baya\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\b(biblia|mbivilia)\s+(inasema|ya)?\s*(nini|kuhusu)?\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b|\b(maandiko|biblia)\s+kuhusu\b/i.test(q);
 
   const contextualBibleRequest =
     contextualFollowUp &&
@@ -170,6 +266,9 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     return {
       books: books || [],
       translation,
+      translationName: translationRecord.name,
+      translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: "",
       references: [],
       verses: []
@@ -181,10 +280,12 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // lexically rather than hard-coding Scripture references.
   const stopWords = new Set([
     "what", "does", "about", "tell", "show", "give", "with", "from",
-    "this", "that", "bible", "verse", "verses", "says", "say", "please",
+    "this", "that", "bible", "biblia", "mbivilia", "verse", "verses", "says", "say", "please",
     "can", "you", "mean", "means", "explain", "explanation", "according",
-    "teach", "teaches", "teaching", "scripture", "passage", "chapter",
-    "the", "are", "is", "of", "on", "for", "to", "in", "how", "why"
+    "teach", "teaches", "teaching", "scripture", "scriptures", "maandiko", "passage", "chapter",
+    "the", "are", "is", "of", "on", "for", "to", "in", "how", "why",
+    "inasema", "nini", "kuhusu", "ni", "na", "ya", "za", "kwa", "je",
+    "tafadhali", "nipe", "onyesha", "eleza", "maana", "mstari", "mistari", "aya"
   ]);
 
   const rawTerms = q
@@ -195,68 +296,179 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const conceptExpansions: Record<string, string[]> = {
     prayer: ["prayer", "pray", "praying", "prayed", "supplication", "intercession"],
     faith: ["faith", "believe", "believeth", "believed", "believing", "trust"],
-    love: ["love", "loveth", "loved", "charity"],
-    forgiveness: ["forgive", "forgiven", "forgiveness", "forgiving", "mercy"],
-    hope: ["hope", "hopeth", "hoped", "trust"],
-    peace: ["peace", "peaceable", "reconcile", "reconciliation"],
-    wisdom: ["wisdom", "wise", "understanding", "knowledge"],
+    love: ["love", "loveth", "loved", "loving", "lovely", "charity"],
+    forgiveness: ["forgive", "forgiven", "forgiveness", "forgiving", "forgave", "mercy", "reconcile", "reconciliation"],
+    hope: ["hope", "hopeth", "hoped", "hopeful", "trust"],
+    peace: ["peace", "peaceable", "reconcile", "reconciliation", "contentment"],
+    wisdom: ["wisdom", "wise", "understanding", "knowledge", "discernment"],
     obedience: ["obey", "obeyed", "obedience", "keep", "commandments"],
     salvation: ["save", "saved", "salvation", "redeemed", "redemption"],
-    temptation: ["tempt", "tempted", "temptation", "sin"],
+    temptation: ["tempt", "tempted", "temptation", "sin", "resist"],
     fasting: ["fast", "fasted", "fasting"],
-    worship: ["worship", "worshipped", "praise", "praises", "praising"],
-    anxiety: ["anxiety", "careful", "worry", "worrying", "trouble"],
-    fear: ["fear", "afraid", "fearing"],
-    strength: ["strength", "strong", "strengthen"],
-    healing: ["heal", "healed", "healing", "sick", "sickness"],
-    patience: ["patience", "patient", "wait", "waiting", "longsuffering"],
+    worship: ["worship", "worshipped", "praise", "praises", "praising", "thanksgiving"],
+    anxiety: ["anxiety", "anxious", "careful", "worry", "worrying", "worried", "trouble", "cares"],
+    fear: ["fear", "afraid", "fearing", "frightened", "courage"],
+    strength: ["strength", "strong", "strengthen", "weakness", "weary"],
+    healing: ["heal", "healed", "healing", "sick", "sickness", "illness"],
+    patience: ["patience", "patient", "wait", "waiting", "longsuffering", "endure"],
     humility: ["humble", "humility", "meek", "meekness"],
-    repentance: ["repent", "repented", "repentance", "turn", "confess"]
+    repentance: ["repent", "repented", "repentance", "turn", "confess", "confession"],
+    grief: ["grief", "grieve", "grieving", "mourning", "mourn", "sorrow", "sorrowful", "comfort"],
+    anger: ["anger", "angry", "wrath", "rage", "resentment", "gentle", "slow to anger"],
+    relationships: ["relationship", "relationships", "marriage", "married", "husband", "wife", "friendship", "friend", "neighbor"],
+    guidance: ["guidance", "guide", "direction", "decision", "decisions", "counsel", "path"],
+    gratitude: ["gratitude", "grateful", "thankful", "thanks", "thanksgiving"],
+    generosity: ["generosity", "generous", "give", "giving", "charity", "alms"],
+    justice: ["justice", "just", "fairness", "oppression", "righteousness"],
+    suffering: ["suffering", "suffer", "affliction", "afflicted", "pain", "endure"],
+    doubt: ["doubt", "doubting", "unbelief", "unbelieving", "question"],
+    loneliness: ["lonely", "loneliness", "alone", "forsaken", "comfort"],
+    courage: ["courage", "brave", "bold", "boldness", "fearless"]
   };
 
-  const terms = [...new Set(rawTerms.flatMap(term =>
-    conceptExpansions[term] || [term]
-  ))].slice(0, 12);
+  // Normalize common inflections and everyday wording to a concept before
+  // expanding it. This makes "forgiving", "worried", and "grieving" retrieve
+  // the same topic family as "forgiveness", "anxiety", and "grief".
+  const conceptAliases: Record<string, string> = {
+    // Common Kiswahili Bible-topic vocabulary maps to English concept families
+    // so discovery can search the indexed English translation before returning
+    // the exact same verse coordinates in the user's selected translation.
+    upendo: "love", penda: "love", kupenda: "love",
+    maombi: "prayer", omba: "prayer", kuomba: "prayer",
+    imani: "faith", amini: "faith", kuamini: "faith",
+    msamaha: "forgiveness", samehe: "forgiveness", kusamehe: "forgiveness",
+    tumaini: "hope", matumaini: "hope",
+    amani: "peace", hekima: "wisdom", utii: "obedience",
+    wokovu: "salvation", dhambi: "temptation", majaribu: "temptation",
+    hofu: "fear", woga: "fear", nguvu: "strength",
+    uponyaji: "healing", subira: "patience", uvumilivu: "patience",
+    unyenyekevu: "humility", toba: "repentance", huzuni: "grief",
+    majonzi: "grief", hasira: "anger", ndoa: "relationships",
+    mahusiano: "relationships", mwongozo: "guidance", shukrani: "gratitude",
+    ukarimu: "generosity", haki: "justice", mateso: "suffering",
+    mashaka: "doubt", upweke: "loneliness", ujasiri: "courage",
+    pray: "prayer", praying: "prayer", prayed: "prayer", supplication: "prayer",
+    believe: "faith", believeth: "faith", believed: "faith", believing: "faith", trust: "faith",
+    loving: "love", loved: "love", loveth: "love",
+    forgive: "forgiveness", forgiven: "forgiveness", forgiving: "forgiveness", forgave: "forgiveness",
+    reconcile: "forgiveness", reconciliation: "forgiveness", mercy: "forgiveness",
+    hopeful: "hope", hopeth: "hope", hoped: "hope",
+    anxious: "anxiety", worry: "anxiety", worrying: "anxiety", worried: "anxiety", cares: "anxiety",
+    afraid: "fear", fearing: "fear", frightened: "fear",
+    strong: "strength", strengthen: "strength", weakness: "strength", weary: "strength",
+    heal: "healing", healed: "healing", sick: "healing", sickness: "healing", illness: "healing",
+    patient: "patience", waiting: "patience", endure: "patience",
+    humble: "humility", meek: "humility", meekness: "humility",
+    repent: "repentance", repented: "repentance", confess: "repentance", confession: "repentance",
+    grieve: "grief", grieving: "grief", mourning: "grief", mourn: "grief", sorrow: "grief", sorrowful: "grief",
+    angry: "anger", wrath: "anger", rage: "anger", resentment: "anger",
+    married: "relationships", husband: "relationships", wife: "relationships", friendship: "relationships", friend: "relationships", neighbor: "relationships",
+    guide: "guidance", direction: "guidance", decision: "guidance", decisions: "guidance", counsel: "guidance",
+    grateful: "gratitude", thankful: "gratitude", thanks: "gratitude",
+    generous: "generosity", alms: "generosity",
+    fair: "justice", fairness: "justice", oppression: "justice",
+    suffer: "suffering", afflicted: "suffering", pain: "suffering",
+    doubting: "doubt", unbelief: "doubt", unbelieving: "doubt",
+    lonely: "loneliness", alone: "loneliness", forsaken: "loneliness",
+    brave: "courage", bold: "courage", boldness: "courage", fearless: "courage"
+  };
 
-  if (!terms.length) return { books: books || [], translation, reference: "", references: [], verses: [] };
+  const canonicalTerms = rawTerms.map(term => conceptAliases[term] || term);
+  const expandedTerms = canonicalTerms.flatMap(term => conceptExpansions[term] || [term]);
+  const terms = [...new Set([...expandedTerms, ...rawTerms])].slice(0, 12);
 
-  const filters = terms
-    .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
-    .join(",");
+  if (!terms.length) return {
+    books: books || [],
+    translation,
+    translationName: translationRecord.name,
+    translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
+    reference: "",
+    references: [],
+    verses: []
+  };
 
-  const { data: rawCandidates, error: bibleSearchError } = await supabase
-    .from("bible_verses")
-    .select("book_id,chapter,verse,text")
-    .eq("translation_id", translation)
-    .or(filters)
-    .limit(80);
-
-  if (bibleSearchError) {
-    console.error("Bible topic search error", bibleSearchError);
+  // Search terms independently and merge results. A single broad OR query can
+  // fill its row limit with early database matches, hiding relevant verses for
+  // other concepts. Per-term retrieval gives each synonym a chance to contribute.
+  // Use the English KJV only as a reference-coordinate discovery index for topic searches.
+  // The quoted verses must always be fetched from the user's selected translation.
+  const discoveryTranslation = "kjv";
+  const searchTerms = terms.slice(0, 8);
+  const searchResults = await Promise.all(searchTerms.map(async (term) => {
+    const safeTerm = term.replace(/[%_]/g, "").trim();
+    if (!safeTerm) return [];
+    const { data, error } = await supabase
+      .from("bible_verses")
+      .select("book_id,chapter,verse,text")
+      .eq("translation_id", discoveryTranslation)
+      .ilike("text", `%${safeTerm}%`)
+      .limit(20);
+    if (error) {
+      console.error("Bible topic search error", { term: safeTerm, error });
+      return [];
+    }
+    return data ?? [];
+  }));
+  const candidateMap = new Map<string, any>();
+  for (const verse of searchResults.flat()) {
+    const key = `${verse.book_id}:${verse.chapter}:${verse.verse}`;
+    if (!candidateMap.has(key)) candidateMap.set(key, verse);
   }
+  const rawCandidates = [...candidateMap.values()];
+  const primaryPhrase = rawTerms.join(" ").toLowerCase().trim();
 
-  const candidatesWithScore = (rawCandidates ?? []).map((verse: any) => {
+  const candidatesWithScore = rawCandidates.map((verse: any) => {
     const text = String(verse.text || "").toLowerCase();
     let score = 0;
+    let matchedTerms = 0;
     for (const term of terms) {
       const occurrences = text.split(term.toLowerCase()).length - 1;
-      if (occurrences > 0) score += Math.min(occurrences, 3);
+      if (occurrences > 0) {
+        matchedTerms++;
+        score += Math.min(occurrences, 3) * 2;
+      }
     }
 
-    // Prefer passages that contain the concept directly rather than incidental
-    // uses of "pray" as the expression "I pray thee".
-    if (/\bprayer\b|\bpraying\b|\bsupplication\b|\bintercession\b/.test(text)) score += 4;
-    if (/\bi pray thee\b/.test(text)) score -= 3;
+    // Reward passages that match several topic terms or the user's phrase,
+    // rather than passages that mention one incidental word.
+    score += Math.max(0, matchedTerms - 1) * 2;
+    if (primaryPhrase.length >= 5 && text.includes(primaryPhrase)) score += 8;
 
-    return { verse, score };
+    // "I pray thee" is a historical idiom, not necessarily a passage about prayer.
+    if (/\bi pray thee\b/.test(text) &&
+      /\bprayer\b|\bpraying\b|\bsupplication\b|\bintercession\b/.test(primaryPhrase)) {
+      score -= 4;
+    }
+
+    return { verse, score, matchedTerms };
   }).sort((a: any, b: any) =>
     b.score - a.score ||
-    Number(a.verse.book_id) - Number(b.verse.book_id) ||
+    b.matchedTerms - a.matchedTerms ||
+    String(a.verse.book_id).localeCompare(String(b.verse.book_id)) ||
     Number(a.verse.chapter) - Number(b.verse.chapter) ||
     Number(a.verse.verse) - Number(b.verse.verse)
   );
 
-  const verses = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
+  const rankedCandidates = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
+  let verses: any[] = rankedCandidates;
+
+  if (translation !== discoveryTranslation) {
+    const translated = await Promise.all(rankedCandidates.slice(0, 12).map(async (candidate: any) => {
+      const { data, error } = await supabase
+        .from("bible_verses")
+        .select("book_id,chapter,verse,text")
+        .eq("translation_id", translation)
+        .eq("book_id", candidate.book_id)
+        .eq("chapter", candidate.chapter)
+        .eq("verse", candidate.verse)
+        .maybeSingle();
+      if (error) console.error("Kamba verse lookup failed", candidate, error);
+      return data && String(data.text || "").trim() ? data : null;
+    }));
+    verses = translated.filter(Boolean);
+  }
+
   const bookNames = new Map((books || []).map((book: any) => [book.id, book.name]));
   const references = [...new Set(
     verses.map((verse: any) => {
@@ -265,7 +477,16 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     }).filter(Boolean)
   )].slice(0, 12);
 
-  return { books: books || [], translation, reference: "", references, verses };
+  return {
+    books: books || [],
+    translation,
+    translationName: translationRecord.name,
+    translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
+    reference: "",
+    references,
+    verses
+  };
 }
 function verifiedUserId(req: Request): string | null {
   const header = req.headers.get("Authorization") || "";
@@ -340,12 +561,207 @@ async function persistRoomMessage(
   return messageId;
 }
 
+function normalizeCitationText(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[’']/g, "'")
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/[^a-z0-9:-]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function answerCitesReference(answer: string, reference: string): boolean {
+  const answerText = normalizeCitationText(answer);
+  const refText = normalizeCitationText(reference);
+  if (!answerText || !refText) return false;
+  if (answerText.includes(refText)) return true;
+
+  // If the retrieved context is a range, also accept a citation to its first
+  // verse (for example, "John 3:16" when context contains "John 3:16-18").
+  const range = refText.match(/^(.*?)\s+(\d+):(\d+)-(\d+)$/);
+  if (range) {
+    const firstVerse = `${range[1]} ${range[2]}:${range[3]}`;
+    return answerText.includes(firstVerse);
+  }
+  return false;
+}
+
+function citedVerifiedReferences(answer: string, bible: any): string[] {
+  const available = Array.isArray(bible?.references) ? bible.references : [];
+  const requested = String(bible?.reference || "").trim();
+  const contextual = Array.isArray(bible?.contextVerses) ? bible.contextVerses.map((v: any) => String(v.reference || "")).filter(Boolean) : [];
+  const candidates = [...available, ...(requested ? [requested] : []), ...contextual];
+  return [...new Set(candidates.filter(reference => answerCitesReference(answer, String(reference))))].slice(0, 12);
+}
+
+function unsupportedBibleReferences(answer: string, bible: any): string[] {
+  if (!answer.trim() || !bible || bible.translationNotAvailable || bible.referenceNotFound) return [];
+
+  const books = Array.isArray(bible.books) ? bible.books : [];
+  const escapeRegex = (value: string) => value.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+  const supplied = new Set<string>(
+    [
+      ...(Array.isArray(bible.references) ? bible.references : []),
+      ...(String(bible.reference || "").trim() ? [String(bible.reference).trim()] : []),
+      ...(Array.isArray(bible.contextVerses) ? bible.contextVerses.map((v: any) => String(v.reference || "")).filter(Boolean) : [])
+    ].map((reference: string) => normalizeCitationText(reference))
+  );
+
+  const detected: string[] = [];
+  for (const book of books) {
+    const name = String(book?.name || "").trim();
+    if (!name) continue;
+    const pattern = new RegExp(
+      "(?:^|[^a-z0-9])" + escapeRegex(name) +
+      "\\s+(\\d{1,3}):(\\d{1,3})(?:\\s*[-–—]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "gi"
+    );
+    for (const match of answer.matchAll(pattern)) {
+      const chapter = Number(match[1]);
+      const startVerse = Number(match[2]);
+      const endVerse = match[3] ? Number(match[3]) : startVerse;
+      const citation = `${name} ${chapter}:${startVerse}` +
+        (endVerse !== startVerse ? `-${endVerse}` : "");
+      const normalized = normalizeCitationText(citation);
+
+      let verified = supplied.has(normalized);
+      // Permit a combined range only when every verse in it was retrieved,
+      // or the exact requested range was verified from the selected translation.
+      if (!verified && endVerse >= startVerse && endVerse - startVerse <= 29) {
+        verified = true;
+        for (let verse = startVerse; verse <= endVerse; verse++) {
+          if (!supplied.has(normalizeCitationText(`${name} ${chapter}:${verse}`))) {
+            verified = false;
+            break;
+          }
+        }
+      }
+      if (!verified) detected.push(citation);
+    }
+  }
+
+  return [...new Set(detected)];
+}
+
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
     const value = obj?.[key];
     if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
   return "";
+}
+
+async function enrichBibleContext(bible: any): Promise<any> {
+  if (!bible || bible.translationNotAvailable || bible.referenceNotFound ||
+      !bible.translation || !Array.isArray(bible.verses) || !bible.verses.length) return bible;
+
+  const first = bible.verses[0];
+  const last = bible.verses[bible.verses.length - 1];
+  if (!first?.book_id || !Number.isFinite(Number(first.chapter)) ||
+      !Number.isFinite(Number(first.verse)) || !Number.isFinite(Number(last.chapter))) {
+    return { ...bible, contextVerses: [] };
+  }
+
+  // Search adjacent chapters too, so passages near chapter boundaries and
+  // ranges spanning chapters are interpreted with nearby text where available.
+  const fromChapter = Math.max(1, Number(first.chapter) - 1);
+  const toChapter = Number(last.chapter) + 1;
+  const { data, error } = await supabase.from("bible_verses")
+    .select("book_id,chapter,verse,text")
+    .eq("translation_id", bible.translation)
+    .eq("book_id", first.book_id)
+    .gte("chapter", fromChapter)
+    .lte("chapter", toChapter)
+    .order("chapter", { ascending: true })
+    .order("verse", { ascending: true })
+    .limit(160);
+
+  if (error || !Array.isArray(data)) {
+    console.warn("Could not load surrounding Bible context", error);
+    return { ...bible, contextVerses: [] };
+  }
+
+  const key = (v: any) => `${v.book_id}:${Number(v.chapter)}:${Number(v.verse)}`;
+  const requestedKeys = new Set(bible.verses.map(key));
+  const validRows = data.filter((v: any) => String(v.text || "").trim());
+  const preceding = validRows.filter((v: any) =>
+    !requestedKeys.has(key(v)) &&
+    (Number(v.chapter) < Number(first.chapter) ||
+      (Number(v.chapter) === Number(first.chapter) && Number(v.verse) < Number(first.verse)))
+  );
+  const following = validRows.filter((v: any) =>
+    !requestedKeys.has(key(v)) &&
+    (Number(v.chapter) > Number(last.chapter) ||
+      (Number(v.chapter) === Number(last.chapter) && Number(v.verse) > Number(last.verse)))
+  );
+  const nearby = [...preceding.slice(-4), ...following.slice(0, 4)];
+  const books = Array.isArray(bible.books) ? bible.books : [];
+  const bookName = books.find((book: any) => String(book.id) === String(first.book_id))?.name || "Bible";
+  const contextVerses = nearby.map((v: any) => ({
+    ...v,
+    reference: bookName + " " + v.chapter + ":" + v.verse,
+    translation: bible.translationAbbreviation || String(bible.translation).toUpperCase()
+  }));
+
+  return { ...bible, contextVerses };
+}
+
+function localBibleExplanation(message: string, bible: any): string {
+  const q = normalize(message);
+  const requestedLanguage =
+    /\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b|\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji|naomba|asante|kwa nini|jinsi ya|nini maana)\b/i.test(message)
+      ? "sw"
+      : /\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b/i.test(message)
+        ? "kam"
+        : "en";
+
+  // Offline mode explains common references in English or Kiswahili even when
+  // the selected Scripture text is Kamba. A request for Kikamba is not a reason
+  // to return a language limitation message; English is the safe fallback.
+  const reference = normalize(String(bible?.reference || bible?.references?.[0] || ""))
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ");
+  const referenceExplanations: Array<{ pattern: RegExp; en: string; sw: string }> = [
+    { pattern: /\bjohn 3:16\b/, en: "John 3:16 teaches that God's love is expressed through giving his Son so that people may receive eternal life through faith. It emphasizes God's initiative in loving the world, not that people must earn his love. In daily life, respond with trust in God and show others generous, active love.", sw: "Yohana 3:16 inafundisha kwamba Mungu alionyesha upendo wake kwa kutoa Mwanawe ili watu wapate uzima wa milele kwa kumwamini. Inasisitiza kwamba Mungu ndiye aliyeanza kutupenda; hatununui upendo wake kwa matendo yetu. Katika maisha ya kila siku, mtumaini Mungu na uwaonyeshe wengine upendo kwa matendo." },
+    { pattern: /\b(psalm|psalms) 23:1\b/, en: "Psalm 23:1 pictures God as a shepherd who cares for and guides his people. It encourages trust in God's care, while not promising a life without difficulty. Practically, bring your needs to God and seek his guidance for the next step.", sw: "Zaburi 23:1 inamwonyesha Mungu kama mchungaji anayewatunza na kuwaongoza watu wake. Inatualika kumtumaini Mungu, ingawa haimaanishi kwamba maisha hayatakuwa na changamoto. Kwa vitendo, mweleze Mungu mahitaji yako na utafute mwongozo wake kwa hatua inayofuata." },
+    { pattern: /\bphilippians 4:6(?:-7)?\b/, en: "Philippians 4:6–7 encourages believers to bring their worries to God in prayer with gratitude. It does not mean ignoring problems; it invites you to seek God's peace while taking wise, practical steps and asking trusted people for support when needed.", sw: "Wafilipi 4:6–7 inawahimiza waamini kumweleza Mungu mahangaiko yao kwa maombi na shukrani. Haimaanishi kupuuza matatizo; inatualika kutafuta amani ya Mungu huku tukichukua hatua za busara na kuomba msaada wa watu tunaowaamini inapohitajika." },
+    { pattern: /\bproverbs 3:5(?:-6)?\b/, en: "Proverbs 3:5–6 calls you to trust God rather than relying only on your own limited understanding. This does not remove the need to think carefully; it encourages prayer, humility, and choices guided by God's wisdom instead of pride or impulse.", sw: "Mithali 3:5–6 inatualika kumtumaini Mungu badala ya kutegemea ufahamu wetu mdogo pekee. Hii haiondoi umuhimu wa kufikiri kwa makini; inahimiza maombi, unyenyekevu na kufanya maamuzi kwa hekima badala ya kiburi au pupa." },
+    { pattern: /\b(joshua|jos) 1:9\b/, en: "Joshua 1:9 calls God's people to be courageous because God is with them. Courage does not mean feeling no fear; it means taking the right next step without letting fear make every decision. Seek support and act responsibly as you face a challenge.", sw: "Yoshua 1:9 inawahimiza watu wa Mungu kuwa hodari kwa sababu Mungu yuko pamoja nao. Ujasiri haumaanishi kutokuwa na hofu kabisa; unamaanisha kuchukua hatua inayofaa bila kuruhusu hofu iamue kila kitu. Tafuta msaada na tenda kwa uwajibikaji unapokabili changamoto." },
+    { pattern: /\bjeremiah 29:11\b/, en: "Jeremiah 29:11 was spoken to people living through exile and a long wait, so it should not be treated as a promise that every personal plan will happen immediately. It offers hope in God's purposes and invites patience, faithfulness, and perseverance during uncertainty.", sw: "Yeremia 29:11 ilielekezwa kwa watu waliokuwa uhamishoni na waliopaswa kusubiri kwa muda mrefu. Haipaswi kuchukuliwa kama ahadi kwamba kila mpango wa mtu utatimia mara moja. Inatoa tumaini katika makusudi ya Mungu na kutualika kuwa na subira, uaminifu na uvumilivu wakati wa kutokuwa na uhakika." },
+    { pattern: /\b(romans 8:28|rom 8:28)\b/, en: "Romans 8:28 teaches that God can work through circumstances for the good of those who love him and are called according to his purpose. It does not say every event is good in itself. In hardship, seek support and keep taking wise steps while trusting that suffering need not have the final word.", sw: "Warumi 8:28 inafundisha kwamba Mungu anaweza kufanya mambo yote yatimize mema kwa wale wanaompenda na walioitwa kulingana na kusudi lake. Haimaanishi kwamba kila tukio lenyewe ni jema. Wakati wa shida, tafuta msaada na endelea kuchukua hatua za busara huku ukitumaini kwamba mateso si lazima yawe mwisho wa hadithi yako." },
+    { pattern: /\b(matthew 6:33|matt 6:33)\b/, en: "Matthew 6:33 calls people to put God's kingdom and righteousness first instead of letting worry about material needs control their lives. Practically, make choices shaped by faith, justice, and care for others while still responsibly meeting everyday needs.", sw: "Mathayo 6:33 inatualika kutanguliza ufalme wa Mungu na haki yake badala ya kuruhusu wasiwasi wa mahitaji ya maisha ututawale. Kwa vitendo, fanya maamuzi yanayoongozwa na imani, haki na kuwajali wengine huku ukiendelea kushughulikia mahitaji ya kila siku kwa uwajibikaji." },
+    { pattern: /\b(romans 12:2|rom 12:2)\b/, en: "Romans 12:2 encourages inner renewal rather than simply copying the values and habits around us. Reflect on what shapes your thinking, compare choices with biblical principles, and build habits that help you act with wisdom, compassion, and integrity.", sw: "Warumi 12:2 inahimiza kufanywa upya kwa ndani badala ya kuiga tu maadili na tabia zinazotuzunguka. Tafakari mambo yanayoathiri mawazo yako, linganisha maamuzi yako na kanuni za Biblia, na jenga tabia zinazokusaidia kutenda kwa hekima, huruma na uadilifu." }
+  ];
+  const knownReference = referenceExplanations.find(item => item.pattern.test(reference));
+  if (knownReference) {
+    return requestedLanguage === "sw"
+      ? "Maelezo: " + knownReference.sw
+      : "Explanation: " + knownReference.en;
+  }
+
+  const topics: Array<{ pattern: RegExp; en: string; sw: string }> = [
+    { pattern: /forgiv|forgive|forgiven|forgiveness|msamaha|samehe|kusamehe|nimesamehe|hurt me|wronged me|betray/, en: "The central idea is forgiveness: choosing not to repay wrong with revenge, while being honest about the harm. Forgiveness does not mean pretending the hurt never happened or allowing ongoing abuse. Where it is safe, seek peace and wise counsel; boundaries and accountability can still be necessary.", sw: "Wazo kuu ni msamaha: kuchagua kutolipiza ubaya kwa ubaya, huku ukikubali ukweli wa maumivu yaliyotokea. Kusamehe hakumaanishi kujifanya kwamba hakuna kilichotokea au kuruhusu unyanyasaji uendelee. Ikiwa ni salama, tafuta amani na ushauri wenye hekima; mipaka na uwajibikaji bado vinaweza kuhitajika." },
+    { pattern: /anx|worr|worry|fear|afraid|stress|panic|wasiwasi|hofu|ogopa|kuogopa|msongo/, en: "The passage can be applied by bringing your concerns honestly to God and taking the next manageable step instead of trying to solve everything at once. Prayer can support you, and seeking practical help from a trusted person is also appropriate.", sw: "Unaweza kutumia ujumbe huu kwa kumweleza Mungu wasiwasi wako kwa uaminifu na kuchukua hatua moja inayowezekana badala ya kujaribu kutatua kila kitu mara moja. Maombi yanaweza kukutia moyo, na pia ni sawa kutafuta msaada wa vitendo kutoka kwa mtu unayemwamini." },
+    { pattern: /pray|prayer|praying|maombi|omba|kuomba/, en: "The passage points toward honest communication with God, not merely repeating words. You can pray about what is happening, ask for wisdom, and remain open to taking responsible action.", sw: "Ujumbe huu unatukumbusha kuzungumza na Mungu kwa uaminifu, si kurudia maneno tu. Unaweza kuomba kuhusu hali unayopitia, kuomba hekima, na kuwa tayari kuchukua hatua zinazofaa." },
+    { pattern: /faith|believ|trust|imani|kuamini|tumaini kwa mungu/, en: "Faith means relying on God while responding to life with trust and faithfulness. It does not require pretending that doubts or difficulties do not exist; bring them honestly into prayer and seek wise guidance.", sw: "Imani ni kumtegemea Mungu huku ukiendelea kutenda kwa uaminifu. Haimaanishi kujifanya kwamba mashaka au matatizo hayapo; mweleze Mungu ukweli wa moyo wako katika maombi na utafute mwongozo wenye hekima." },
+    { pattern: /love|loving|upendo|penda|kupenda/, en: "The practical focus is to show love through truthful, patient, and helpful actions, not words alone. Love does not require accepting harm; it can include clear boundaries and speaking honestly.", sw: "Jambo la kufanya ni kuonyesha upendo kwa matendo ya kweli, uvumilivu na msaada, si kwa maneno pekee. Upendo haukulazimishi kukubali kuumizwa; unaweza pia kuhusisha kuweka mipaka iliyo wazi na kusema ukweli." },
+    { pattern: /grief|griev|mourning|sorrow|loss|bereav|huzuni|majonzi|msiba|kuomboleza/, en: "The passage can offer language for grief without requiring you to hide your sadness. Give yourself time, seek support from people you trust, and take grief one day at a time.", sw: "Ujumbe huu unaweza kukupa nafasi ya kueleza huzuni bila kujilazimisha kuificha. Jipe muda, tafuta msaada wa watu unaowaamini, na pitia kipindi hiki hatua kwa hatua." },
+    { pattern: /anger|angry|rage|hasira|ghadhabu|kukasirika/, en: "A practical response is to pause before speaking or acting, name what has hurt or angered you, and respond truthfully without revenge. If someone is unsafe, create distance and seek help.", sw: "Hatua ya vitendo ni kutulia kabla ya kusema au kutenda, kutambua kilichokuumiza au kukukasirisha, na kujibu kwa ukweli bila kulipiza kisasi. Ikiwa kuna hatari, ondoka mahali hapo na utafute msaada." },
+    { pattern: /guidance|decision|direction|wisdom|mwongozo|uamuzi|hekima|nifanye nini/, en: "Use this as an invitation to seek wisdom, consider the facts, pray, and ask trustworthy people for counsel. A decision should also be assessed by its consequences and whether it treats others justly.", sw: "Chukulia hili kama mwaliko wa kutafuta hekima, kuchunguza ukweli, kuomba, na kushauriana na watu waaminifu. Pia tathmini matokeo ya uamuzi na kama unawatendea wengine kwa haki." },
+    { pattern: /hope|hopeless|despair|tumaini|kukata tamaa/, en: "The message encourages you not to treat the present difficulty as the whole story. Hold on to hope while also taking practical steps and accepting support from others.", sw: "Ujumbe huu unakutia moyo usione ugumu wa sasa kuwa ndio mwisho wa kila kitu. Shikilia tumaini huku ukichukua hatua za vitendo na kukubali msaada wa wengine." }
+  ];
+  const topic = topics.find(item => item.pattern.test(q));
+  if (topic) {
+    if (requestedLanguage === "sw") return "Maelezo: " + topic.sw;
+    return "Explanation: " + topic.en;
+  }
+
+  if (requestedLanguage === "sw") {
+    return "Maelezo: Soma mstari huu pamoja na mistari inayouzunguka ili kuelewa ujumbe mkuu, watu wanaozungumziwa, na kile kifungu kinachofundisha kuhusu Mungu na maisha ya kila siku. Jiulize: kifungu hiki kinafundisha nini, kinanialika kuamini au kubadilisha nini, na ninawezaje kukitumia kwa njia yenye hekima leo?";
+  }
+  return "Explanation: The verse quoted above is from your selected Bible translation. Read it together with the surrounding verses to understand the author's main point, who is being addressed, and what the passage says about God and how people should live. A practical starting point is to ask: what does this passage teach, what does it invite me to trust or change, and how can I apply that responsibly today?";
 }
 
 function localAnswer(context: any, bible: any, message: string, settings: any) {
@@ -481,27 +897,24 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     return `Here are some published media items:\\n\\n${lines.join("\\n")}`;
   }
 
-  if (/kiswahili|swahili|kikamba|kamba bible|kitui bible/.test(q)) {
-    const requested = /kikamba|kamba|kitui/.test(q) ? "Kikamba" : "Kiswahili";
-    return `${requested} Bible data is not currently enabled in the assistant's Bible database. The currently enabled translations are KJV and WEB. I won't pretend to quote a translation that isn't available.`;
+  if (bible?.translationNotAvailable) {
+    return `The selected Bible translation (${bible.translation || "unknown"}) is not available in the assistant's online Bible database yet. I won't substitute another translation or present another version's wording as the selected one. Please check the Bible translation sync in Kanisa.`;
+  }
+
+  if (bible?.referenceNotFound) {
+    return `I couldn't verify ${bible.reference || "that Bible reference"} in the selected translation (${bible.translationName || bible.translationAbbreviation || bible.translation}). I haven't quoted a passage because the requested chapter and verse could not be confirmed. Please check the book, chapter, and verse number.`;
   }
 
   if (bible?.verses?.length) {
-    const verses = bible.verses.slice(0, 6);
+    // For a specific reference, show the complete verified range rather than
+    // labelling a truncated subset with the full requested citation.
+    const verses = bible.verses.slice(0, bible.reference ? 30 : 6);
     const reference = bible.reference || "";
-    const translationName = bible.translation === "web" ? "WEB" : "KJV";
-    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
+    const translationName = bible.translationName || bible.translationAbbreviation || bible.translation || "selected translation";
+    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
 
     if (reference) {
-      const contextualFollowUp =
-        /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
-        /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
-
-      if (contextualFollowUp) {
-        return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\n💡 Spiritual Insight & Application:\nThis passage invites us to anchor our faith in God's unfailing promises. Reflect on how its timeless truth applies directly to your walk with Christ today, offering peace, encouragement, and strength.`;
-      }
-
-      return `Scripture Reference: ${reference}\\n\\n${translationName} Bible Text:\\n${scripture}\\n\\n🙏 Pastoral Reflection:\nThe passage above provides wonderful biblical insight and encouragement. Read it prayerfully in its surrounding context to experience its full spiritual depth.`;
+      return `Bible passage — ${translationName}: ${reference}\n\n${scripture}\n\n${localBibleExplanation(message, bible)}`;
     }
 
     const references = verses.map((v: any) => {
@@ -509,7 +922,11 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
-    return `Scripture Answers:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\n🙏 Pastoral Reflection:\nThese passages offer meaningful biblical guidance on your question. Take time to meditate on God's Word.`;
+    const heading = `Selected Bible translation — ${translationName}:`;
+    const selectedPassages = verses.map((v: any, i: number) =>
+      `${references[i] ? references[i] + " — " : ""}${v.text}`
+    ).join("\n\n");
+    return `${heading}\n\n${selectedPassages}\n\n${localBibleExplanation(message, bible)}`;
   }
 
   if (/help|what can you do|how can you help/.test(q)) {
@@ -520,11 +937,39 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
 }
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
   const church = JSON.stringify(context);
-  const scripture = JSON.stringify(bible);
+  const scripture = JSON.stringify({ ...bible, verses: bible?.verses || [], surroundingContext: bible?.contextVerses || [] });
   const recent = JSON.stringify((history || []).slice(-8));
+  const languageInstruction = (text: string): string | null => {
+    if (/\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b|\b(kikamba|kamba|kimakamba)\s+(language|please)\b/i.test(text)) return "kam";
+    if (/\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b/i.test(text)) return "sw";
+    if (/\b(in|use|reply|answer|explain)\s+english\b|\benglish\s+(language|please)\b/i.test(text)) return "en";
+    return null;
+  };
+  const languageOfEverydayText = (text: string): string | null => {
+    if (/\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji|naomba|asante|kwa nini|jinsi ya|nini maana)\b/i.test(text)) return "sw";
+    return null;
+  };
+  // Honor a language request made now; otherwise preserve a prior explicit
+  // language preference for short follow-ups such as "explain more" or "why?".
+  const priorUserMessages = (history || [])
+    .filter(item => item.role === "user")
+    .slice(-8)
+    .map(item => String(item.content || ""));
+  const requestedLanguage = languageInstruction(message) ||
+    [...priorUserMessages].reverse().map(languageInstruction).find(Boolean) ||
+    languageOfEverydayText(message) ||
+    [...priorUserMessages].reverse().map(languageOfEverydayText).find(Boolean) ||
+    "en";
+  const responseLanguageRule = requestedLanguage === "kam"
+    ? "RESPONSE LANGUAGE: Explain the Scripture and answer the question in clear Kikamba only where you can do so reliably. If a phrase or idea is beyond your reliable Kikamba, explain that part in plain English or Kiswahili rather than inventing words. Never return only the Scripture quotation. The selected Bible translation controls the quotation, not the explanation language. Keep quoted Scripture exactly as supplied."
+    : requestedLanguage === "sw"
+      ? "RESPONSE LANGUAGE: Explain the Scripture and answer the question in Kiswahili. The selected Bible translation controls the quotation, not the explanation language. Keep quoted Scripture exactly as supplied, even if it is in English or Kikamba. Never return only the quotation."
+      : "RESPONSE LANGUAGE: Explain the Scripture and answer the question in clear English, even when the selected Bible translation is in Kikamba or another language you do not speak fluently. The selected Bible translation controls the quotation, not the explanation language. Preserve the verse text exactly, then explain its meaning separately in English. Never omit the explanation merely because the quotation is non-English. If the user explicitly requests another language, follow that request only to the extent you can do so reliably.";
+
   return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
 
 PASTORAL & COMMUNICATION STYLE:
+${responseLanguageRule}
 - Be warm, deeply encouraging, pastorally sensitive, concise, and spiritually uplifting.
 - Speak with grace and clarity, offering genuine Christian encouragement and biblical truth.
 - Do not claim to be a human or a pastor, but serve as a faithful, knowledgeable Bible and church companion.
@@ -534,7 +979,9 @@ STRICT SOURCE RULES:
 - Church facts must come only from the supplied Supabase church context.
 - Do not invent service times, events, leaders, contact details, ministries, giving instructions, locations, or announcements.
 - If a church fact is missing or ambiguous, say that the current published church data does not provide a reliable answer.
-- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote.
+- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote. The surroundingContext verses help interpret the requested passage; quote them only if useful and preserve their supplied wording exactly.
+- The user's selected Bible translation is identified by BIBLE CONTEXT.translation and BIBLE CONTEXT.translationName. Quote only verse text supplied for that exact translation; do not silently replace it with KJV, WEB, GNB, or another version.
+- If BIBLE CONTEXT says translationNotAvailable or referenceNotFound, explain that the passage could not be verified and do not invent a substitute quotation or reference.
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
 - When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
 - Distinguish Scripture from explanation, interpretation, and practical application.
@@ -543,6 +990,14 @@ STRICT SOURCE RULES:
 - If the user asks for a specific passage, prioritize that passage instead of adding unrelated verses.
 - If the user asks a contextual follow-up such as "explain this", "what does that mean?", "how do I apply this?", or "more scriptures", use the previous conversation plus the supplied BIBLE CONTEXT to stay on the same subject.
 - When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage.
+- The Bible translation language and the explanation language are separate settings. Do not infer the response language from BIBLE CONTEXT.translationLanguageCode. Follow RESPONSE LANGUAGE above, which is based on the user's message or explicit language request.
+- A non-English Scripture quotation is never a reason to skip explanation. Clearly separate the exact quoted text from commentary, then explain the passage's meaning and practical relevance in the response language specified above. If you understand the verse language only partially, be transparent about uncertainty and explain what can be responsibly explained; do not pretend that the translation itself is an explanation.
+- For every Bible question with relevant retrieved verses, answer the actual question first, then include: (1) the exact requested verse text when useful, (2) a plain-language explanation grounded in the passage and its surrounding context, and (3) one concrete practical application that directly answers the user's question. Avoid generic filler reflections.
+- For a short passage (up to about 5 verses), explain each verse or meaningful phrase when that improves understanding. For longer passages or whole chapters, explain the central message and structure in manageable sections rather than producing an overwhelming verse-by-verse commentary. Never imply you have explained every verse if you have only summarized the passage.
+- For passage explanations, identify the main idea, the argument or narrative flow, important contrasts/repeated ideas, and the immediate context. Explain who is speaking and to whom only when the supplied text makes this clear. Separate what the passage explicitly says from interpretation and present-day application.
+- CROSS-REFERENCES: Do not invent or rely on remembered Bible references as if verified. Only recommend a cross-reference when its exact reference and verse text are present in the supplied BIBLE CONTEXT, or when a retrieved context item explicitly identifies it as a verified cross-reference. If no cross-reference has been retrieved, explain the passage on its own instead of fabricating a supporting reference. Keep quotations exactly as supplied.
+- Do not claim historical details, archaeological facts, or original-language meanings without reliable support. If Christians interpret a passage differently, briefly acknowledge the main difference when it materially affects the answer; do not present a disputed interpretation as certain.
+- If a user asks for advice about grief, abuse, mental distress, family conflict, or another sensitive life situation, respond compassionately and practically without claiming to know God's specific hidden intention for that person's circumstances. Encourage appropriate trusted human or professional support where warranted.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
 - Keep exact Scripture quotations clearly identifiable as Scripture and do not mix commentary into the quotation.
 - Practical application should be framed as thoughtful Christian encouragement.
@@ -591,33 +1046,41 @@ Deno.serve(async (req: Request) => {
     bibleContext(message, body.conversation || [], body.translation)
   ]);
 
+  const contextualBible = await enrichBibleContext(bible);
+
   if (settings?.enabled === false) {
     return json({ error: "The Kanisa Assistant is currently disabled." }, 403);
   }
 
   const usableBible = settings?.bible_enabled === false
-    ? { verses: [], reference: "", references: [] }
-    : bible;
+    ? { verses: [], contextVerses: [], reference: "", references: [] }
+    : contextualBible;
 
   const finalize = async (
     answer: string,
     providerName: string,
     modelName: string | null
   ) => {
-    const references = usableBible.references?.length
-      ? usableBible.references
-      : usableBible.reference
-        ? [usableBible.reference]
-        : [];
-    const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
+    // Only expose references that the answer actually cites, and only from
+    // passages retrieved and verified in the selected translation.
+    const references = citedVerifiedReferences(answer, usableBible);
+    const allBibleQuotes = [...(usableBible?.verses || []), ...(usableBible?.contextVerses || [])].slice(0, 28).map((verse: any) => {
       const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
-      const transAbbr = usableBible.translation === "gnb" ? "GNB" : usableBible.translation === "web" ? "WEB" : "KJV";
+      const transAbbr = usableBible.translationAbbreviation ||
+        (usableBible.translation === "gnb" ? "GNB" :
+          usableBible.translation === "web" ? "WEB" :
+            usableBible.translation === "kam" ? "KAM" :
+              String(usableBible.translation || "KJV").toUpperCase());
       return name && verse.text
         ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: transAbbr }
         : null;
     }).filter(Boolean);
     const bibleQuotes = allBibleQuotes
-      .filter((quote: any) => answer.includes(quote.reference) || answer.includes(quote.reference.replace("-", "–")))
+      .filter((quote: any) => answerCitesReference(answer, quote.reference))
+      .filter((quote: any) => references.some((reference: string) =>
+        answerCitesReference(reference, quote.reference) ||
+        answerCitesReference(reference, quote.reference.replace(/:(\d+)$/, ":$1"))
+      ))
       .slice(0, 6);
     // Never attach Bible cards merely because Bible context was available.
     // A Scripture card is shown only when the answer itself cites that passage.
@@ -682,6 +1145,19 @@ Deno.serve(async (req: Request) => {
 
     const answer = String(payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((part: any) => part.text || "").join("") || "").trim();
     if (!answer) {
+      return await finalize(
+        localAnswer(context, usableBible, message, settings),
+        "local",
+        null
+      );
+    }
+
+    // Model output is not itself proof that a Bible citation is valid.
+    // If it mentions a reference absent from the selected-translation retrieval,
+    // discard the generated answer and use the database-backed local response.
+    const unsupportedReferences = unsupportedBibleReferences(answer, usableBible);
+    if (unsupportedReferences.length) {
+      console.warn("Unsupported Bible citation in generated answer; using verified fallback", unsupportedReferences);
       return await finalize(
         localAnswer(context, usableBible, message, settings),
         "local",

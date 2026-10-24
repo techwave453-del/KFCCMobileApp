@@ -76,6 +76,7 @@ import com.example.helloworld.updates.AppUpdateManager
 class MainActivity : ComponentActivity() {
     private var openNotifications by mutableStateOf(false)
     private var openChatRoomId by mutableStateOf<String?>(null)
+    private var openDirectConversationId by mutableStateOf<String?>(null)
     private var openBibleReference by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,9 +84,13 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         handleNotificationIntent(intent)
-        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)
         openChatRoomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
+        openDirectConversationId = intent.getStringExtra(EXTRA_DIRECT_CONVERSATION_ID)?.takeIf { it.isNotBlank() }
         openBibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
+        // Deep links take priority over the generic notifications destination on cold start.
+        // This ensures a direct-message notification opens the specific conversation.
+        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false) &&
+            openDirectConversationId == null && openChatRoomId == null && openBibleReference == null
         LocalCache.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
@@ -101,9 +106,11 @@ class MainActivity : ComponentActivity() {
                 KFCCApp(
                     openNotifications = openNotifications,
                     openChatRoomId = openChatRoomId,
+                    openDirectConversationId = openDirectConversationId,
                     notificationBibleReference = openBibleReference,
                     onNotificationOpened = { openNotifications = false },
                     onChatOpened = { openChatRoomId = null },
+                    onDirectConversationOpened = { openDirectConversationId = null },
                     onBibleReferenceOpened = { openBibleReference = null }
                 )
             }
@@ -114,15 +121,17 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleNotificationIntent(intent)
-        if (intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false)) {
-            openNotifications = true
-        }
-        intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }?.let {
-            openChatRoomId = it
-        }
-        intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }?.let {
-            openBibleReference = it
-        }
+        val directConversationId = intent.getStringExtra(EXTRA_DIRECT_CONVERSATION_ID)?.takeIf { it.isNotBlank() }
+        val roomId = intent.getStringExtra(EXTRA_CHAT_ROOM_ID)?.takeIf { it.isNotBlank() }
+        val bibleReference = intent.getStringExtra(EXTRA_BIBLE_REFERENCE)?.takeIf { it.isNotBlank() }
+
+        // A new notification tap must replace stale navigation state. In particular,
+        // a previously opened Notifications screen must not win over a chat deep link.
+        openNotifications = intent.getBooleanExtra(EXTRA_OPEN_NOTIFICATIONS, false) &&
+            directConversationId == null && roomId == null && bibleReference == null
+        openDirectConversationId = directConversationId
+        openChatRoomId = roomId
+        openBibleReference = bibleReference
     }
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
@@ -138,6 +147,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_BIBLE_REFERENCE = "kfcc.bible_reference"
         const val EXTRA_OPEN_CHAT = "kfcc.open_chat"
         const val EXTRA_CHAT_ROOM_ID = "kfcc.chat_room_id"
+        const val EXTRA_DIRECT_CONVERSATION_ID = "kfcc.direct_conversation_id"
         const val EXTRA_NOTIFICATION_ID = "kfcc.notification_id"
     }
 }
@@ -289,9 +299,11 @@ private fun RequiredUpdateCheckFailedScreen(
 fun KFCCApp(
     openNotifications: Boolean = false,
     openChatRoomId: String? = null,
+    openDirectConversationId: String? = null,
     notificationBibleReference: String? = null,
     onNotificationOpened: () -> Unit = {},
     onChatOpened: () -> Unit = {},
+    onDirectConversationOpened: () -> Unit = {},
     onBibleReferenceOpened: () -> Unit = {},
     viewModel: ChurchViewModel = viewModel(),
     chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(LocalContext.current.applicationContext as Application)),
@@ -413,6 +425,13 @@ fun KFCCApp(
         currentDestination = AppDestinations.CHAT
         chatViewModel.selectRoom(roomId)
         onChatOpened()
+    }
+
+    LaunchedEffect(openDirectConversationId, chatSignedIn, adminUser?.id) {
+        if (openDirectConversationId.isNullOrBlank()) return@LaunchedEffect
+        // Wait for auth restoration before displaying the private inbox target.
+        if (!chatSignedIn && adminUser == null) return@LaunchedEffect
+        currentDestination = AppDestinations.CHAT
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -802,6 +821,8 @@ fun KFCCApp(
                         innerPadding,
                         viewModel = chatViewModel,
                         adminViewModel = adminViewModel,
+                        openDirectConversationId = openDirectConversationId,
+                        onDirectConversationOpened = onDirectConversationOpened,
                         onAdminLoginSuccess = {
                             adminViewModel.restoreSession()
                             navigate(AppDestinations.ADMIN)

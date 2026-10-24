@@ -132,13 +132,13 @@ fun BibleGamesScreen(
         progressViewModel.recordQuizResult(score, questions.size)
     }
 
-    Box(Modifier.fillMaxSize().padding(innerPadding)) {
+    Box(Modifier.fillMaxSize()) {
         ScreenBackgroundImage(
             screenKey = "bible_games",
             modifier = Modifier.fillMaxSize(),
             overlayAlpha = 0.24f
         )
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
             colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             title = {
@@ -149,7 +149,7 @@ fun BibleGamesScreen(
                     Text(
                         "Bible Games",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = if (hasScreenBackground) Color.White else Color.Black,
+                        color = if (hasScreenBackground) Color.White else MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -457,9 +457,9 @@ private fun GameQuestionCard(
                         ) {
                             Text(
                                 "Question $questionNumber of $total",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = if (hasScreenBackground) Color.White else Color.Black,
+                                color = if (hasScreenBackground) Color.White else MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Bold
                             )
                         }
