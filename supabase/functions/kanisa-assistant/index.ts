@@ -159,7 +159,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*[:;,]\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
@@ -178,6 +178,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
         translation,
         translationName: translationRecord.name,
         translationAbbreviation: translationRecord.abbreviation,
+        translationLanguageCode: translationRecord.language_code,
         reference: canonicalReference,
         referenceNotFound: true,
         references: [],
@@ -207,6 +208,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
       translation,
       translationName: translationRecord.name,
       translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: canonicalReference,
       referenceNotFound: !exactRangeFound,
       references: exactRangeFound ? [canonicalReference] : [],
@@ -229,6 +231,9 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     return {
       books: books || [],
       translation,
+      translationName: translationRecord.name,
+      translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: "",
       references: [],
       verses: []
@@ -351,6 +356,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     translation,
     translationName: translationRecord.name,
     translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
     reference: "",
     references,
     verses
@@ -585,6 +591,10 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
 
     if (reference) {
+      if (bible.translation === "kam") {
+        return `Mbivilia (Kamba): ${reference}\\n\\n${translationName}:\\n${scripture}\\n\\nNote: This quotation is taken from the selected Kamba (Mbivilia) text. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
+      }
+
       const contextualFollowUp =
         /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
         /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
@@ -601,6 +611,10 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
+    if (bible.translation === "kam") {
+      return `Kamba Bible (Mbivilia) — selected passages:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\nNote: The passages above are from the selected Kamba translation. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
+    }
+
     return `Scripture Answers:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\n🙏 Pastoral Reflection:\nThese passages offer meaningful biblical guidance on your question. Take time to meditate on God's Word.`;
   }
 
@@ -614,9 +628,17 @@ function buildPrompt(context: any, bible: any, message: string, history: any[]) 
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
   const recent = JSON.stringify((history || []).slice(-8));
+  const languageCode = String(bible?.translationLanguageCode || "").toLowerCase();
+  const responseLanguageRule = languageCode === "kam"
+    ? "RESPONSE LANGUAGE: Use Kikamba first for the explanation and conversation. Only use Kikamba wording you can produce reliably; for uncertain or unavailable terms, fall back to Kiswahili or English rather than inventing Kikamba words. Keep quoted Scripture exactly as supplied from Kamba Bible (Mbivilia)."
+    : languageCode === "sw"
+      ? "RESPONSE LANGUAGE: Reply in Kiswahili, while preserving the exact supplied Scripture wording from the selected Kiswahili translation."
+      : "RESPONSE LANGUAGE: Reply in English unless the user explicitly asks for another language. Preserve the exact supplied Scripture wording from the selected translation.";
+
   return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
 
 PASTORAL & COMMUNICATION STYLE:
+${responseLanguageRule}
 - Be warm, deeply encouraging, pastorally sensitive, concise, and spiritually uplifting.
 - Speak with grace and clarity, offering genuine Christian encouragement and biblical truth.
 - Do not claim to be a human or a pastor, but serve as a faithful, knowledgeable Bible and church companion.
