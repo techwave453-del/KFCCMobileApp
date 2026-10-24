@@ -170,7 +170,6 @@ fun BibleHomeScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     translations.forEach { translation ->
                         TextButton(
-                            enabled = count > 0,
                             onClick = {
                                 prefs.edit().putString("translation_id", translation.id).apply()
                                 selectedTranslationId = translation.id
@@ -178,13 +177,26 @@ fun BibleHomeScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    "${translation.name} (${translation.abbreviation})",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (translation.isOffline) "Available offline" else "Online translation",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     OutlinedButton(onClick = { showBebliaInstaller = true }) {
                         Text("📥 Install Bible Version")
                     }
@@ -225,13 +237,6 @@ fun BibleHomeScreen(
                                 contentPadding = PaddingValues(4.dp)
                             ) {
                                 Text(abbr, fontSize = 12.sp)
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    if (count > 0) "${count} verses available" else "Not available yet",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     }
