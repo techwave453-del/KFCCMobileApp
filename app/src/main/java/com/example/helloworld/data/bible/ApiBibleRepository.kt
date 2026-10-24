@@ -132,6 +132,71 @@ class ApiBibleRepository(context: Context) {
         db.bibleTranslationDao().upsertAll(listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, true, true, 40)))
     }
 
+    /**
+     * Safely verify a translation with one chapter before attempting a larger download.
+     * This intentionally requests metadata for only the selected book and never loops
+     * through the full Bible.
+     */
+    suspend fun downloadSampleChapter(
+        version: ApiBibleVersion,
+        bookId: String = "PSA",
+        chapterNumber: Int = 51,
+        progress: (String) -> Unit
+    ) {
+        require(bookId in ids) { "Unsupported Bible book: $bookId" }
+        require(chapterNumber in 1..150) { "Invalid chapter number." }
+
+        val translationId = version.id.lowercase().replace(Regex("[^a-z0-9_-]"), "_")
+        val books = request(JSONObject().put("action", "books").put("bibleId", version.id))
+            .optJSONArray("data") ?: throw IllegalStateException("API.Bible did not return a book list.")
+        val apiBook = (0 until books.length())
+            .mapNotNull { books.optJSONObject(it) }
+            .firstOrNull { canonicalId(it.optString("id"), it.optString("name"), it.optInt("number", 0)) == bookId }
+            ?: throw IllegalStateException("This edition does not provide ${names[ids.indexOf(bookId)]}.")
+
+        val chapters = request(
+            JSONObject().put("action", "chapters")
+                .put("bibleId", version.id)
+                .put("bookId", apiBook.optString("id"))
+        ).optJSONArray("data") ?: throw IllegalStateException("API.Bible did not return chapter metadata.")
+        val apiChapter = (0 until chapters.length())
+            .mapNotNull { chapters.optJSONObject(it) }
+            .firstOrNull {
+                val id = it.optString("id")
+                it.optInt("number", id.substringAfterLast('.').toIntOrNull() ?: 0) == chapterNumber
+            } ?: throw IllegalStateException("${names[ids.indexOf(bookId)]} $chapterNumber is not available in this edition.")
+
+        val order = ids.indexOf(bookId)
+        db.bibleBookDao().upsertAll(
+            listOf(BibleBookEntity(bookId, names[order], bookId, if (order >= 39) "NT" else "OT", order + 1, chapters.length()))
+        )
+        db.bibleTranslationDao().upsertAll(
+            listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, false, false, 40))
+        )
+
+        if (db.bibleVerseDao().getChapter(translationId, bookId, chapterNumber).isNotEmpty()) {
+            progress("Already saved ${names[order]} $chapterNumber; no chapter request used.")
+        } else {
+            progress("Requesting only ${names[order]} $chapterNumber…")
+            val response = request(
+                JSONObject().put("action", "chapter")
+                    .put("bibleId", version.id)
+                    .put("chapterId", apiChapter.optString("id"))
+            )
+            val html = response.optJSONObject("data")?.optString("content").orEmpty()
+            val verses = parseVerses(html, bookId, chapterNumber, translationId)
+            if (verses.isEmpty()) {
+                throw IllegalStateException("No verses could be parsed from ${names[order]} $chapterNumber. No chapter data was saved.")
+            }
+            db.bibleVerseDao().upsertAll(verses)
+            progress("Saved ${names[order]} $chapterNumber: ${verses.size} verses.")
+        }
+
+        db.bibleTranslationDao().upsertAll(
+            listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, true, true, 40))
+        )
+    }
+
     private fun parseVerses(html: String, bookId: String, chapter: Int, translationId: String): List<BibleVerseEntity> {
         if (html.isBlank()) return emptyList()
 
