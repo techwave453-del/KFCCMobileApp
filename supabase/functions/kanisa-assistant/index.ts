@@ -543,7 +543,8 @@ function answerCitesReference(answer: string, reference: string): boolean {
 function citedVerifiedReferences(answer: string, bible: any): string[] {
   const available = Array.isArray(bible?.references) ? bible.references : [];
   const requested = String(bible?.reference || "").trim();
-  const candidates = [...available, ...(requested ? [requested] : [])];
+  const contextual = Array.isArray(bible?.contextVerses) ? bible.contextVerses.map((v: any) => String(v.reference || "")).filter(Boolean) : [];
+  const candidates = [...available, ...(requested ? [requested] : []), ...contextual];
   return [...new Set(candidates.filter(reference => answerCitesReference(answer, String(reference))))].slice(0, 12);
 }
 
@@ -555,7 +556,8 @@ function unsupportedBibleReferences(answer: string, bible: any): string[] {
   const supplied = new Set<string>(
     [
       ...(Array.isArray(bible.references) ? bible.references : []),
-      ...(String(bible.reference || "").trim() ? [String(bible.reference).trim()] : [])
+      ...(String(bible.reference || "").trim() ? [String(bible.reference).trim()] : []),
+      ...(Array.isArray(bible.contextVerses) ? bible.contextVerses.map((v: any) => String(v.reference || "")).filter(Boolean) : [])
     ].map((reference: string) => normalizeCitationText(reference))
   );
 
@@ -601,6 +603,37 @@ function firstValue(obj: any, keys: string[]) {
     if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
   return "";
+}
+
+async function enrichBibleContext(bible: any): Promise<any> {
+  if (!bible || bible.translationNotAvailable || bible.referenceNotFound ||
+      !bible.translation || !Array.isArray(bible.verses) || !bible.verses.length) return bible;
+  const first = bible.verses[0];
+  const last = bible.verses[bible.verses.length - 1];
+  if (!first?.book_id || !Number.isFinite(Number(first.chapter)) ||
+      !Number.isFinite(Number(first.verse)) || Number(first.chapter) !== Number(last.chapter)) {
+    return { ...bible, contextVerses: [] };
+  }
+  const fromVerse = Math.max(1, Number(first.verse) - 4);
+  const toVerse = Number(last.verse) + 4;
+  const { data, error } = await supabase.from("bible_verses")
+    .select("book_id,chapter,verse,text").eq("translation_id", bible.translation)
+    .eq("book_id", first.book_id).eq("chapter", first.chapter)
+    .gte("verse", fromVerse).lte("verse", toVerse).order("verse").limit(40);
+  if (error || !Array.isArray(data)) {
+    console.warn("Could not load surrounding Bible context", error);
+    return { ...bible, contextVerses: [] };
+  }
+  const requestedKeys = new Set(bible.verses.map((v: any) => Number(v.verse)));
+  const books = Array.isArray(bible.books) ? bible.books : [];
+  const bookName = books.find((book: any) => String(book.id) === String(first.book_id))?.name || "Bible";
+  const contextVerses = data.filter((v: any) =>
+    !requestedKeys.has(Number(v.verse)) && String(v.text || "").trim()
+  ).map((v: any) => ({
+    ...v, reference: bookName + " " + v.chapter + ":" + v.verse,
+    translation: bible.translationAbbreviation || String(bible.translation).toUpperCase()
+  }));
+  return { ...bible, contextVerses };
 }
 
 function localBibleExplanation(message: string, bible: any): string {
@@ -834,7 +867,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
 }
 function buildPrompt(context: any, bible: any, message: string, history: any[]) {
   const church = JSON.stringify(context);
-  const scripture = JSON.stringify(bible);
+  const scripture = JSON.stringify({ ...bible, verses: bible?.verses || [], surroundingContext: bible?.contextVerses || [] });
   const recent = JSON.stringify((history || []).slice(-8));
   const languageInstruction = (text: string): string | null => {
     if (/\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b|\b(kikamba|kamba|kimakamba)\s+(language|please)\b/i.test(text)) return "kam";
@@ -876,7 +909,7 @@ STRICT SOURCE RULES:
 - Church facts must come only from the supplied Supabase church context.
 - Do not invent service times, events, leaders, contact details, ministries, giving instructions, locations, or announcements.
 - If a church fact is missing or ambiguous, say that the current published church data does not provide a reliable answer.
-- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote.
+- Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote. The surroundingContext verses help interpret the requested passage; quote them only if useful and preserve their supplied wording exactly.
 - The user's selected Bible translation is identified by BIBLE CONTEXT.translation and BIBLE CONTEXT.translationName. Quote only verse text supplied for that exact translation; do not silently replace it with KJV, WEB, GNB, or another version.
 - If BIBLE CONTEXT says translationNotAvailable or referenceNotFound, explain that the passage could not be verified and do not invent a substitute quotation or reference.
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
@@ -889,7 +922,7 @@ STRICT SOURCE RULES:
 - When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage.
 - The Bible translation language and the explanation language are separate settings. Do not infer the response language from BIBLE CONTEXT.translationLanguageCode. Follow RESPONSE LANGUAGE above, which is based on the user's message or explicit language request.
 - A non-English Scripture quotation is never a reason to skip explanation. Clearly separate the exact quoted text from commentary, then explain the passage's meaning and practical relevance in the response language specified above. If you understand the verse language only partially, be transparent about uncertainty and explain what can be responsibly explained; do not pretend that the translation itself is an explanation.
-- For every Bible question with relevant retrieved verses, include all three where possible: (1) the exact supplied verse text, (2) a plain-language explanation of what it means in context, and (3) one practical application that directly answers the user's question. Avoid generic filler reflections that could fit any verse.
+- For every Bible question with relevant retrieved verses, include all three where possible: (1) the exact requested verse text, (2) a plain-language explanation grounded in the passage and surrounding context, and (3) one practical application that directly answers the user's question. Avoid generic filler reflections that could fit any verse.\n- Interpret passages in literary and historical context where supported by the supplied text. Explain the main point, key words or contrasts, who is speaking and to whom when evident, and how the passage fits the surrounding paragraph or chapter. Distinguish what the text explicitly says from reasonable interpretation. Do not claim historical details or original-language meanings without reliable support. Mention when Christians interpret a passage differently rather than presenting a disputed view as certain.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
 - Keep exact Scripture quotations clearly identifiable as Scripture and do not mix commentary into the quotation.
 - Practical application should be framed as thoughtful Christian encouragement.
@@ -938,13 +971,15 @@ Deno.serve(async (req: Request) => {
     bibleContext(message, body.conversation || [], body.translation)
   ]);
 
+  const contextualBible = await enrichBibleContext(bible);
+
   if (settings?.enabled === false) {
     return json({ error: "The Kanisa Assistant is currently disabled." }, 403);
   }
 
   const usableBible = settings?.bible_enabled === false
-    ? { verses: [], reference: "", references: [] }
-    : bible;
+    ? { verses: [], contextVerses: [], reference: "", references: [] }
+    : contextualBible;
 
   const finalize = async (
     answer: string,
@@ -954,7 +989,7 @@ Deno.serve(async (req: Request) => {
     // Only expose references that the answer actually cites, and only from
     // passages retrieved and verified in the selected translation.
     const references = citedVerifiedReferences(answer, usableBible);
-    const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
+    const allBibleQuotes = [...(usableBible?.verses || []), ...(usableBible?.contextVerses || [])].slice(0, 28).map((verse: any) => {
       const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
       const transAbbr = usableBible.translationAbbreviation ||
         (usableBible.translation === "gnb" ? "GNB" :
