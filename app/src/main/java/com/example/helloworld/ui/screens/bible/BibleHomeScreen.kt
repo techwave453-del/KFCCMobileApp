@@ -157,6 +157,7 @@ fun BibleHomeScreen(
                     translations.forEach { translation ->
                         val count = translationAvailability[translation.id] ?: 0
                         TextButton(
+                            enabled = count > 0,
                             onClick = {
                                 prefs.edit().putString("translation_id", translation.id).apply()
                                 selectedTranslationId = translation.id
@@ -167,7 +168,7 @@ fun BibleHomeScreen(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    if (count > 0) "${count} verses available" else "Offline translation",
+                                    if (count > 0) "${count} verses available" else "Not available yet",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
