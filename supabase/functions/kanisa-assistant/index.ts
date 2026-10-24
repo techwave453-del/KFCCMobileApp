@@ -62,18 +62,26 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     ? requestedTranslation.toLowerCase().trim()
     : /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
-  const [{ data: books }, { data: translationRecord, error: translationError }] = await Promise.all([
+  const [
+    { data: books },
+    { data: translationRecord, error: translationError },
+    { data: translationProbe, error: translationProbeError }
+  ] = await Promise.all([
     supabase.from("bible_books").select("id,name,abbreviation").order("id"),
     supabase.from("bible_translations")
       .select("id,abbreviation,name,language_code,language_name")
       .eq("id", translation)
       .eq("is_enabled", true)
-      .maybeSingle()
+      .maybeSingle(),
+    supabase.from("bible_verses")
+      .select("book_id")
+      .eq("translation_id", translation)
+      .limit(1)
   ]);
 
   // Never silently substitute KJV when the user has selected another translation.
-  // A missing translation record means the server cannot verify that translation.
-  if (translationError || !translationRecord) {
+  // Verify both its metadata and that at least some verse text is actually stored.
+  if (translationError || !translationRecord || translationProbeError || !translationProbe?.length) {
     console.error("Selected Bible translation is unavailable", translation, translationError);
     return {
       books: books || [],
