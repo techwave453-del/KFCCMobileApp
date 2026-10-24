@@ -255,7 +255,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // for Bible/Scripture material. Otherwise ordinary church questions such as
   // "what are the service times?" must not silently inject Bible context.
   const explicitBibleRequest =
-    /\bbible\b|\bbiblia\b|\bmbivilia\b|\bscripture\b|\bmaandiko\b|\bverse\b|\bverses\b|\bmstari\b|\bm mistari\b|\baya\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\b(biblia|mbivilia)\s+(inasema|ya)?\s*(nini|kuhusu)?\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b|\b(maandiko|biblia)\s+kuhusu\b/i.test(q);
+    /\bbible\b|\bbiblia\b|\bmbivilia\b|\bscripture\b|\bmaandiko\b|\bverse\b|\bverses\b|\bmstari\b|\bmistari\b|\baya\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\b(biblia|mbivilia)\s+(inasema|ya)?\s*(nini|kuhusu)?\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b|\b(maandiko|biblia)\s+kuhusu\b/i.test(q);
 
   const contextualBibleRequest =
     contextualFollowUp &&
