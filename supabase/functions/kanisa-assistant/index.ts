@@ -255,7 +255,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // for Bible/Scripture material. Otherwise ordinary church questions such as
   // "what are the service times?" must not silently inject Bible context.
   const explicitBibleRequest =
-    /\bbible\b|\bscripture\b|\bverse\b|\bverses\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b/i.test(q);
+    /\bbible\b|\bbiblia\b|\bmbivilia\b|\bscripture\b|\bmaandiko\b|\bverse\b|\bverses\b|\bmstari\b|\bm mistari\b|\baya\b|\bpassage\b|\baccording to (the )?bible\b|\bwhat does (the )?bible say\b|\bwhat do (the )?scriptures say\b|\b(biblia|mbivilia)\s+(inasema|ya)?\s*(nini|kuhusu)?\b|\bshow me (a )?(bible )?verse\b|\bmore scriptures\b|\bscripts? about\b|\b(maandiko|biblia)\s+kuhusu\b/i.test(q);
 
   const contextualBibleRequest =
     contextualFollowUp &&
@@ -280,10 +280,12 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // lexically rather than hard-coding Scripture references.
   const stopWords = new Set([
     "what", "does", "about", "tell", "show", "give", "with", "from",
-    "this", "that", "bible", "verse", "verses", "says", "say", "please",
+    "this", "that", "bible", "biblia", "mbivilia", "verse", "verses", "says", "say", "please",
     "can", "you", "mean", "means", "explain", "explanation", "according",
-    "teach", "teaches", "teaching", "scripture", "passage", "chapter",
-    "the", "are", "is", "of", "on", "for", "to", "in", "how", "why"
+    "teach", "teaches", "teaching", "scripture", "scriptures", "maandiko", "passage", "chapter",
+    "the", "are", "is", "of", "on", "for", "to", "in", "how", "why",
+    "inasema", "nini", "kuhusu", "ni", "na", "ya", "za", "kwa", "je",
+    "tafadhali", "nipe", "onyesha", "eleza", "maana", "mstari", "mistari", "aya"
   ]);
 
   const rawTerms = q
@@ -328,6 +330,23 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // expanding it. This makes "forgiving", "worried", and "grieving" retrieve
   // the same topic family as "forgiveness", "anxiety", and "grief".
   const conceptAliases: Record<string, string> = {
+    // Common Kiswahili Bible-topic vocabulary maps to English concept families
+    // so discovery can search the indexed English translation before returning
+    // the exact same verse coordinates in the user's selected translation.
+    upendo: "love", penda: "love", kupenda: "love",
+    maombi: "prayer", omba: "prayer", kuomba: "prayer",
+    imani: "faith", amini: "faith", kuamini: "faith",
+    msamaha: "forgiveness", samehe: "forgiveness", kusamehe: "forgiveness",
+    tumaini: "hope", matumaini: "hope",
+    amani: "peace", hekima: "wisdom", utii: "obedience",
+    wokovu: "salvation", dhambi: "temptation", majaribu: "temptation",
+    hofu: "fear", woga: "fear", nguvu: "strength",
+    uponyaji: "healing", subira: "patience", uvumilivu: "patience",
+    unyenyekevu: "humility", toba: "repentance", huzuni: "grief",
+    majonzi: "grief", hasira: "anger", ndoa: "relationships",
+    mahusiano: "relationships", mwongozo: "guidance", shukrani: "gratitude",
+    ukarimu: "generosity", haki: "justice", mateso: "suffering",
+    mashaka: "doubt", upweke: "loneliness", ujasiri: "courage",
     pray: "prayer", praying: "prayer", prayed: "prayer", supplication: "prayer",
     believe: "faith", believeth: "faith", believed: "faith", believing: "faith", trust: "faith",
     loving: "love", loved: "love", loveth: "love",
