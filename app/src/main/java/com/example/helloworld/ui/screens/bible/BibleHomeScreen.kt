@@ -117,6 +117,17 @@ fun BibleHomeScreen(
     val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
         value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
     }
+    val translationVerseCounts by produceState(
+        initialValue = emptyMap<String, Int>(),
+        repository,
+        translations
+    ) {
+        value = translations.associate { translation ->
+            translation.id to runCatching {
+                repository.getVerseCount(translation.id)
+            }.getOrDefault(0)
+        }
+    }
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
     var bookQuery by rememberSaveable { mutableStateOf("") }
     var testamentFilter by rememberSaveable { mutableStateOf("All") }
@@ -169,7 +180,9 @@ fun BibleHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     translations.forEach { translation ->
+                        val count = translationVerseCounts[translation.id] ?: 0
                         TextButton(
+                            enabled = count > 0,
                             onClick = {
                                 prefs.edit().putString("translation_id", translation.id).apply()
                                 selectedTranslationId = translation.id
@@ -183,7 +196,11 @@ fun BibleHomeScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    if (translation.isOffline) "Available offline" else "Online translation",
+                                    when {
+                                        count == 0 -> "Not available yet"
+                                        translation.isOffline -> "$count verses · available offline"
+                                        else -> "$count verses · online"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
