@@ -38,8 +38,8 @@ class ApiBibleRepository(context: Context) {
 
     suspend fun listVersions(): List<ApiBibleVersion> {
         val result = mutableListOf<ApiBibleVersion>()
-        for (page in 1..5) {
-            val response = request(JSONObject().put("action", "catalog").put("language", "eng").put("page", page))
+        for (page in 1..20) {
+            val response = request(JSONObject().put("action", "catalog").put("language", "all").put("page", page))
             val data = response.optJSONArray("data") ?: break
             for (i in 0 until data.length()) {
                 val item = data.optJSONObject(i) ?: continue
@@ -49,8 +49,7 @@ class ApiBibleRepository(context: Context) {
                 result += ApiBibleVersion(id, item.optString("name", id), item.optString("abbreviation").ifBlank { id.take(8).uppercase() }, language?.optString("name").orEmpty().ifBlank { "English" }, language?.optString("id").orEmpty().ifBlank { "eng" })
             }
             if (data.length() == 0) break
-            val meta = response.optJSONObject("meta")
-            if (page > 1 && (meta?.optInt("next", 0) ?: 0) == 0) break
+            if (data.length() < 100) break
         }
         return result.distinctBy { it.id }.sortedBy { it.name.lowercase() }
     }
