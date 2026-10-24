@@ -332,6 +332,9 @@ fun BibleHomeScreen(
                             runCatching {
                                 apiBibleRepository.download(version) { progress -> installProgress = progress }
                             }.onSuccess {
+                                val installedId = version.id.lowercase().replace(Regex("[^a-z0-9_-]"), "_")
+                                prefs.edit().putString("translation_id", installedId).apply()
+                                selectedTranslationId = installedId
                                 installSuccess = "Installed " + version.name + " for offline reading."
                                 bibleRefresh++
                                 delay(900)
