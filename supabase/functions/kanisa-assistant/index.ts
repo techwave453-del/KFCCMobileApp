@@ -486,6 +486,54 @@ function citedVerifiedReferences(answer: string, bible: any): string[] {
   return [...new Set(candidates.filter(reference => answerCitesReference(answer, String(reference))))].slice(0, 12);
 }
 
+function unsupportedBibleReferences(answer: string, bible: any): string[] {
+  if (!answer.trim() || !bible || bible.translationNotAvailable || bible.referenceNotFound) return [];
+
+  const books = Array.isArray(bible.books) ? bible.books : [];
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\function firstValue(obj: any, keys: string[]) {");
+  const supplied = new Set<string>(
+    [
+      ...(Array.isArray(bible.references) ? bible.references : []),
+      ...(String(bible.reference || "").trim() ? [String(bible.reference).trim()] : [])
+    ].map((reference: string) => normalizeCitationText(reference))
+  );
+
+  const detected: string[] = [];
+  for (const book of books) {
+    const name = String(book?.name || "").trim();
+    if (!name) continue;
+    const pattern = new RegExp(
+      "(?:^|[^a-z0-9])" + escapeRegex(name) +
+      "\\s+(\\d{1,3}):(\\d{1,3})(?:\\s*[-–—]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "gi"
+    );
+    for (const match of answer.matchAll(pattern)) {
+      const chapter = Number(match[1]);
+      const startVerse = Number(match[2]);
+      const endVerse = match[3] ? Number(match[3]) : startVerse;
+      const citation = `${name} ${chapter}:${startVerse}` +
+        (endVerse !== startVerse ? `-${endVerse}` : "");
+      const normalized = normalizeCitationText(citation);
+
+      let verified = supplied.has(normalized);
+      // Permit a combined range only when every verse in it was retrieved,
+      // or the exact requested range was verified from the selected translation.
+      if (!verified && endVerse >= startVerse && endVerse - startVerse <= 29) {
+        verified = true;
+        for (let verse = startVerse; verse <= endVerse; verse++) {
+          if (!supplied.has(normalizeCitationText(`${name} ${chapter}:${verse}`))) {
+            verified = false;
+            break;
+          }
+        }
+      }
+      if (!verified) detected.push(citation);
+    }
+  }
+
+  return [...new Set(detected)];
+}
+
 function firstValue(obj: any, keys: string[]) {
   for (const key of keys) {
     const value = obj?.[key];
@@ -857,6 +905,19 @@ Deno.serve(async (req: Request) => {
 
     const answer = String(payload.output_text || payload.output?.flatMap((item: any) => item.content || []).map((part: any) => part.text || "").join("") || "").trim();
     if (!answer) {
+      return await finalize(
+        localAnswer(context, usableBible, message, settings),
+        "local",
+        null
+      );
+    }
+
+    // Model output is not itself proof that a Bible citation is valid.
+    // If it mentions a reference absent from the selected-translation retrieval,
+    // discard the generated answer and use the database-backed local response.
+    const unsupportedReferences = unsupportedBibleReferences(answer, usableBible);
+    if (unsupportedReferences.length) {
+      console.warn("Unsupported Bible citation in generated answer; using verified fallback", unsupportedReferences);
       return await finalize(
         localAnswer(context, usableBible, message, settings),
         "local",
