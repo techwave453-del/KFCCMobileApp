@@ -2,6 +2,7 @@
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -323,6 +325,25 @@ fun BibleChapterScreen(
                     },
                     onTranslate = { showVerseTranslations = true },
                     comparison = comparedVerse,
+                    onSwipeTranslation = { direction ->
+                        val availableTranslations = translations.filter { it.id != currentTranslationId }
+                        if (availableTranslations.isNotEmpty()) {
+                            val currentIndex = availableTranslations.indexOfFirst { it.id == comparedVerse?.first?.id }
+                            val nextIndex = if (currentIndex < 0) {
+                                if (direction > 0) 0 else availableTranslations.lastIndex
+                            } else {
+                                (currentIndex + direction + availableTranslations.size) % availableTranslations.size
+                            }
+                            val targetTranslation = availableTranslations[nextIndex]
+                            scope.launch {
+                                val targetChapter = runCatching {
+                                    repository.getChapter(targetTranslation.id, bookId, chapterNumber)
+                                }.getOrNull()
+                                val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verse.number }
+                                if (translatedVerse != null) comparedVerse = targetTranslation to translatedVerse
+                            }
+                        }
+                    },
                     onHighlight = { color ->
                         prefs.edit().putInt(verseHighlightKey(currentTranslationId, bookId, chapterNumber, verse.number), color).apply()
                         verseUiRefresh++
@@ -650,6 +671,7 @@ private fun BibleReader(
         onEditNote: () -> Unit,
         onTranslate: () -> Unit,
         comparison: Pair<BibleTranslation, BibleVerse>?,
+        onSwipeTranslation: (Int) -> Unit,
         onHighlight: (Int) -> Unit
     ) {
         Box(
@@ -728,10 +750,31 @@ private fun BibleReader(
                         style = MaterialTheme.typography.bodyLarge.copy(
                             lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.35
                         ),
-                        modifier = Modifier.padding(
-                            top = 16.dp,
-                            bottom = if (explanation.isNullOrBlank()) 18.dp else 12.dp
-                        )
+                        modifier = Modifier
+                            .padding(
+                                top = 16.dp,
+                                bottom = if (explanation.isNullOrBlank()) 8.dp else 12.dp
+                            )
+                            .pointerInput(translationId, comparison?.first?.id) {
+                                var horizontalDrag = 0f
+                                detectHorizontalDragGestures(
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        horizontalDrag += dragAmount
+                                        change.consume()
+                                    },
+                                    onDragEnd = {
+                                        if (horizontalDrag < -60f) onSwipeTranslation(1)
+                                        else if (horizontalDrag > 60f) onSwipeTranslation(-1)
+                                    }
+                                )
+                            }
+                    )
+                    Text(
+                        text = if (comparison == null) "Swipe left to view another translation"
+                        else "Swipe left/right to switch translations • " + comparison.first.abbreviation,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
                     if (!explanation.isNullOrBlank()) {
