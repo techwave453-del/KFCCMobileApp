@@ -8,7 +8,10 @@ import com.example.helloworld.data.offline.BibleTranslationEntity
 import com.example.helloworld.data.offline.BibleVerseEntity
 import com.example.helloworld.data.offline.KfccDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -97,104 +100,59 @@ class ApiBibleRepository(context: Context) {
         total = chaptersToDownload.size
         if (total == 0) throw IllegalStateException("No downloadable chapters were found.")
 
-        // Persist each chapter immediately and skip chapters already stored locally.
-        // This makes retries resumable without spending quota on completed chapters.
-        var completed = 0
-        var parsedVerses = 0
-        var skipped = 0
-        for ((book, bookId, chapterInfo) in chaptersToDownload) {
-            val (chapterId, chapterNo) = chapterInfo
-            val existing = db.bibleVerseDao().getChapter(translationId, bookId, chapterNo)
-            if (existing.isNotEmpty()) {
-                completed++
-                skipped++
-                progress("Keeping saved " + book.optString("name", bookId) + " " + chapterNo + " (" + completed + "/" + total + ")")
-                continue
-            }
+        // Persist each chapter immediately and skip saved chapters. Two workers overlap
+        // network latency while keeping request concurrency conservative for API quotas.
+        val completed = AtomicInteger(0)
+        val parsedVerses = AtomicInteger(0)
+        val skipped = AtomicInteger(0)
+        val nextIndex = AtomicInteger(0)
+        val workerCount = minOf(2, chaptersToDownload.size)
 
-            progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + completed + "/" + total + ")")
-            val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
-            val html = response.optJSONObject("data")?.optString("content").orEmpty()
-            val verses = parseVerses(html, bookId, chapterNo, translationId)
-            if (verses.isEmpty()) {
-                throw IllegalStateException(
-                    "No verses could be parsed from " + book.optString("name", bookId) + " " + chapterNo +
-                        ". Previously saved chapters have been kept; correct the parser before retrying."
-                )
+        coroutineScope {
+            repeat(workerCount) {
+                launch {
+                    while (true) {
+                        val index = nextIndex.getAndIncrement()
+                        if (index >= chaptersToDownload.size) break
+                        val (book, bookId, chapterInfo) = chaptersToDownload[index]
+                        val (chapterId, chapterNo) = chapterInfo
+                        val bookName = book.optString("name", bookId)
+                        val existing = db.bibleVerseDao().getChapter(translationId, bookId, chapterNo)
+                        if (existing.isNotEmpty()) {
+                            skipped.incrementAndGet()
+                            val done = completed.incrementAndGet()
+                            progress("Keeping saved $bookName $chapterNo ($done/$total)")
+                            continue
+                        }
+
+                        progress("Downloading $bookName $chapterNo (${completed.get()}/$total)")
+                        val response = request(
+                            JSONObject().put("action", "chapter")
+                                .put("bibleId", version.id)
+                                .put("chapterId", chapterId)
+                        )
+                        val html = response.optJSONObject("data")?.optString("content").orEmpty()
+                        val verses = parseVerses(html, bookId, chapterNo, translationId)
+                        if (verses.isEmpty()) {
+                            throw IllegalStateException(
+                                "No verses could be parsed from $bookName $chapterNo. " +
+                                    "Previously saved chapters have been kept; correct the parser before retrying."
+                            )
+                        }
+
+                        // Room upserts are batched and each chapter is committed before
+                        // moving on, so interrupted downloads can safely resume.
+                        verses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
+                        val newVerseCount = parsedVerses.addAndGet(verses.size)
+                        val done = completed.incrementAndGet()
+                        progress("Saved $done of $total chapters ($newVerseCount new verses; ${skipped.get()} chapters resumed)")
+                    }
+                }
             }
-            verses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
-            parsedVerses += verses.size
-            completed++
-            progress("Saved " + completed + " of " + total + " chapters (" + parsedVerses + " new verses; " + skipped + " chapters resumed)")
         }
         val count = db.bibleVerseDao().count(translationId)
         if (count == 0) throw IllegalStateException("No verse text was returned. This edition may not permit downloading through API.Bible.")
         db.bibleTranslationDao().upsertAll(listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, true, true, 40)))
-    }
-
-    /**
-     * Safely verify a translation with one chapter before attempting a larger download.
-     * This intentionally requests metadata for only the selected book and never loops
-     * through the full Bible.
-     */
-    suspend fun downloadSampleChapter(
-        version: ApiBibleVersion,
-        bookId: String = "PSA",
-        chapterNumber: Int = 51,
-        progress: (String) -> Unit
-    ) {
-        require(bookId in ids) { "Unsupported Bible book: $bookId" }
-        require(chapterNumber in 1..150) { "Invalid chapter number." }
-
-        val translationId = version.id.lowercase().replace(Regex("[^a-z0-9_-]"), "_")
-        val books = request(JSONObject().put("action", "books").put("bibleId", version.id))
-            .optJSONArray("data") ?: throw IllegalStateException("API.Bible did not return a book list.")
-        val apiBook = (0 until books.length())
-            .mapNotNull { books.optJSONObject(it) }
-            .firstOrNull { canonicalId(it.optString("id"), it.optString("name"), it.optInt("number", 0)) == bookId }
-            ?: throw IllegalStateException("This edition does not provide ${names[ids.indexOf(bookId)]}.")
-
-        val chapters = request(
-            JSONObject().put("action", "chapters")
-                .put("bibleId", version.id)
-                .put("bookId", apiBook.optString("id"))
-        ).optJSONArray("data") ?: throw IllegalStateException("API.Bible did not return chapter metadata.")
-        val apiChapter = (0 until chapters.length())
-            .mapNotNull { chapters.optJSONObject(it) }
-            .firstOrNull {
-                val id = it.optString("id")
-                it.optInt("number", id.substringAfterLast('.').toIntOrNull() ?: 0) == chapterNumber
-            } ?: throw IllegalStateException("${names[ids.indexOf(bookId)]} $chapterNumber is not available in this edition.")
-
-        val order = ids.indexOf(bookId)
-        db.bibleBookDao().upsertAll(
-            listOf(BibleBookEntity(bookId, names[order], bookId, if (order >= 39) "NT" else "OT", order + 1, chapters.length()))
-        )
-        db.bibleTranslationDao().upsertAll(
-            listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, false, false, 40))
-        )
-
-        if (db.bibleVerseDao().getChapter(translationId, bookId, chapterNumber).isNotEmpty()) {
-            progress("Already saved ${names[order]} $chapterNumber; no chapter request used.")
-        } else {
-            progress("Requesting only ${names[order]} $chapterNumber…")
-            val response = request(
-                JSONObject().put("action", "chapter")
-                    .put("bibleId", version.id)
-                    .put("chapterId", apiChapter.optString("id"))
-            )
-            val html = response.optJSONObject("data")?.optString("content").orEmpty()
-            val verses = parseVerses(html, bookId, chapterNumber, translationId)
-            if (verses.isEmpty()) {
-                throw IllegalStateException("No verses could be parsed from ${names[order]} $chapterNumber. No chapter data was saved.")
-            }
-            db.bibleVerseDao().upsertAll(verses)
-            progress("Saved ${names[order]} $chapterNumber: ${verses.size} verses.")
-        }
-
-        db.bibleTranslationDao().upsertAll(
-            listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, true, true, 40))
-        )
     }
 
     private fun parseVerses(html: String, bookId: String, chapter: Int, translationId: String): List<BibleVerseEntity> {
