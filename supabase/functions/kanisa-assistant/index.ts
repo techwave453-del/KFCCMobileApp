@@ -790,15 +790,27 @@ function buildPrompt(context: any, bible: any, message: string, history: any[]) 
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
   const recent = JSON.stringify((history || []).slice(-8));
-  const requestedLanguage = /\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b|\b(kikamba|kamba|kimakamba)\s+(language|please)\b/i.test(message)
-    ? "kam"
-    : /\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b/i.test(message)
-      ? "sw"
-      : /\b(english|in english|explain in english)\b/i.test(message)
-        ? "en"
-        : /\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji)\b/i.test(message)
-          ? "sw"
-          : "en";
+  const languageInstruction = (text: string): string | null => {
+    if (/\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b|\b(kikamba|kamba|kimakamba)\s+(language|please)\b/i.test(text)) return "kam";
+    if (/\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b/i.test(text)) return "sw";
+    if (/\b(in|use|reply|answer|explain)\s+english\b|\benglish\s+(language|please)\b/i.test(text)) return "en";
+    return null;
+  };
+  const languageOfEverydayText = (text: string): string | null => {
+    if (/\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji|naomba|asante|kwa nini|jinsi ya|nini maana)\b/i.test(text)) return "sw";
+    return null;
+  };
+  // Honor a language request made now; otherwise preserve a prior explicit
+  // language preference for short follow-ups such as "explain more" or "why?".
+  const priorUserMessages = (history || [])
+    .filter(item => item.role === "user")
+    .slice(-8)
+    .map(item => String(item.content || ""));
+  const requestedLanguage = languageInstruction(message) ||
+    [...priorUserMessages].reverse().map(languageInstruction).find(Boolean) ||
+    languageOfEverydayText(message) ||
+    [...priorUserMessages].reverse().map(languageOfEverydayText).find(Boolean) ||
+    "en";
   const responseLanguageRule = requestedLanguage === "kam"
     ? "RESPONSE LANGUAGE: Explain the Scripture and answer the question in clear Kikamba only where you can do so reliably. If a phrase or idea is beyond your reliable Kikamba, explain that part in plain English or Kiswahili rather than inventing words. Never return only the Scripture quotation. The selected Bible translation controls the quotation, not the explanation language. Keep quoted Scripture exactly as supplied."
     : requestedLanguage === "sw"
