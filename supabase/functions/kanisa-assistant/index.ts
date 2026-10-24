@@ -301,42 +301,62 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     verses: []
   };
 
-  const filters = terms
-    .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
-    .join(",");
-
-  // The Kamba text is not English, so English topic words cannot reliably find
-  // Kamba verses. Discover candidate references from KJV, then retrieve the
-  // actual verse text from the selected Kamba translation below.
+  // Search terms independently and merge results. A single broad OR query can
+  // fill its row limit with early database matches, hiding relevant verses for
+  // other concepts. Per-term retrieval gives each synonym a chance to contribute.
   const discoveryTranslation = translation === "kam" ? "kjv" : translation;
-  const { data: rawCandidates, error: bibleSearchError } = await supabase
-    .from("bible_verses")
-    .select("book_id,chapter,verse,text")
-    .eq("translation_id", discoveryTranslation)
-    .or(filters)
-    .limit(80);
-
-  if (bibleSearchError) {
-    console.error("Bible topic search error", bibleSearchError);
+  const searchTerms = terms.slice(0, 8);
+  const searchResults = await Promise.all(searchTerms.map(async (term) => {
+    const safeTerm = term.replace(/[%_]/g, "").trim();
+    if (!safeTerm) return [];
+    const { data, error } = await supabase
+      .from("bible_verses")
+      .select("book_id,chapter,verse,text")
+      .eq("translation_id", discoveryTranslation)
+      .ilike("text", \`%\${safeTerm}%\`)
+      .limit(20);
+    if (error) {
+      console.error("Bible topic search error", { term: safeTerm, error });
+      return [];
+    }
+    return data ?? [];
+  }));
+  const candidateMap = new Map<string, any>();
+  for (const verse of searchResults.flat()) {
+    const key = \`\${verse.book_id}:\${verse.chapter}:\${verse.verse}\`;
+    if (!candidateMap.has(key)) candidateMap.set(key, verse);
   }
+  const rawCandidates = [...candidateMap.values()];
+  const primaryPhrase = rawTerms.join(" ").toLowerCase().trim();
 
-  const candidatesWithScore = (rawCandidates ?? []).map((verse: any) => {
+  const candidatesWithScore = rawCandidates.map((verse: any) => {
     const text = String(verse.text || "").toLowerCase();
     let score = 0;
+    let matchedTerms = 0;
     for (const term of terms) {
       const occurrences = text.split(term.toLowerCase()).length - 1;
-      if (occurrences > 0) score += Math.min(occurrences, 3);
+      if (occurrences > 0) {
+        matchedTerms++;
+        score += Math.min(occurrences, 3) * 2;
+      }
     }
 
-    // Prefer passages that contain the concept directly rather than incidental
-    // uses of "pray" as the expression "I pray thee".
-    if (/\bprayer\b|\bpraying\b|\bsupplication\b|\bintercession\b/.test(text)) score += 4;
-    if (/\bi pray thee\b/.test(text)) score -= 3;
+    // Reward passages that match several topic terms or the user's phrase,
+    // rather than passages that mention one incidental word.
+    score += Math.max(0, matchedTerms - 1) * 2;
+    if (primaryPhrase.length >= 5 && text.includes(primaryPhrase)) score += 8;
 
-    return { verse, score };
+    // "I pray thee" is a historical idiom, not necessarily a passage about prayer.
+    if (/\bi pray thee\b/.test(text) &&
+      /\bprayer\b|\bpraying\b|\bsupplication\b|\bintercession\b/.test(primaryPhrase)) {
+      score -= 4;
+    }
+
+    return { verse, score, matchedTerms };
   }).sort((a: any, b: any) =>
     b.score - a.score ||
-    Number(a.verse.book_id) - Number(b.verse.book_id) ||
+    b.matchedTerms - a.matchedTerms ||
+    String(a.verse.book_id).localeCompare(String(b.verse.book_id)) ||
     Number(a.verse.chapter) - Number(b.verse.chapter) ||
     Number(a.verse.verse) - Number(b.verse.verse)
   );
