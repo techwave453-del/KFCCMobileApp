@@ -282,7 +282,16 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     conceptExpansions[term] || [term]
   ))].slice(0, 12);
 
-  if (!terms.length) return { books: books || [], translation, reference: "", references: [], verses: [] };
+  if (!terms.length) return {
+    books: books || [],
+    translation,
+    translationName: translationRecord.name,
+    translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
+    reference: "",
+    references: [],
+    verses: []
+  };
 
   const filters = terms
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
@@ -585,7 +594,9 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
   }
 
   if (bible?.verses?.length) {
-    const verses = bible.verses.slice(0, 6);
+    // For a specific reference, show the complete verified range rather than
+    // labelling a truncated subset with the full requested citation.
+    const verses = bible.verses.slice(0, bible.reference ? 30 : 6);
     const reference = bible.reference || "";
     const translationName = bible.translationName || bible.translationAbbreviation || bible.translation || "selected translation";
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
