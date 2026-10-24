@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.time.Instant
 import java.util.UUID
 
@@ -147,6 +149,7 @@ class DirectChatRepository {
         client.postgrest.rpc(
             "search_chat_members",
             buildJsonObject { put("p_query", normalized) }
+            buildJsonObject { put("p_query", JsonPrimitive(normalized)) }
         ).decodeList<ChatMemberSearchResult>()
     }
 
@@ -162,6 +165,7 @@ class DirectChatRepository {
         val response = client.postgrest.rpc(
             "start_direct_conversation",
             buildJsonObject { put("p_other_user_id", otherUserId) }
+            buildJsonObject { put("p_other_user_id", JsonPrimitive(otherUserId)) }
         )
         response.decodeAs<String>()
     }
@@ -207,6 +211,7 @@ class DirectChatRepository {
         client.postgrest.rpc(
             "add_chat_contact",
             buildJsonObject { put("p_contact_user_id", contactUserId) }
+            buildJsonObject { put("p_contact_user_id", JsonPrimitive(contactUserId)) }
         )
     }
 

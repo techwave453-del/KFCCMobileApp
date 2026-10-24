@@ -108,6 +108,7 @@ class OfflineFirstBibleRepository(private val database: KfccDatabase) : BibleRep
                 local = verses.getChapter(translationId, bookId, chapterNumber)
             }
         }
+        val local = verses.getChapter(translationId, bookId, chapterNumber)
         if (local.isNotEmpty()) return BibleChapter(bookId, chapterNumber, local.map { BibleVerse(it.verse, it.text) })
 
         return runCatching {
@@ -139,6 +140,7 @@ class OfflineFirstBibleRepository(private val database: KfccDatabase) : BibleRep
                 local = verses.search(translationId, normalized)
             }
         }
+        val local = verses.search(translationId, normalized)
         if (local.isNotEmpty()) return local.map {
             BibleSearchResult(it.bookId, bookNames[it.bookId] ?: it.bookId, it.chapter, it.verse, it.text)
         }

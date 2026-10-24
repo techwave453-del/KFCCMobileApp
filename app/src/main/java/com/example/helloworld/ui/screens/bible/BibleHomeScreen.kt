@@ -170,6 +170,7 @@ fun BibleHomeScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     translations.forEach { translation ->
                         TextButton(
+                            enabled = count > 0,
                             onClick = {
                                 prefs.edit().putString("translation_id", translation.id).apply()
                                 selectedTranslationId = translation.id
@@ -224,6 +225,13 @@ fun BibleHomeScreen(
                                 contentPadding = PaddingValues(4.dp)
                             ) {
                                 Text(abbr, fontSize = 12.sp)
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (count > 0) "${count} verses available" else "Not available yet",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
