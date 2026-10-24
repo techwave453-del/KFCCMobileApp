@@ -107,6 +107,7 @@ fun BibleHomeScreen(
 ) {
     val repository = remember { KfccBibleRepository() }
     val context = LocalContext.current
+    val apiBibleRepository = remember(context) { com.example.helloworld.data.bible.ApiBibleRepository(context) }
     val prefs = remember { context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE) }
     val savedBook = prefs.getString("continue_book", "GEN") ?: "GEN"
     val savedChapter = prefs.getInt("continue_chapter", 1)
@@ -114,7 +115,8 @@ fun BibleHomeScreen(
     val books by produceState(initialValue = emptyList<BibleBook>(), repository, selectedTranslationId) {
         value = runCatching { repository.getBooks(selectedTranslationId) }.getOrDefault(emptyList())
     }
-    val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
+    var bibleRefresh by remember { mutableStateOf(0) }
+    val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository, bibleRefresh) {
         value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
     }
     val translationVerseCounts by produceState(
@@ -140,6 +142,12 @@ fun BibleHomeScreen(
     var installAbbr by remember { mutableStateOf("ASV") }
     var installName by remember { mutableStateOf("American Standard Version") }
     var installLang by remember { mutableStateOf("English") }
+    var apiBibleVersions by remember { mutableStateOf(emptyList<com.example.helloworld.data.bible.ApiBibleVersion>()) }
+    var selectedApiBibleVersionId by remember { mutableStateOf("") }
+    var catalogLoading by remember { mutableStateOf(false) }
+    var catalogError by remember { mutableStateOf<String?>(null) }
+    var installProgress by remember { mutableStateOf("") }
+    var versionSearch by rememberSaveable { mutableStateOf("") }
     var installing by remember { mutableStateOf(false) }
     var installError by remember { mutableStateOf<String?>(null) }
     var installSuccess by remember { mutableStateOf<String?>(null) }
@@ -223,63 +231,91 @@ fun BibleHomeScreen(
         )
     }
 
+    LaunchedEffect(showBebliaInstaller) {
+        if (showBebliaInstaller && apiBibleVersions.isEmpty() && !catalogLoading) {
+            catalogLoading = true
+            catalogError = null
+            runCatching { apiBibleRepository.listVersions() }
+                .onSuccess { versions ->
+                    apiBibleVersions = versions
+                    if (selectedApiBibleVersionId.isBlank()) {
+                        selectedApiBibleVersionId = versions.firstOrNull { it.abbreviation.equals("GNB", true) || it.name.contains("Good News", true) }?.id
+                            ?: versions.firstOrNull()?.id.orEmpty()
+                    }
+                }
+                .onFailure { catalogError = it.message ?: "Unable to load Bible versions from API.Bible." }
+            catalogLoading = false
+        }
+    }
+
     if (showBebliaInstaller) {
+        val selectedVersion = apiBibleVersions.firstOrNull { it.id == selectedApiBibleVersionId }
+        val filteredVersions = apiBibleVersions.filter {
+            versionSearch.isBlank() ||
+                it.name.contains(versionSearch, ignoreCase = true) ||
+                it.abbreviation.contains(versionSearch, ignoreCase = true) ||
+                it.language.contains(versionSearch, ignoreCase = true)
+        }
         AlertDialog(
             onDismissRequest = { if (!installing) showBebliaInstaller = false },
             title = { Text("Install Bible Version") },
             text = {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(380.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier.fillMaxWidth().height(420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Select a version from the Beblia GitHub repository or enter a custom raw XML URL.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(
-                            Triple("asv", "ASV", "American Standard Version"),
-                            Triple("web", "WEB", "World English Bible"),
-                            Triple("bbe", "BBE", "Bible in Basic English")
-                        ).forEach { (id, abbr, name) ->
-                            OutlinedButton(
-                                onClick = {
-                                    installId = id
-                                    installAbbr = abbr
-                                    installName = name
-                                    installUrl = "https://raw.githubusercontent.com/Beblia/Holy-Bible-XML-Format/master/$id.xml"
-                                },
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(4.dp)
-                            ) {
-                                Text(abbr, fontSize = 12.sp)
+                    Text(
+                        "Choose an edition available to your API.Bible account. Download access depends on the publisher's permissions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = versionSearch,
+                        onValueChange = { versionSearch = it },
+                        label = { Text("Search versions (e.g. Good News)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    when {
+                        catalogLoading -> {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text("Loading available Bible versions…", style = MaterialTheme.typography.bodySmall)
+                        }
+                        catalogError != null -> Text(catalogError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        else -> LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(filteredVersions, key = { it.id }) { version ->
+                                val chosen = version.id == selectedApiBibleVersionId
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().clickable(enabled = !installing) { selectedApiBibleVersionId = version.id },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(version.name, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                version.abbreviation + " · " + version.language,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        if (chosen) Icon(Icons.Filled.Star, contentDescription = "Selected")
+                                    }
+                                }
+                            }
+                            if (filteredVersions.isEmpty() && !catalogLoading) {
+                                item { Text("No matching versions in the API.Bible catalogue.", style = MaterialTheme.typography.bodySmall) }
                             }
                         }
                     }
-
-                    OutlinedTextField(
-                        value = installUrl,
-                        onValueChange = { installUrl = it },
-                        label = { Text("Raw XML URL") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = installName,
-                        onValueChange = { installName = it },
-                        label = { Text("Version Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = installAbbr,
-                        onValueChange = { installAbbr = it },
-                        label = { Text("Abbreviation") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
+                    if (installing) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(installProgress.ifBlank { "Preparing download…" }, style = MaterialTheme.typography.bodySmall)
+                    }
                     installError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     installSuccess?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall) }
                 }
@@ -287,49 +323,31 @@ fun BibleHomeScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        val version = selectedVersion ?: return@Button
                         installing = true
                         installError = null
                         installSuccess = null
+                        installProgress = "Preparing " + version.name
                         scope.launch {
                             runCatching {
-                                withContext(Dispatchers.IO) {
-                                    val url = URL(installUrl)
-                                    val connection = url.openConnection() as HttpURLConnection
-                                    connection.connectTimeout = 15000
-                                    connection.readTimeout = 15000
-                                    connection.connect()
-                                    val stream = connection.inputStream
-                                    BebliaXmlParser.parseAndStore(
-                                        context = context,
-                                        inputStream = stream,
-                                        translationId = installId.trim().lowercase(),
-                                        abbreviation = installAbbr.trim().uppercase(),
-                                        name = installName.trim(),
-                                        language = installLang
-                                    )
-                                    stream.close()
-                                }
+                                apiBibleRepository.download(version) { progress -> installProgress = progress }
                             }.onSuccess {
-                                installSuccess = "Successfully installed $installName!"
-                                installing = false
-                                delay(1000)
+                                installSuccess = "Installed " + version.name + " for offline reading."
+                                bibleRefresh++
+                                delay(900)
                                 showBebliaInstaller = false
                                 showTranslations = false
                             }.onFailure {
-                                installError = it.message ?: "Failed to download or parse XML Bible."
-                                installing = false
+                                installError = it.message ?: "Could not download this Bible version."
                             }
+                            installing = false
                         }
                     },
-                    enabled = !installing && installUrl.isNotBlank() && installId.isNotBlank()
-                ) {
-                    Text(if (installing) "Downloading & Parsing…" else "Download & Install")
-                }
+                    enabled = !installing && !catalogLoading && selectedVersion != null
+                ) { Text(if (installing) "Downloading…" else "Download & Install") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showBebliaInstaller = false }, enabled = !installing) {
-                    Text("Cancel")
-                }
+                OutlinedButton(onClick = { showBebliaInstaller = false }, enabled = !installing) { Text("Close") }
             }
         )
     }
