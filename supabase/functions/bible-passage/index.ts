@@ -34,9 +34,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (action === "catalog") {
-      const language = typeof body.language === "string" && /^[a-z]{3}$/.test(body.language) ? body.language : "eng";
+      const language = typeof body.language === "string" && (/^[a-z]{3}$/.test(body.language) || body.language === "all") ? body.language : "eng";
       const page = Number.isInteger(body.page) && body.page >= 1 && body.page <= 100 ? body.page : 1;
-      const result = await apiBible(`/bibles?language=${encodeURIComponent(language)}&limit=100&page=${page}`);
+      const languageFilter = language === "all" ? "" : `language=${encodeURIComponent(language)}&`;
+      const result = await apiBible(`/bibles?${languageFilter}limit=100&page=${page}`);
       if (!result.ok) return jsonResponse({ error: "Unable to list Bible versions from API.Bible", upstreamStatus: result.status }, 502);
       return jsonResponse({ data: result.body?.data ?? [], meta: result.body?.meta ?? {}, page, language });
     }
