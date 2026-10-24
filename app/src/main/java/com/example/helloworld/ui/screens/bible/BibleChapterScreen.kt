@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -123,10 +126,13 @@ fun BibleChapterScreen(
     // used when a reader taps a verse manually.
     LaunchedEffect(bookId, chapterNumber, initialVerse, chapter) {
         val requestedVerse = initialVerse
-        if (requestedVerse != null && requestedVerse > 0) {
-            selectedVerse = chapter?.verses?.firstOrNull { it.number == requestedVerse }
-        } else {
-            selectedVerse = null
+        val existingNumber = selectedVerse?.number
+        selectedVerse = when {
+            existingNumber != null && chapter?.verses?.any { it.number == existingNumber } == true ->
+                chapter?.verses?.firstOrNull { it.number == existingNumber }
+            requestedVerse != null && requestedVerse > 0 ->
+                chapter?.verses?.firstOrNull { it.number == requestedVerse }
+            else -> null
         }
     }
 
@@ -657,6 +663,7 @@ private fun BibleReader(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 680.dp)
                     .clickable(onClick = {}),
                 shape = RoundedCornerShape(26.dp),
                 elevation = CardDefaults.cardElevation(
@@ -667,7 +674,7 @@ private fun BibleReader(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp)
+                    modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
