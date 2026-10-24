@@ -62,10 +62,28 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     ? requestedTranslation.toLowerCase().trim()
     : /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
-  const { data: books } = await supabase
-    .from("bible_books")
-    .select("id,name,abbreviation")
-    .order("id");
+  const [{ data: books }, { data: translationRecord, error: translationError }] = await Promise.all([
+    supabase.from("bible_books").select("id,name,abbreviation").order("id"),
+    supabase.from("bible_translations")
+      .select("id,abbreviation,name,language_code,language_name")
+      .eq("id", translation)
+      .eq("is_enabled", true)
+      .maybeSingle()
+  ]);
+
+  // Never silently substitute KJV when the user has selected another translation.
+  // A missing translation record means the server cannot verify that translation.
+  if (translationError || !translationRecord) {
+    console.error("Selected Bible translation is unavailable", translation, translationError);
+    return {
+      books: books || [],
+      translation,
+      translationNotAvailable: true,
+      reference: "",
+      references: [],
+      verses: []
+    };
+  }
 
   const escapeRegex = (value: string) =>
     value.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
@@ -106,11 +124,30 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     }
   };
 
+  const kambaBookNames: Record<string, string> = {
+    GEN: "Mwambĩlĩlyo", EXO: "Kuma", LEV: "Alivai", NUM: "Motalo",
+    DEU: "Kũtũngĩlĩlwa Kwa Mĩao", JOS: "Yosua", JDG: "Asili", RUT: "Luthi",
+    "1SA": "1 Samueli", "2SA": "2 Samueli", "1KI": "1 Asumbĩ", "2KI": "2 Asumbĩ",
+    "1CH": "1 Mavinda", "2CH": "2 Mavinda", EZR: "Esala", NEH: "Neemia",
+    EST: "Esita", JOB: "Yovu", PSA: "Savuli", PRO: "Nthimo", ECC: "Mũtavan'ya",
+    SNG: "Wathi", ISA: "Isaia", JER: "Yelemai", LAM: "Iĩo", EZK: "Esekieli",
+    DAN: "Ndanieli", HOS: "Osea", JOL: "Yoeli", AMO: "Amosi", OBA: "Ovatia",
+    JON: "Yona", MIC: "Mika", NAM: "Naumu", HAB: "Avakuki", ZEP: "Nzevania",
+    HAG: "Akai", ZEC: "Nzekalia", MAL: "Malaki", MAT: "Mathayo", MRK: "Maliko",
+    LUK: "Luka", JHN: "Yoana", ACT: "Meko Ma Atũmwa", ROM: "Alomi",
+    "1CO": "1 Akolintho", "2CO": "2 Akolintho", GAL: "Akalatia", EPH: "Aeveso",
+    PHP: "Avilivi", COL: "Akolosai", "1TH": "1 Athesalonika", "2TH": "2 Athesalonika",
+    "1TI": "1 Timotheo", "2TI": "2 Timotheo", TIT: "Tito", PHM: "Vilemona",
+    HEB: "Aevelania", JAS: "Yakobo", "1PE": "1 Vetelo", "2PE": "2 Vetelo",
+    "1JN": "1 Yoana", "2JN": "2 Yoana", "3JN": "3 Yoana", JUD: "Yuta", REV: "Ũvuan'yo"
+  };
+
   const candidates = (books || [])
     .flatMap((book: any) => {
       const aliases = new Set<string>();
       addAlias(aliases, book.name);
       addAlias(aliases, book.abbreviation);
+      if (translation === "kam") addAlias(aliases, kambaBookNames[String(book.id)] || "");
       return [...aliases].map(alias => ({ book, alias }));
     })
     .sort((a, b) => b.alias.length - a.alias.length);
@@ -122,7 +159,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\s*(?:chapter\s*)?(\\d{1,3})\s*[:;,]\s*(\\d{1,3})(?:\s*[-–]\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
@@ -131,8 +168,25 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     const chapter = Number(match[1]);
     const verseStart = Number(match[2]);
     const verseEnd = match[3] ? Number(match[3]) : verseStart;
+    const canonicalReference =
+      `${candidate.book.name} ${chapter}:${verseStart}` +
+      (verseEnd !== verseStart ? `-${verseEnd}` : "");
 
-    const { data: verses } = await supabase
+    if (chapter < 1 || verseStart < 1 || verseEnd < verseStart || verseEnd - verseStart > 29) {
+      return {
+        books: books || [],
+        translation,
+        translationName: translationRecord.name,
+        translationAbbreviation: translationRecord.abbreviation,
+        translationLanguageCode: translationRecord.language_code,
+        reference: canonicalReference,
+        referenceNotFound: true,
+        references: [],
+        verses: []
+      };
+    }
+
+    const { data: verses, error: verseError } = await supabase
       .from("bible_verses")
       .select("book_id,chapter,verse,text")
       .eq("translation_id", translation)
@@ -143,15 +197,22 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
       .order("verse")
       .limit(30);
 
-    const canonicalReference =
-      `${candidate.book.name} ${chapter}:${verseStart}` +
-      (verseEnd !== verseStart ? `-${verseEnd}` : "");
+    const exactRangeFound = !verseError &&
+      (verses || []).length === verseEnd - verseStart + 1 &&
+      (verses || []).every((verse: any, index: number) =>
+        Number(verse.verse) === verseStart + index && Boolean(String(verse.text || "").trim())
+      );
 
     return {
+      books: books || [],
       translation,
+      translationName: translationRecord.name,
+      translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: canonicalReference,
-      references: [canonicalReference],
-      verses: verses ?? []
+      referenceNotFound: !exactRangeFound,
+      references: exactRangeFound ? [canonicalReference] : [],
+      verses: exactRangeFound ? (verses || []) : []
     };
   }
 
@@ -170,6 +231,9 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     return {
       books: books || [],
       translation,
+      translationName: translationRecord.name,
+      translationAbbreviation: translationRecord.abbreviation,
+      translationLanguageCode: translationRecord.language_code,
       reference: "",
       references: [],
       verses: []
@@ -218,16 +282,29 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     conceptExpansions[term] || [term]
   ))].slice(0, 12);
 
-  if (!terms.length) return { books: books || [], translation, reference: "", references: [], verses: [] };
+  if (!terms.length) return {
+    books: books || [],
+    translation,
+    translationName: translationRecord.name,
+    translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
+    reference: "",
+    references: [],
+    verses: []
+  };
 
   const filters = terms
     .map(term => `text.ilike.%${term.replace(/[%_]/g, "")}%`)
     .join(",");
 
+  // The Kamba text is not English, so English topic words cannot reliably find
+  // Kamba verses. Discover candidate references from KJV, then retrieve the
+  // actual verse text from the selected Kamba translation below.
+  const discoveryTranslation = translation === "kam" ? "kjv" : translation;
   const { data: rawCandidates, error: bibleSearchError } = await supabase
     .from("bible_verses")
     .select("book_id,chapter,verse,text")
-    .eq("translation_id", translation)
+    .eq("translation_id", discoveryTranslation)
     .or(filters)
     .limit(80);
 
@@ -256,7 +333,25 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     Number(a.verse.verse) - Number(b.verse.verse)
   );
 
-  const verses = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
+  const rankedCandidates = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
+  let verses: any[] = rankedCandidates;
+
+  if (translation === "kam") {
+    const translated = await Promise.all(rankedCandidates.slice(0, 12).map(async (candidate: any) => {
+      const { data, error } = await supabase
+        .from("bible_verses")
+        .select("book_id,chapter,verse,text")
+        .eq("translation_id", translation)
+        .eq("book_id", candidate.book_id)
+        .eq("chapter", candidate.chapter)
+        .eq("verse", candidate.verse)
+        .maybeSingle();
+      if (error) console.error("Kamba verse lookup failed", candidate, error);
+      return data && String(data.text || "").trim() ? data : null;
+    }));
+    verses = translated.filter(Boolean);
+  }
+
   const bookNames = new Map((books || []).map((book: any) => [book.id, book.name]));
   const references = [...new Set(
     verses.map((verse: any) => {
@@ -265,7 +360,16 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     }).filter(Boolean)
   )].slice(0, 12);
 
-  return { books: books || [], translation, reference: "", references, verses };
+  return {
+    books: books || [],
+    translation,
+    translationName: translationRecord.name,
+    translationAbbreviation: translationRecord.abbreviation,
+    translationLanguageCode: translationRecord.language_code,
+    reference: "",
+    references,
+    verses
+  };
 }
 function verifiedUserId(req: Request): string | null {
   const header = req.headers.get("Authorization") || "";
@@ -481,18 +585,27 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     return `Here are some published media items:\\n\\n${lines.join("\\n")}`;
   }
 
-  if (/kiswahili|swahili|kikamba|kamba bible|kitui bible/.test(q)) {
-    const requested = /kikamba|kamba|kitui/.test(q) ? "Kikamba" : "Kiswahili";
-    return `${requested} Bible data is not currently enabled in the assistant's Bible database. The currently enabled translations are KJV and WEB. I won't pretend to quote a translation that isn't available.`;
+  if (bible?.translationNotAvailable) {
+    return `The selected Bible translation (${bible.translation || "unknown"}) is not available in the assistant's online Bible database yet. I won't substitute another translation or present another version's wording as the selected one. Please check the Bible translation sync in Kanisa.`;
+  }
+
+  if (bible?.referenceNotFound) {
+    return `I couldn't verify ${bible.reference || "that Bible reference"} in the selected translation (${bible.translationName || bible.translationAbbreviation || bible.translation}). I haven't quoted a passage because the requested chapter and verse could not be confirmed. Please check the book, chapter, and verse number.`;
   }
 
   if (bible?.verses?.length) {
-    const verses = bible.verses.slice(0, 6);
+    // For a specific reference, show the complete verified range rather than
+    // labelling a truncated subset with the full requested citation.
+    const verses = bible.verses.slice(0, bible.reference ? 30 : 6);
     const reference = bible.reference || "";
-    const translationName = bible.translation === "web" ? "WEB" : "KJV";
+    const translationName = bible.translationName || bible.translationAbbreviation || bible.translation || "selected translation";
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
 
     if (reference) {
+      if (bible.translation === "kam") {
+        return `Mbivilia (Kamba): ${reference}\\n\\n${translationName}:\\n${scripture}\\n\\nNote: This quotation is taken from the selected Kamba (Mbivilia) text. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
+      }
+
       const contextualFollowUp =
         /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
         /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
@@ -509,6 +622,10 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
+    if (bible.translation === "kam") {
+      return `Kamba Bible (Mbivilia) — selected passages:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\nNote: The passages above are from the selected Kamba translation. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
+    }
+
     return `Scripture Answers:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\n🙏 Pastoral Reflection:\nThese passages offer meaningful biblical guidance on your question. Take time to meditate on God's Word.`;
   }
 
@@ -522,9 +639,17 @@ function buildPrompt(context: any, bible: any, message: string, history: any[]) 
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
   const recent = JSON.stringify((history || []).slice(-8));
+  const languageCode = String(bible?.translationLanguageCode || "").toLowerCase();
+  const responseLanguageRule = languageCode === "kam"
+    ? "RESPONSE LANGUAGE: Use Kikamba first for the explanation and conversation. Only use Kikamba wording you can produce reliably; for uncertain or unavailable terms, fall back to Kiswahili or English rather than inventing Kikamba words. Keep quoted Scripture exactly as supplied from Kamba Bible (Mbivilia)."
+    : languageCode === "sw"
+      ? "RESPONSE LANGUAGE: Reply in Kiswahili, while preserving the exact supplied Scripture wording from the selected Kiswahili translation."
+      : "RESPONSE LANGUAGE: Reply in English unless the user explicitly asks for another language. Preserve the exact supplied Scripture wording from the selected translation.";
+
   return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
 
 PASTORAL & COMMUNICATION STYLE:
+${responseLanguageRule}
 - Be warm, deeply encouraging, pastorally sensitive, concise, and spiritually uplifting.
 - Speak with grace and clarity, offering genuine Christian encouragement and biblical truth.
 - Do not claim to be a human or a pastor, but serve as a faithful, knowledgeable Bible and church companion.
@@ -535,6 +660,8 @@ STRICT SOURCE RULES:
 - Do not invent service times, events, leaders, contact details, ministries, giving instructions, locations, or announcements.
 - If a church fact is missing or ambiguous, say that the current published church data does not provide a reliable answer.
 - Bible quotations/references must come from the supplied Bible context. Never invent a Bible reference or quote.
+- The user's selected Bible translation is identified by BIBLE CONTEXT.translation and BIBLE CONTEXT.translationName. Quote only verse text supplied for that exact translation; do not silently replace it with KJV, WEB, GNB, or another version.
+- If BIBLE CONTEXT says translationNotAvailable or referenceNotFound, explain that the passage could not be verified and do not invent a substitute quotation or reference.
 - For Bible concept/topic questions such as "what does the Bible say about prayer?", use the supplied BIBLE CONTEXT as the source. Select the most relevant passages from it and cite their exact supplied references in the answer.
 - When BIBLE CONTEXT contains relevant references, do not answer a Bible concept question from general model memory alone.
 - Distinguish Scripture from explanation, interpretation, and practical application.
@@ -606,12 +733,16 @@ Deno.serve(async (req: Request) => {
   ) => {
     const references = usableBible.references?.length
       ? usableBible.references
-      : usableBible.reference
+      : usableBible.reference && !usableBible.referenceNotFound
         ? [usableBible.reference]
         : [];
     const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
       const name = (usableBible?.books || []).find((book: any) => book.id === verse.book_id)?.name;
-      const transAbbr = usableBible.translation === "gnb" ? "GNB" : usableBible.translation === "web" ? "WEB" : "KJV";
+      const transAbbr = usableBible.translationAbbreviation ||
+        (usableBible.translation === "gnb" ? "GNB" :
+          usableBible.translation === "web" ? "WEB" :
+            usableBible.translation === "kam" ? "KAM" :
+              String(usableBible.translation || "KJV").toUpperCase());
       return name && verse.text
         ? { reference: name + " " + verse.chapter + ":" + verse.verse, text: String(verse.text), translation: transAbbr }
         : null;
