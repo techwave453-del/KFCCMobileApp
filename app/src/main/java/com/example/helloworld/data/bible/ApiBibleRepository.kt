@@ -140,7 +140,7 @@ class ApiBibleRepository(context: Context) {
         // spans caused the previous parser to miss valid verse text).
         val markerPatterns = listOf(
             Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*(?:^|\s)(?:v|verse-number|verse-num)(?:\s|$)[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>"""),
-            Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>"""),
+            Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>\s*\d{1,3}\s*</span>"""),
             Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bv\b[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>""")
         )
         val markers: List<Triple<Int, Int, Int>> = markerPatterns.firstNotNullOfOrNull { pattern ->
