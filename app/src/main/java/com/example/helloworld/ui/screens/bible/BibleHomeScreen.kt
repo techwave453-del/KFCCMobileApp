@@ -430,6 +430,7 @@ fun BibleHomeScreen(
     selectedBook?.let { book ->
         BibleChapterPickerDialog(
             book = book,
+            displayName = localizedBibleBookName(book.id, selectedTranslation?.language, book.name),
             onDismiss = { selectedBook = null },
             onSelectChapter = { chapter ->
                 selectedBook = null
@@ -684,7 +685,7 @@ fun BibleHomeScreen(
             }
 
             val filteredBooks = books.filter { book ->
-                book.name.contains(bookQuery.trim(), ignoreCase = true) &&
+                localizedBibleBookName(book.id, selectedTranslation?.language, book.name).contains(bookQuery.trim(), ignoreCase = true) &&
                     (testamentFilter == "All" ||
                         (testamentFilter == "Old Testament" && book.testament == Testament.OLD) ||
                         (testamentFilter == "New Testament" && book.testament == Testament.NEW))
@@ -734,7 +735,11 @@ fun BibleHomeScreen(
                         filteredBooks.filter { it.testament == Testament.OLD },
                         key = { it.id }
                     ) { book ->
-                        BibleBookRow(book = book, onClick = { selectedBook = book })
+                        BibleBookRow(
+                            book = book,
+                            displayName = localizedBibleBookName(book.id, selectedTranslation?.language, book.name),
+                            onClick = { selectedBook = book }
+                        )
                     }
                 }
 
@@ -750,7 +755,11 @@ fun BibleHomeScreen(
                         filteredBooks.filter { it.testament == Testament.NEW },
                         key = { it.id }
                     ) { book ->
-                        BibleBookRow(book = book, onClick = { selectedBook = book })
+                        BibleBookRow(
+                            book = book,
+                            displayName = localizedBibleBookName(book.id, selectedTranslation?.language, book.name),
+                            onClick = { selectedBook = book }
+                        )
                     }
                 }
             }
@@ -1173,6 +1182,7 @@ private fun TestamentHeader(
 @Composable
 private fun BibleBookRow(
     book: BibleBook,
+    displayName: String,
     onClick: () -> Unit
 ) {
     Surface(
@@ -1195,7 +1205,7 @@ private fun BibleBookRow(
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(book.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("${book.chapterCount} chapters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             }
             Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
@@ -1206,6 +1216,7 @@ private fun BibleBookRow(
 @Composable
 private fun BibleChapterPickerDialog(
     book: BibleBook,
+    displayName: String,
     onDismiss: () -> Unit,
     onSelectChapter: (Int) -> Unit
 ) {
@@ -1216,7 +1227,7 @@ private fun BibleChapterPickerDialog(
         title = {
             Column {
                 Text(
-                    text = book.name,
+                    text = displayName,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -1278,3 +1289,85 @@ private fun BibleChapterPickerDialog(
         }
     )
 }
+
+
+/** Returns a localized display name without changing canonical book IDs or stored verse data. */
+private fun localizedBibleBookName(bookId: String, language: String?, fallback: String): String {
+    if (language.orEmpty().contains("swahili", ignoreCase = true) ||
+        language.orEmpty().contains("kiswahili", ignoreCase = true) ||
+        language.orEmpty().equals("sw", ignoreCase = true)
+    ) {
+        return SWAHILI_BIBLE_BOOK_NAMES[bookId] ?: fallback
+    }
+    return fallback
+}
+
+private val SWAHILI_BIBLE_BOOK_NAMES = mapOf(
+    "GEN" to "Mwanzo",
+    "EXO" to "Kutoka",
+    "LEV" to "Mambo ya Walawi",
+    "NUM" to "Hesabu",
+    "DEU" to "Kumbukumbu la Torati",
+    "JOS" to "Yoshua",
+    "JDG" to "Waamuzi",
+    "RUT" to "Ruthu",
+    "1SA" to "1 Samweli",
+    "2SA" to "2 Samweli",
+    "1KI" to "1 Wafalme",
+    "2KI" to "2 Wafalme",
+    "1CH" to "1 Mambo ya Nyakati",
+    "2CH" to "2 Mambo ya Nyakati",
+    "EZR" to "Ezra",
+    "NEH" to "Nehemia",
+    "EST" to "Esta",
+    "JOB" to "Ayubu",
+    "PSA" to "Zaburi",
+    "PRO" to "Mithali",
+    "ECC" to "Mhubiri",
+    "SNG" to "Wimbo Ulio Bora",
+    "ISA" to "Isaya",
+    "JER" to "Yeremia",
+    "LAM" to "Maombolezo",
+    "EZK" to "Ezekieli",
+    "DAN" to "Danieli",
+    "HOS" to "Hosea",
+    "JOL" to "Yoeli",
+    "AMO" to "Amosi",
+    "OBA" to "Obadia",
+    "JON" to "Yona",
+    "MIC" to "Mika",
+    "NAM" to "Nahumu",
+    "HAB" to "Habakuki",
+    "ZEP" to "Sefania",
+    "HAG" to "Hagai",
+    "ZEC" to "Zekaria",
+    "MAL" to "Malaki",
+    "MAT" to "Mathayo",
+    "MRK" to "Marko",
+    "LUK" to "Luka",
+    "JHN" to "Yohana",
+    "ACT" to "Matendo ya Mitume",
+    "ROM" to "Warumi",
+    "1CO" to "1 Wakorintho",
+    "2CO" to "2 Wakorintho",
+    "GAL" to "Wagalatia",
+    "EPH" to "Waefeso",
+    "PHP" to "Wafilipi",
+    "COL" to "Wakolosai",
+    "1TH" to "1 Wathesalonike",
+    "2TH" to "2 Wathesalonike",
+    "1TI" to "1 Timotheo",
+    "2TI" to "2 Timotheo",
+    "TIT" to "Tito",
+    "PHM" to "Filemoni",
+    "HEB" to "Waebrania",
+    "JAS" to "Yakobo",
+    "1PE" to "1 Petro",
+    "2PE" to "2 Petro",
+    "1JN" to "1 Yohana",
+    "2JN" to "2 Yohana",
+    "3JN" to "3 Yohana",
+    "JUD" to "Yuda",
+    "REV" to "Ufunuo wa Yohana"
+)
+
