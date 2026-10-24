@@ -783,10 +783,10 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     const verses = bible.verses.slice(0, bible.reference ? 30 : 6);
     const reference = bible.reference || "";
     const translationName = bible.translationName || bible.translationAbbreviation || bible.translation || "selected translation";
-    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
+    const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
 
     if (reference) {
-      return `Mbivilia (Kamba): ${reference}\\n\\n${translationName}:\\n${scripture}\\n\\n${localBibleExplanation(message, bible)}`;
+      return `Mbivilia (Kamba): ${reference}\n\n${translationName}:\n${scripture}\n\n${localBibleExplanation(message, bible)}`;
     }
 
     const references = verses.map((v: any) => {
@@ -799,8 +799,8 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       : "Scripture Answers:";
     const selectedPassages = verses.map((v: any, i: number) =>
       `${references[i] ? references[i] + " — " : ""}${v.text}`
-    ).join("\\n\\n");
-    return `${heading}\\n\\n${selectedPassages}\\n\\n${localBibleExplanation(message, bible)}`;
+    ).join("\n\n");
+    return `${heading}\n\n${selectedPassages}\n\n${localBibleExplanation(message, bible)}`;
   }
 
   if (/help|what can you do|how can you help/.test(q)) {
