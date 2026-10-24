@@ -603,6 +603,39 @@ function firstValue(obj: any, keys: string[]) {
   return "";
 }
 
+function localBibleExplanation(message: string, bible: any): string {
+  const q = normalize(message);
+  const requestedLanguage =
+    /\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b|\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji|naomba|asante|kwa nini|jinsi ya|nini maana)\b/i.test(message)
+      ? "sw"
+      : /\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b/i.test(message)
+        ? "kam"
+        : "en";
+
+  const topics: Array<{ pattern: RegExp; en: string; sw: string }> = [
+    { pattern: /forgiv|forgive|forgiven|forgiveness|msamaha|samehe|kusamehe|nimesamehe|hurt me|wronged me|betray/, en: "The central idea is forgiveness: choosing not to repay wrong with revenge, while being honest about the harm. Forgiveness does not mean pretending the hurt never happened or allowing ongoing abuse. Where it is safe, seek peace and wise counsel; boundaries and accountability can still be necessary.", sw: "Wazo kuu ni msamaha: kuchagua kutolipiza ubaya kwa ubaya, huku ukikubali ukweli wa maumivu yaliyotokea. Kusamehe hakumaanishi kujifanya kwamba hakuna kilichotokea au kuruhusu unyanyasaji uendelee. Ikiwa ni salama, tafuta amani na ushauri wenye hekima; mipaka na uwajibikaji bado vinaweza kuhitajika." },
+    { pattern: /anx|worr|worry|fear|afraid|stress|panic|wasiwasi|hofu|ogopa|kuogopa|msongo/, en: "The passage can be applied by bringing your concerns honestly to God and taking the next manageable step instead of trying to solve everything at once. Prayer can support you, and seeking practical help from a trusted person is also appropriate.", sw: "Unaweza kutumia ujumbe huu kwa kumweleza Mungu wasiwasi wako kwa uaminifu na kuchukua hatua moja inayowezekana badala ya kujaribu kutatua kila kitu mara moja. Maombi yanaweza kukutia moyo, na pia ni sawa kutafuta msaada wa vitendo kutoka kwa mtu unayemwamini." },
+    { pattern: /pray|prayer|praying|maombi|omba|kuomba/, en: "The passage points toward honest communication with God, not merely repeating words. You can pray about what is happening, ask for wisdom, and remain open to taking responsible action.", sw: "Ujumbe huu unatukumbusha kuzungumza na Mungu kwa uaminifu, si kurudia maneno tu. Unaweza kuomba kuhusu hali unayopitia, kuomba hekima, na kuwa tayari kuchukua hatua zinazofaa." },
+    { pattern: /faith|believ|trust|imani|kuamini|tumaini kwa mungu/, en: "Faith means relying on God while responding to life with trust and faithfulness. It does not require pretending that doubts or difficulties do not exist; bring them honestly into prayer and seek wise guidance.", sw: "Imani ni kumtegemea Mungu huku ukiendelea kutenda kwa uaminifu. Haimaanishi kujifanya kwamba mashaka au matatizo hayapo; mweleze Mungu ukweli wa moyo wako katika maombi na utafute mwongozo wenye hekima." },
+    { pattern: /love|loving|upendo|penda|kupenda/, en: "The practical focus is to show love through truthful, patient, and helpful actions, not words alone. Love does not require accepting harm; it can include clear boundaries and speaking honestly.", sw: "Jambo la kufanya ni kuonyesha upendo kwa matendo ya kweli, uvumilivu na msaada, si kwa maneno pekee. Upendo haukulazimishi kukubali kuumizwa; unaweza pia kuhusisha kuweka mipaka iliyo wazi na kusema ukweli." },
+    { pattern: /grief|griev|mourning|sorrow|loss|bereav|huzuni|majonzi|msiba|kuomboleza/, en: "The passage can offer language for grief without requiring you to hide your sadness. Give yourself time, seek support from people you trust, and take grief one day at a time.", sw: "Ujumbe huu unaweza kukupa nafasi ya kueleza huzuni bila kujilazimisha kuificha. Jipe muda, tafuta msaada wa watu unaowaamini, na pitia kipindi hiki hatua kwa hatua." },
+    { pattern: /anger|angry|rage|hasira|ghadhabu|kukasirika/, en: "A practical response is to pause before speaking or acting, name what has hurt or angered you, and respond truthfully without revenge. If someone is unsafe, create distance and seek help.", sw: "Hatua ya vitendo ni kutulia kabla ya kusema au kutenda, kutambua kilichokuumiza au kukukasirisha, na kujibu kwa ukweli bila kulipiza kisasi. Ikiwa kuna hatari, ondoka mahali hapo na utafute msaada." },
+    { pattern: /guidance|decision|direction|wisdom|mwongozo|uamuzi|hekima|nifanye nini/, en: "Use this as an invitation to seek wisdom, consider the facts, pray, and ask trustworthy people for counsel. A decision should also be assessed by its consequences and whether it treats others justly.", sw: "Chukulia hili kama mwaliko wa kutafuta hekima, kuchunguza ukweli, kuomba, na kushauriana na watu waaminifu. Pia tathmini matokeo ya uamuzi na kama unawatendea wengine kwa haki." },
+    { pattern: /hope|hopeless|despair|tumaini|kukata tamaa/, en: "The message encourages you not to treat the present difficulty as the whole story. Hold on to hope while also taking practical steps and accepting support from others.", sw: "Ujumbe huu unakutia moyo usione ugumu wa sasa kuwa ndio mwisho wa kila kitu. Shikilia tumaini huku ukichukua hatua za vitendo na kukubali msaada wa wengine." }
+  ];
+  const topic = topics.find(item => item.pattern.test(q));
+  if (topic) {
+    if (requestedLanguage === "sw") return "Maelezo: " + topic.sw;
+    if (requestedLanguage === "kam") return "Explanation: " + topic.en + "\n\nNote: In local/offline mode, I cannot reliably produce a full Kikamba explanation yet, so I am using English rather than inventing Kikamba wording.";
+    return "Explanation: " + topic.en;
+  }
+
+  if (requestedLanguage === "sw") {
+    return "Maelezo: Hali ya ndani ya mstari huu inahitaji kueleweka pamoja na maneno yake na muktadha wa sura nzima. Hali ya offline haiwezi kutafsiri kwa uhakika maandishi ya Biblia ya lugha nyingine; sitaki kubuni maana isiyothibitishwa. Nimehifadhi nukuu kutoka tafsiri uliyochagua. Ukiwezesha huduma ya AI mtandaoni, inaweza kusaidia kutoa maelezo ya kina zaidi.";
+  }
+  return "Explanation: I have preserved the exact verse from your selected translation, but the local/offline mode cannot reliably translate every non-English Bible wording. I don't want to guess at the verse's exact meaning. The topic-specific guidance above is available when your question makes the topic clear; for a precise verse-by-verse explanation, use the cloud assistant when online.";
+}
+
 function localAnswer(context: any, bible: any, message: string, settings: any) {
   const assistantName = settings?.assistant_name || "Kanisa Assistant";
   const q = normalize(message);
@@ -753,19 +786,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\\n");
 
     if (reference) {
-      if (bible.translation === "kam") {
-        return `Mbivilia (Kamba): ${reference}\\n\\n${translationName}:\\n${scripture}\\n\\nNote: This quotation is taken from the selected Kamba (Mbivilia) text. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
-      }
-
-      const contextualFollowUp =
-        /\b(this|that|these|those|it|the passage|the verse|the scripture|the scriptures)\b/i.test(q) ||
-        /\b(explain|expand|elaborate|meaning|application)\b/i.test(q);
-
-      if (contextualFollowUp) {
-        return `Here is the ${translationName} passage we were discussing, ${reference}:\\n\\n${scripture}\\n\\n💡 Spiritual Insight & Application:\nThis passage invites us to anchor our faith in God's unfailing promises. Reflect on how its timeless truth applies directly to your walk with Christ today, offering peace, encouragement, and strength.`;
-      }
-
-      return `Scripture Reference: ${reference}\\n\\n${translationName} Bible Text:\\n${scripture}\\n\\n🙏 Pastoral Reflection:\nThe passage above provides wonderful biblical insight and encouragement. Read it prayerfully in its surrounding context to experience its full spiritual depth.`;
+      return `Mbivilia (Kamba): ${reference}\\n\\n${translationName}:\\n${scripture}\\n\\n${localBibleExplanation(message, bible)}`;
     }
 
     const references = verses.map((v: any) => {
@@ -773,11 +794,13 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
-    if (bible.translation === "kam") {
-      return `Kamba Bible (Mbivilia) — selected passages:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\nNote: The passages above are from the selected Kamba translation. The local fallback uses English for explanation where a verified Kikamba explanation is not available.`;
-    }
-
-    return `Scripture Answers:\\n\\n${verses.map((v: any, i: number) => `${references[i] ? references[i] + " — " : ""}${v.text}`).join("\\n\\n")}\\n\\n🙏 Pastoral Reflection:\nThese passages offer meaningful biblical guidance on your question. Take time to meditate on God's Word.`;
+    const heading = bible.translation === "kam"
+      ? "Kamba Bible (Mbivilia) — selected passages:"
+      : "Scripture Answers:";
+    const selectedPassages = verses.map((v: any, i: number) =>
+      `${references[i] ? references[i] + " — " : ""}${v.text}`
+    ).join("\\n\\n");
+    return `${heading}\\n\\n${selectedPassages}\\n\\n${localBibleExplanation(message, bible)}`;
   }
 
   if (/help|what can you do|how can you help/.test(q)) {
