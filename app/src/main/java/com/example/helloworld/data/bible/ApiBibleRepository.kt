@@ -73,20 +73,41 @@ class ApiBibleRepository(context: Context) {
             ?: throw IllegalStateException("API.Bible did not return a book list.")
         if (bookData.length() == 0) throw IllegalStateException("This edition has no accessible books.")
         val apiBooks = (0 until bookData.length()).mapNotNull { bookData.optJSONObject(it) }
-        val mapped = mutableListOf<Triple<JSONObject, String, List<JSONObject>>>()
-        val bookEntities = mutableListOf<BibleBookEntity>()
-        var total = 0
-        for (book in apiBooks) {
-            val id = canonicalId(book.optString("id"), book.optString("name"), book.optInt("number", 0))
-            if (id !in ids) continue
-            val chapters = request(JSONObject().put("action", "chapters").put("bibleId", version.id).put("bookId", book.optString("id"))).optJSONArray("data") ?: continue
-            val chapterList = (0 until chapters.length()).mapNotNull { chapters.optJSONObject(it) }
-            if (chapterList.isEmpty()) continue
-            mapped += Triple(book, id, chapterList)
-            total += chapterList.size
-            bookEntities += BibleBookEntity(id, names[ids.indexOf(id)], id, if (ids.indexOf(id) >= 39) "NT" else "OT", ids.indexOf(id) + 1, chapterList.size)
+        val metadataResults = arrayOfNulls<Triple<JSONObject, String, List<JSONObject>>>(apiBooks.size)
+        val metadataNextIndex = AtomicInteger(0)
+        val metadataWorkerCount = minOf(2, apiBooks.size)
+
+        // Fetch per-book chapter metadata concurrently with a strict two-request ceiling.
+        coroutineScope {
+            repeat(metadataWorkerCount) {
+                launch {
+                    while (true) {
+                        val index = metadataNextIndex.getAndIncrement()
+                        if (index >= apiBooks.size) break
+                        val book = apiBooks[index]
+                        val id = canonicalId(book.optString("id"), book.optString("name"), book.optInt("number", 0))
+                        if (id !in ids) continue
+
+                        val chapters = request(
+                            JSONObject().put("action", "chapters")
+                                .put("bibleId", version.id)
+                                .put("bookId", book.optString("id"))
+                        ).optJSONArray("data") ?: continue
+                        val chapterList = (0 until chapters.length()).mapNotNull { chapters.optJSONObject(it) }
+                        if (chapterList.isNotEmpty()) {
+                            metadataResults[index] = Triple(book, id, chapterList)
+                        }
+                    }
+                }
+            }
         }
+
+        val mapped = metadataResults.filterNotNull()
         if (mapped.isEmpty()) throw IllegalStateException("Could not map API.Bible books to standard Bible books.")
+        val bookEntities = mapped.map { (_, id, chapterList) ->
+            val order = ids.indexOf(id)
+            BibleBookEntity(id, names[order], id, if (order >= 39) "NT" else "OT", order + 1, chapterList.size)
+        }
         db.bibleBookDao().upsertAll(bookEntities)
         db.bibleTranslationDao().upsertAll(listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, false, false, 40)))
         val chaptersToDownload = mapped.flatMap { (book, bookId, chapters) ->
