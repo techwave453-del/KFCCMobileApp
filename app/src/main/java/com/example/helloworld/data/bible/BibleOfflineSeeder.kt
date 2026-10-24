@@ -3,7 +3,6 @@ package com.example.helloworld.data.bible
 import android.content.Context
 import com.example.helloworld.data.offline.BibleBookEntity
 import com.example.helloworld.data.offline.BibleTranslationEntity
-import com.example.helloworld.data.offline.BibleVerseEntity
 import com.example.helloworld.data.offline.KfccDatabase
 import androidx.room.withTransaction
 import kotlinx.serialization.Serializable
@@ -21,15 +20,6 @@ object BibleOfflineSeeder {
         // licensed GNB source is actually connected.
         db.bibleTranslationDao().upsertAll(
             listOf(
-                BibleTranslationEntity(
-                    id = "gnb",
-                    abbreviation = "GNB",
-                    name = "Good News Bible (online availability required)",
-                    language = "English",
-                    isOffline = true,
-                    isEnabled = true,
-                    sortOrder = 20
-                ),
                 BibleTranslationEntity(
                     id = "kam",
                     abbreviation = "KAM",
@@ -56,19 +46,7 @@ object BibleOfflineSeeder {
             )
         }
 
-        if (db.bibleVerseDao().count("kjv") >= 31_102) {
-            if (db.bibleVerseDao().count("gnb") < 31_102) {
-                db.bibleVerseDao().copyTranslation("kjv", "gnb")
-            }
-            return
-        }
-                    isOffline = false,
-                    isEnabled = false,
-                    sortOrder = 90
-                )
-            )
-        )
-
+        // KJV data is seeded once. Never copy KJV verses into another translation slot.
         if (db.bibleVerseDao().count("kjv") >= 31_102) return
 
         val assetFiles = context.assets.list(ASSET_DIR)
