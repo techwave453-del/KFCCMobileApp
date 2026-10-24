@@ -790,12 +790,20 @@ function buildPrompt(context: any, bible: any, message: string, history: any[]) 
   const church = JSON.stringify(context);
   const scripture = JSON.stringify(bible);
   const recent = JSON.stringify((history || []).slice(-8));
-  const languageCode = String(bible?.translationLanguageCode || "").toLowerCase();
-  const responseLanguageRule = languageCode === "kam"
-    ? "RESPONSE LANGUAGE: Always explain the Scripture and answer the user's question; never return only the non-English quotation. Try clear, natural Kikamba for the explanation first. If you cannot reliably explain a word or idea in Kikamba, explain that part in Kiswahili or English rather than inventing Kikamba. Keep quoted Scripture exactly as supplied from Kamba Bible (Mbivilia)."
-    : languageCode === "sw"
-      ? "RESPONSE LANGUAGE: Always include an explanation of the Scripture and answer the user's question in Kiswahili. Keep quoted Scripture exactly as supplied from the selected Kiswahili translation."
-      : "RESPONSE LANGUAGE: Always include an explanation of the Scripture and answer the user's question in English unless the user explicitly asks for another language. This applies even when the selected Bible translation is in another language you do not speak fluently: preserve the verse text exactly, then explain its meaning separately in clear English. Never omit the explanation merely because the quotation is non-English.";
+  const requestedLanguage = /\b(in|use|reply|answer|explain)\s+(kikamba|kamba|kimakamba)\b|\b(kikamba|kamba|kimakamba)\s+(language|please)\b/i.test(message)
+    ? "kam"
+    : /\b(in|use|reply|answer|explain)\s+(kiswahili|swahili)\b|\b(kiswahili|swahili)\s+(language|please)\b/i.test(message)
+      ? "sw"
+      : /\b(english|in english|explain in english)\b/i.test(message)
+        ? "en"
+        : /\b(habari|tafadhali|nisaidie|maana yake|ueleze|eleza|mstari|biblia|upendo|msamaha|woga|wasiwasi|maombi|imani|ninahitaji)\b/i.test(message)
+          ? "sw"
+          : "en";
+  const responseLanguageRule = requestedLanguage === "kam"
+    ? "RESPONSE LANGUAGE: Explain the Scripture and answer the question in clear Kikamba only where you can do so reliably. If a phrase or idea is beyond your reliable Kikamba, explain that part in plain English or Kiswahili rather than inventing words. Never return only the Scripture quotation. The selected Bible translation controls the quotation, not the explanation language. Keep quoted Scripture exactly as supplied."
+    : requestedLanguage === "sw"
+      ? "RESPONSE LANGUAGE: Explain the Scripture and answer the question in Kiswahili. The selected Bible translation controls the quotation, not the explanation language. Keep quoted Scripture exactly as supplied, even if it is in English or Kikamba. Never return only the quotation."
+      : "RESPONSE LANGUAGE: Explain the Scripture and answer the question in clear English, even when the selected Bible translation is in Kikamba or another language you do not speak fluently. The selected Bible translation controls the quotation, not the explanation language. Preserve the verse text exactly, then explain its meaning separately in English. Never omit the explanation merely because the quotation is non-English. If the user explicitly requests another language, follow that request only to the extent you can do so reliably.";
 
   return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
 
@@ -821,6 +829,7 @@ STRICT SOURCE RULES:
 - If the user asks for a specific passage, prioritize that passage instead of adding unrelated verses.
 - If the user asks a contextual follow-up such as "explain this", "what does that mean?", "how do I apply this?", or "more scriptures", use the previous conversation plus the supplied BIBLE CONTEXT to stay on the same subject.
 - When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage.
+- The Bible translation language and the explanation language are separate settings. Do not infer the response language from BIBLE CONTEXT.translationLanguageCode. Follow RESPONSE LANGUAGE above, which is based on the user's message or explicit language request.
 - A non-English Scripture quotation is never a reason to skip explanation. Clearly separate the exact quoted text from commentary, then explain the passage's meaning and practical relevance in the response language specified above. If you understand the verse language only partially, be transparent about uncertainty and explain what can be responsibly explained; do not pretend that the translation itself is an explanation.
 - For every Bible question with relevant retrieved verses, include all three where possible: (1) the exact supplied verse text, (2) a plain-language explanation of what it means in context, and (3) one practical application that directly answers the user's question. Avoid generic filler reflections that could fit any verse.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
