@@ -132,19 +132,43 @@ class ApiBibleRepository(context: Context) {
     }
 
     private fun parseVerses(html: String, bookId: String, chapter: Int, translationId: String): List<BibleVerseEntity> {
-        val spans = Regex("(?is)<span\\b([^>]*)>(.*?)</span>").findAll(html).toList()
-        val starts = spans.mapIndexedNotNull { index, match ->
-            val attrs = match.groupValues[1]
-            if (!Regex("(?i)class=[\"'][^\"']*\\bv\\b[^\"']*[\"']").containsMatchIn(attrs)) return@mapIndexedNotNull null
-            val n = Html.fromHtml(match.groupValues[2], Html.FROM_HTML_MODE_LEGACY).toString().trim().toIntOrNull() ?: return@mapIndexedNotNull null
-            Triple(match.range.last + 1, n, index)
+        if (html.isBlank()) return emptyList()
+
+        // API.Bible markup varies slightly between editions. Match verse markers in
+        // the whole document rather than parsing every span independently (nested
+        // spans caused the previous parser to miss valid verse text).
+        val markerPatterns = listOf(
+            Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bv\b[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>"""),
+            Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>""")
+        )
+        val markers = markerPatterns.firstNotNullOfOrNull { pattern ->
+            pattern.findAll(html).mapNotNull { match ->
+                val numberText = match.groups[1]?.value
+                    ?: Regex("""(?i)\bdata-number\s*=\s*["']?(\d{1,3})""")
+                        .find(match.value)?.groupValues?.getOrNull(1)
+                val number = numberText?.toIntOrNull() ?: return@mapNotNull null
+                if (number !in 1..200) return@mapNotNull null
+                Triple(match.range.last + 1, number, match.range.first)
+            }.toList().takeIf { it.isNotEmpty() }
+        } ?: emptyList()
+
+        if (markers.isNotEmpty()) {
+            return markers.mapIndexedNotNull { index, marker ->
+                val end = markers.getOrNull(index + 1)?.third ?: html.length
+                val raw = html.substring(marker.first.coerceAtMost(html.length), end.coerceAtLeast(marker.first).coerceAtMost(html.length))
+                val text = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
+                    .replace(Regex("[\u00a0\\s]+"), " ")
+                    .trim().trim(' ', '¶', '·')
+                if (text.isBlank()) null else BibleVerseEntity(translationId, bookId, chapter, marker.second, text)
+            }.distinctBy { it.verse }
         }
-        return starts.mapIndexedNotNull { i, start ->
-            val end = starts.getOrNull(i + 1)?.let { spans[it.third].range.first } ?: html.length
-            val raw = html.substring(start.first.coerceAtMost(html.length), end.coerceAtLeast(start.first).coerceAtMost(html.length))
-            val text = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString().replace(Regex("[\\u00a0\\s]+"), " ").trim().trim(' ', '¶', '·')
-            if (text.isBlank()) null else BibleVerseEntity(translationId, bookId, chapter, start.second, text)
-        }
+
+        // Some editions return plain text or omit verse-number markup. Preserve
+        // their content as a single chapter verse rather than silently discarding it.
+        val plain = Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString()
+            .replace(Regex("[\u00a0\\s]+"), " ").trim()
+        return if (plain.isBlank()) emptyList()
+        else listOf(BibleVerseEntity(translationId, bookId, chapter, 1, plain))
     }
 
     private fun canonicalId(apiId: String, name: String, number: Int): String {
