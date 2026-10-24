@@ -26,14 +26,7 @@ class OfflineFirstBibleRepository(private val database: KfccDatabase) : BibleRep
     }
 
     override suspend fun getChapter(translationId: String, bookId: String, chapterNumber: Int): BibleChapter? {
-        var local = verses.getChapter(translationId, bookId, chapterNumber)
-        if (local.isEmpty() && translationId == "gnb") {
-            val kjvLocal = verses.getChapter("kjv", bookId, chapterNumber)
-            if (kjvLocal.isNotEmpty()) {
-                verses.upsertAll(kjvLocal.map { it.copy(translationId = "gnb") })
-                local = verses.getChapter(translationId, bookId, chapterNumber)
-            }
-        }
+        val local = verses.getChapter(translationId, bookId, chapterNumber)
         if (local.isNotEmpty()) return BibleChapter(bookId, chapterNumber, local.map { BibleVerse(it.verse, it.text) })
 
         return runCatching {
@@ -57,14 +50,7 @@ class OfflineFirstBibleRepository(private val database: KfccDatabase) : BibleRep
         val normalized = query.trim()
         if (normalized.isBlank()) return emptyList()
         val bookNames = books.getAll().associate { it.id to it.name }
-        var local = verses.search(translationId, normalized)
-        if (local.isEmpty() && translationId == "gnb") {
-            val kjvLocal = verses.search("kjv", normalized)
-            if (kjvLocal.isNotEmpty()) {
-                verses.upsertAll(kjvLocal.map { it.copy(translationId = "gnb") })
-                local = verses.search(translationId, normalized)
-            }
-        }
+        val local = verses.search(translationId, normalized)
         if (local.isNotEmpty()) return local.map {
             BibleSearchResult(it.bookId, bookNames[it.bookId] ?: it.bookId, it.chapter, it.verse, it.text)
         }
