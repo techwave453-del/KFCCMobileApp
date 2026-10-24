@@ -142,7 +142,7 @@ class ApiBibleRepository(context: Context) {
             Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>"""),
             Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bv\b[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>""")
         )
-        val markers = markerPatterns.firstNotNullOfOrNull { pattern ->
+        val markers: List<Triple<Int, Int, Int>> = markerPatterns.firstNotNullOfOrNull { pattern ->
             pattern.findAll(html).mapNotNull { match ->
                 val numberText = match.groups[1]?.value
                     ?: Regex("""(?i)\bdata-number\s*=\s*["']?(\d{1,3})""")
@@ -166,7 +166,7 @@ class ApiBibleRepository(context: Context) {
 
         // Do not store a whole chapter as verse 1: that would corrupt verse
         // addressing and search. Return empty so the caller can report the issue.
-        emptyList()
+        return emptyList()
     }
 
     private fun canonicalId(apiId: String, name: String, number: Int): String {
