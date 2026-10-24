@@ -19,8 +19,22 @@ class BibleSyncWorker(appContext: Context, workerParams: WorkerParameters) : Cor
         syncTranslations()
         syncBooks()
         syncVerses()
+        refreshOfflineAvailability()
         Result.success()
     }.getOrElse { Result.retry() }
+
+    /**
+     * syncTranslations() runs before verses are downloaded, so its first offline
+     * flags can be stale. Recalculate them after syncing so a newly downloaded
+     * translation (including Kamba) is marked available for offline reading.
+     */
+    private suspend fun refreshOfflineAvailability() {
+        val dao = db.bibleTranslationDao()
+        val enabled = dao.getEnabled()
+        dao.upsertAll(enabled.map { translation ->
+            translation.copy(isOffline = db.bibleVerseDao().count(translation.id) > 0)
+        })
+    }
 
     private suspend fun syncTranslations() {
         val rows = SupabaseProvider.client.from("bible_translations").select {
