@@ -160,67 +160,70 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     })
     .sort((a, b) => b.alias.length - a.alias.length);
 
-  // Match a real Bible book followed by chapter:verse. The book name must come
-  // from bible_books, so question words such as "does", "say", or "mean" can
-  // never accidentally become part of the book name.
+  // Resolve both chapter-only references (e.g. "Explain Psalm 23") and
+  // verse references/ranges. Book aliases always come from the Bible catalogue.
   for (const candidate of candidates) {
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\\s*(?:chapter\\s*)?(\\d{1,3})\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
     if (!match) continue;
 
     const chapter = Number(match[1]);
-    const verseStart = Number(match[2]);
-    const verseEnd = match[3] ? Number(match[3]) : verseStart;
-    const canonicalReference =
-      `${candidate.book.name} ${chapter}:${verseStart}` +
-      (verseEnd !== verseStart ? `-${verseEnd}` : "");
+    const chapterOnly = !match[2];
+    const verseStart = chapterOnly ? 1 : Number(match[2]);
+    const verseEnd = chapterOnly ? null : Number(match[3] || match[2]);
+    const canonicalReference = chapterOnly
+      ? `${candidate.book.name} ${chapter}`
+      : `${candidate.book.name} ${chapter}:${verseStart}` +
+        (verseEnd !== verseStart ? `-${verseEnd}` : "");
+    const invalidRange = chapter < 1 || verseStart < 1 ||
+      (!chapterOnly && (verseEnd! < verseStart || verseEnd! - verseStart > 29));
 
-    if (chapter < 1 || verseStart < 1 || verseEnd < verseStart || verseEnd - verseStart > 29) {
+    if (invalidRange) {
       return {
-        books: books || [],
-        translation,
+        books: books || [], translation,
         translationName: translationRecord.name,
         translationAbbreviation: translationRecord.abbreviation,
         translationLanguageCode: translationRecord.language_code,
-        reference: canonicalReference,
-        referenceNotFound: true,
-        references: [],
-        verses: []
+        reference: canonicalReference, referenceNotFound: true,
+        references: [], verses: []
       };
     }
 
-    const { data: verses, error: verseError } = await supabase
-      .from("bible_verses")
+    let query = supabase.from("bible_verses")
       .select("book_id,chapter,verse,text")
       .eq("translation_id", translation)
       .eq("book_id", candidate.book.id)
       .eq("chapter", chapter)
-      .gte("verse", verseStart)
-      .lte("verse", verseEnd)
-      .order("verse")
-      .limit(30);
-
-    const exactRangeFound = !verseError &&
-      (verses || []).length === verseEnd - verseStart + 1 &&
-      (verses || []).every((verse: any, index: number) =>
-        Number(verse.verse) === verseStart + index && Boolean(String(verse.text || "").trim())
-      );
+      .order("verse");
+    if (!chapterOnly) query = query.gte("verse", verseStart).lte("verse", verseEnd);
+    // A chapter-only request is accepted only when the whole chapter can be
+    // supplied. Never label a partial first-40-verse result as the full chapter.
+    const { data: verses, error: verseError } = await query.limit(chapterOnly ? 41 : 30);
+    const rows = verses || [];
+    const chapterWithinLimit = !chapterOnly || rows.length <= 40;
+    const exactRangeFound = !verseError && rows.length > 0 && chapterWithinLimit &&
+      (chapterOnly
+        ? rows.every((verse: any, index: number) =>
+            Number(verse.verse) === index + 1 && Boolean(String(verse.text || "").trim()))
+        : rows.length === verseEnd! - verseStart + 1 &&
+          rows.every((verse: any, index: number) =>
+            Number(verse.verse) === verseStart + index && Boolean(String(verse.text || "").trim())));
 
     return {
-      books: books || [],
-      translation,
+      books: books || [], translation,
       translationName: translationRecord.name,
       translationAbbreviation: translationRecord.abbreviation,
       translationLanguageCode: translationRecord.language_code,
       reference: canonicalReference,
       referenceNotFound: !exactRangeFound,
+      chapterTooLong: chapterOnly && rows.length > 40,
       references: exactRangeFound ? [canonicalReference] : [],
-      verses: exactRangeFound ? (verses || []) : []
+      verses: exactRangeFound ? rows : []
     };
   }
 
