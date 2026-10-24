@@ -313,7 +313,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
       .from("bible_verses")
       .select("book_id,chapter,verse,text")
       .eq("translation_id", discoveryTranslation)
-      .ilike("text", \`%\${safeTerm}%\`)
+      .ilike("text", `%${safeTerm}%`)
       .limit(20);
     if (error) {
       console.error("Bible topic search error", { term: safeTerm, error });
@@ -323,7 +323,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   }));
   const candidateMap = new Map<string, any>();
   for (const verse of searchResults.flat()) {
-    const key = \`\${verse.book_id}:\${verse.chapter}:\${verse.verse}\`;
+    const key = `${verse.book_id}:${verse.chapter}:${verse.verse}`;
     if (!candidateMap.has(key)) candidateMap.set(key, verse);
   }
   const rawCandidates = [...candidateMap.values()];
