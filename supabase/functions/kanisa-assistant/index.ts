@@ -166,7 +166,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
     const pattern = new RegExp(
       "(?:^|[^a-z0-9])" +
       escapeRegex(candidate.alias) +
-      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*[-–]\\s*(?:(\\d{1,3}):)?(\\d{1,3}))?)?(?=$|[^0-9])",
+      "\\s*(?:chapter\\s*)?(\\d{1,3})(?:\\s*(?::|[;,]|\\s+verse\\s+)\\s*(\\d{1,3})(?:\\s*(?:[-–]|\\bto\\b|\\bthrough\\b)\\s*(?:(\\d{1,3}):)?(\\d{1,3}))?)?(?=$|[^0-9])",
       "i"
     );
     const match = bibleSearchQuestion.match(pattern);
