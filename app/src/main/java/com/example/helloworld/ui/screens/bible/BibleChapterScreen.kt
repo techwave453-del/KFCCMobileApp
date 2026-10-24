@@ -326,21 +326,22 @@ fun BibleChapterScreen(
                     onTranslate = { showVerseTranslations = true },
                     comparison = comparedVerse,
                     onSwipeTranslation = { direction ->
-                        val availableTranslations = translations.filter { it.id != currentTranslationId }
-                        if (availableTranslations.isNotEmpty()) {
-                            val currentIndex = availableTranslations.indexOfFirst { it.id == comparedVerse?.first?.id }
-                            val nextIndex = if (currentIndex < 0) {
-                                if (direction > 0) 0 else availableTranslations.lastIndex
+                        if (translations.isNotEmpty()) {
+                            val activeTranslationId = comparedVerse?.first?.id ?: currentTranslationId
+                            val currentIndex = translations.indexOfFirst { it.id == activeTranslationId }
+                            val safeIndex = if (currentIndex >= 0) currentIndex else 0
+                            val nextIndex = (safeIndex + direction + translations.size) % translations.size
+                            val targetTranslation = translations[nextIndex]
+                            if (targetTranslation.id == currentTranslationId) {
+                                comparedVerse = null
                             } else {
-                                (currentIndex + direction + availableTranslations.size) % availableTranslations.size
-                            }
-                            val targetTranslation = availableTranslations[nextIndex]
-                            scope.launch {
-                                val targetChapter = runCatching {
-                                    repository.getChapter(targetTranslation.id, bookId, chapterNumber)
-                                }.getOrNull()
-                                val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verse.number }
-                                if (translatedVerse != null) comparedVerse = targetTranslation to translatedVerse
+                                scope.launch {
+                                    val targetChapter = runCatching {
+                                        repository.getChapter(targetTranslation.id, bookId, chapterNumber)
+                                    }.getOrNull()
+                                    val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verse.number }
+                                    if (translatedVerse != null) comparedVerse = targetTranslation to translatedVerse
+                                }
                             }
                         }
                     },
@@ -746,7 +747,7 @@ private fun BibleReader(
                     }
 
                     Text(
-                        text = verse.text,
+                        text = comparison?.second?.text ?: verse.text,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.35
                         ),
@@ -770,8 +771,7 @@ private fun BibleReader(
                             }
                     )
                     Text(
-                        text = if (comparison == null) "Swipe left to view another translation"
-                        else "Swipe left/right to switch translations • " + comparison.first.abbreviation,
+                        text = "Viewing " + (comparison?.first?.abbreviation ?: translationId.uppercase()) + " • Swipe left/right to switch versions",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -794,10 +794,20 @@ private fun BibleReader(
                         )
                     }
 
-                    comparison?.let { (translation, translatedVerse) ->
+                    comparison?.let { (translation, _) ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Text("In ${translation.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
-                        Text(translatedVerse.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 12.dp))
+                        Text(
+                            text = "Original in " + translationId.uppercase() + ":",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
+                        Text(
+                            text = verse.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                        )
                     }
 
                     Text("Highlight verse", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
