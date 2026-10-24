@@ -31,6 +31,8 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +52,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,6 +92,11 @@ fun BibleChapterScreen(
         value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
     }
     var showTranslations by remember { mutableStateOf(false) }
+    var showVerseTranslations by remember { mutableStateOf(false) }
+    var showNoteEditor by remember { mutableStateOf(false) }
+    var noteDraft by remember { mutableStateOf("") }
+    var verseUiRefresh by remember { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
 
     val books by produceState(initialValue = emptyList<BibleBook>(), repository, currentTranslationId) {
         value = runCatching { repository.getBooks(currentTranslationId) }.getOrDefault(emptyList())
@@ -119,6 +128,61 @@ fun BibleChapterScreen(
         } else {
             selectedVerse = null
         }
+    }
+
+    if (showNoteEditor) {
+        AlertDialog(
+            onDismissRequest = { showNoteEditor = false },
+            title = { Text("Verse note") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    selectedVerse?.let { verse -> Text("${book?.name ?: bookId} $chapterNumber:${verse.number}", color = MaterialTheme.colorScheme.primary) }
+                    OutlinedTextField(value = noteDraft, onValueChange = { noteDraft = it }, modifier = Modifier.fillMaxWidth(), minLines = 4, maxLines = 8, label = { Text("Your notes") }, placeholder = { Text("Write your thoughts about this verse…") })
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedVerse?.let { verse ->
+                        prefs.edit().putString(verseNoteKey(currentTranslationId, bookId, chapterNumber, verse.number), noteDraft).apply()
+                        verseUiRefresh++
+                    }
+                    showNoteEditor = false
+                }) { Text("Save note") }
+            },
+            dismissButton = { TextButton(onClick = { showNoteEditor = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showVerseTranslations) {
+        AlertDialog(
+            onDismissRequest = { showVerseTranslations = false },
+            title = { Text("Read verse in another version") },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.height(360.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(translations.filter { it.id != currentTranslationId }, key = { it.id }) { translation ->
+                        TextButton(onClick = {
+                            val verseNumber = selectedVerse?.number
+                            scope.launch {
+                                val targetChapter = runCatching { repository.getChapter(translation.id, bookId, chapterNumber) }.getOrNull()
+                                val translatedVerse = targetChapter?.verses?.firstOrNull { it.number == verseNumber }
+                                if (translatedVerse != null) {
+                                    currentTranslationId = translation.id
+                                    prefs.edit().putString("translation_id", translation.id).apply()
+                                    selectedVerse = translatedVerse
+                                }
+                                showVerseTranslations = false
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(translation.name, fontWeight = FontWeight.SemiBold)
+                                Text(translation.abbreviation, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showVerseTranslations = false }) { Text("Close") } }
+        )
     }
 
     if (showTranslations) {
@@ -224,9 +288,9 @@ fun BibleChapterScreen(
                     chapter = loadedChapter,
                     translationId = currentTranslationId,
                     initialVerse = initialVerse,
-                    onVerseClick = { verse ->
-                        selectedVerse = verse
-                    }
+                    prefs = prefs,
+                    uiRefresh = verseUiRefresh,
+                    onVerseClick = { verse -> selectedVerse = verse }
                 )
             } ?: ChapterNotLoaded(
                 bookName = book?.name ?: bookId,
@@ -244,7 +308,18 @@ fun BibleChapterScreen(
                     onDismiss = { selectedVerse = null },
                     onBookmark = { toggleBookmark(prefs, bookId, chapterNumber, it.number) },
                     isBookmarked = { isBookmarked(prefs, bookId, chapterNumber, it.number) },
-                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + currentTranslationId.uppercase() + " — " + it.text) }
+                    onShare = { shareText(context, (book?.name ?: bookId) + " " + chapterNumber + ":" + it.number + " — " + currentTranslationId.uppercase() + " — " + it.text) },
+                    note = prefs.getString(verseNoteKey(currentTranslationId, bookId, chapterNumber, verse.number), "").orEmpty(),
+                    highlightColor = prefs.getInt(verseHighlightKey(currentTranslationId, bookId, chapterNumber, verse.number), 0),
+                    onEditNote = {
+                        noteDraft = prefs.getString(verseNoteKey(currentTranslationId, bookId, chapterNumber, verse.number), "").orEmpty()
+                        showNoteEditor = true
+                    },
+                    onTranslate = { showVerseTranslations = true },
+                    onHighlight = { color ->
+                        prefs.edit().putInt(verseHighlightKey(currentTranslationId, bookId, chapterNumber, verse.number), color).apply()
+                        verseUiRefresh++
+                    }
                 )
             }
         }
@@ -318,6 +393,8 @@ private fun BibleReader(
     chapter: BibleChapter,
     translationId: String,
     initialVerse: Int? = null,
+    prefs: android.content.SharedPreferences,
+    uiRefresh: Int,
     onVerseClick: (BibleVerse) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -449,15 +526,13 @@ private fun BibleReader(
         ) { verse ->
 
             BibleVerseRow(
-
                 verse = verse,
-
-                onClick = {
-
-                    onVerseClick(verse)
-
-                }
-
+                highlightColor = run {
+                    uiRefresh
+                    prefs.getInt(verseHighlightKey(translationId, chapter.bookId, chapter.chapterNumber, verse.number), 0)
+                },
+                hasNote = prefs.getString(verseNoteKey(translationId, chapter.bookId, chapter.chapterNumber, verse.number), "").orEmpty().isNotBlank(),
+                onClick = { onVerseClick(verse) }
             )
 
         }
@@ -512,6 +587,8 @@ private fun BibleReader(
     @Composable
     private fun BibleVerseRow(
         verse: BibleVerse,
+        highlightColor: Int,
+        hasNote: Boolean,
         onClick: () -> Unit
     ) {
         Surface(
@@ -519,7 +596,7 @@ private fun BibleReader(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .clickable(onClick = onClick),
-            color = MaterialTheme.colorScheme.surfaceContainerLow
+            color = if (highlightColor != 0) Color(highlightColor) else MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Row(
                 modifier = Modifier
@@ -534,6 +611,7 @@ private fun BibleReader(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.width(30.dp).padding(top = 3.dp)
                 )
+                Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = verse.text,
                     style = MaterialTheme.typography.bodyLarge.copy(
@@ -541,9 +619,10 @@ private fun BibleReader(
                         fontSize = MaterialTheme.typography.bodyLarge.fontSize * 1.08f,
                         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.55f
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                if (hasNote) Text("Note saved", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 5.dp))
+                }
             }
         }
     }
@@ -558,7 +637,12 @@ private fun BibleReader(
         onDismiss: () -> Unit,
         onBookmark: (BibleVerse) -> Unit,
         isBookmarked: (BibleVerse) -> Boolean,
-        onShare: (BibleVerse) -> Unit
+        onShare: (BibleVerse) -> Unit,
+        note: String,
+        highlightColor: Int,
+        onEditNote: () -> Unit,
+        onTranslate: () -> Unit,
+        onHighlight: (Int) -> Unit
     ) {
         Box(
             modifier = Modifier
@@ -658,8 +742,32 @@ private fun BibleReader(
                         )
                     }
 
+                    Text("Highlight verse", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(0xFFFFF176.toInt(), 0xFFA5D6A7.toInt(), 0xFF90CAF9.toInt(), 0xFFF48FB1.toInt(), 0xFFFFCC80.toInt(), 0xFFCE93D8.toInt()).forEach { colorValue ->
+                            Surface(
+                                modifier = Modifier.size(28.dp).clip(CircleShape).clickable { onHighlight(colorValue) },
+                                shape = CircleShape,
+                                color = Color(colorValue),
+                                border = BorderStroke(if (highlightColor == colorValue) 3.dp else 1.dp, if (highlightColor == colorValue) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+                            ) {}
+                        }
+                        TextButton(onClick = { onHighlight(0) }) { Text("Clear") }
+                    }
+                    if (note.isNotBlank()) {
+                        Text("Your note", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(note, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VerseAction(icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) }, label = "Note", modifier = Modifier.weight(1f), onClick = onEditNote)
+                        VerseAction(icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) }, label = "Translate", modifier = Modifier.weight(1f), onClick = onTranslate)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         VerseAction(
@@ -760,6 +868,9 @@ private fun BibleReader(
         }
     }
 
+
+private fun verseNoteKey(translationId: String, bookId: String, chapter: Int, verse: Int) = "verse_note:$translationId:$bookId:$chapter:$verse"
+private fun verseHighlightKey(translationId: String, bookId: String, chapter: Int, verse: Int) = "verse_highlight:$translationId:$bookId:$chapter:$verse"
 
 private fun bookmarkKey(bookId: String, chapter: Int, verse: Int) = "bookmark:$bookId:$chapter:$verse"
 
