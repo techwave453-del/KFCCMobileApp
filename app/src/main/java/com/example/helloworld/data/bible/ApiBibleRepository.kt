@@ -8,6 +8,12 @@ import com.example.helloworld.data.offline.BibleTranslationEntity
 import com.example.helloworld.data.offline.BibleVerseEntity
 import com.example.helloworld.data.offline.KfccDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -86,20 +92,39 @@ class ApiBibleRepository(context: Context) {
         if (mapped.isEmpty()) throw IllegalStateException("Could not map API.Bible books to standard Bible books.")
         db.bibleBookDao().upsertAll(bookEntities)
         db.bibleTranslationDao().upsertAll(listOf(BibleTranslationEntity(translationId, version.abbreviation.take(20), version.name, version.language, false, false, 40)))
-        var done = 0
-        for ((book, bookId, chapters) in mapped) {
-            for (chapter in chapters) {
+        val chaptersToDownload = mapped.flatMap { (book, bookId, chapters) ->
+            chapters.mapNotNull { chapter ->
                 val chapterId = chapter.optString("id")
                 val chapterNo = chapter.optInt("number", chapterId.substringAfterLast('.').toIntOrNull() ?: 0)
-                if (chapterId.isBlank() || chapterNo <= 0) continue
-                progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + (done + 1) + "/" + total + ")")
-                val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
-                val html = response.optJSONObject("data")?.optString("content").orEmpty()
-                val verses = parseVerses(html, bookId, chapterNo, translationId)
-                if (verses.isNotEmpty()) db.bibleVerseDao().upsertAll(verses)
-                done++
-                progress("Downloaded " + done + " of " + total + " chapters")
+                if (chapterId.isBlank() || chapterNo <= 0) null
+                else Triple(book, bookId, chapterId to chapterNo)
             }
+        }
+        total = chaptersToDownload.size
+        if (total == 0) throw IllegalStateException("No downloadable chapters were found.")
+
+        // API.Bible requires one request per chapter. Keep a small bounded pool so
+        // downloads run concurrently without overwhelming the provider or device.
+        val concurrency = Semaphore(5)
+        val completed = AtomicInteger(0)
+        val downloadedVerses = coroutineScope {
+            chaptersToDownload.map { (book, bookId, chapterInfo) ->
+                async {
+                    concurrency.withPermit {
+                        val (chapterId, chapterNo) = chapterInfo
+                        progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + completed.get() + "/" + total + ")")
+                        val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
+                        val html = response.optJSONObject("data")?.optString("content").orEmpty()
+                        val verses = parseVerses(html, bookId, chapterNo, translationId)
+                        val finished = completed.incrementAndGet()
+                        progress("Downloaded " + finished + " of " + total + " chapters")
+                        verses
+                    }
+                }
+            }.awaitAll().flatten()
+        }
+        if (downloadedVerses.isNotEmpty()) {
+            downloadedVerses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
         }
         val count = db.bibleVerseDao().count(translationId)
         if (count == 0) throw IllegalStateException("No verse text was returned. This edition may not permit downloading through API.Bible.")
