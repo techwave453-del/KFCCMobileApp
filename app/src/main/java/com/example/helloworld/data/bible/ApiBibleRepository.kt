@@ -31,7 +31,17 @@ class ApiBibleRepository(context: Context) {
             val status = c.responseCode
             val stream = if (status in 200..299) c.inputStream else c.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) throw IllegalStateException(runCatching { JSONObject(text).optString("error") }.getOrNull().orEmpty().ifBlank { "API.Bible request failed (" + status + ")" })
+            if (status !in 200..299) {
+                val error = runCatching { JSONObject(text) }.getOrNull()
+                val message = error?.optString("error").orEmpty().ifBlank { "API.Bible request failed" }
+                val upstreamStatus = error?.optInt("upstreamStatus", 0) ?: 0
+                val upstreamMessage = error?.optString("upstreamMessage").orEmpty()
+                val details = buildList {
+                    if (upstreamStatus > 0) add("API.Bible HTTP $upstreamStatus")
+                    if (upstreamMessage.isNotBlank() && upstreamMessage != "null") add(upstreamMessage)
+                }.joinToString(": ")
+                throw IllegalStateException(if (details.isBlank()) "$message (HTTP $status)" else "$message — $details")
+            }
             JSONObject(text)
         } finally { c.disconnect() }
     }
