@@ -2,6 +2,7 @@ package com.example.helloworld.data.bible
 
 import android.content.Context
 import com.example.helloworld.data.offline.BibleBookEntity
+import com.example.helloworld.data.offline.BibleVerseEntity
 import com.example.helloworld.data.offline.BibleTranslationEntity
 import com.example.helloworld.data.offline.KfccDatabase
 import androidx.room.withTransaction
