@@ -267,28 +267,69 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const conceptExpansions: Record<string, string[]> = {
     prayer: ["prayer", "pray", "praying", "prayed", "supplication", "intercession"],
     faith: ["faith", "believe", "believeth", "believed", "believing", "trust"],
-    love: ["love", "loveth", "loved", "charity"],
-    forgiveness: ["forgive", "forgiven", "forgiveness", "forgiving", "mercy"],
-    hope: ["hope", "hopeth", "hoped", "trust"],
-    peace: ["peace", "peaceable", "reconcile", "reconciliation"],
-    wisdom: ["wisdom", "wise", "understanding", "knowledge"],
+    love: ["love", "loveth", "loved", "loving", "lovely", "charity"],
+    forgiveness: ["forgive", "forgiven", "forgiveness", "forgiving", "forgave", "mercy", "reconcile", "reconciliation"],
+    hope: ["hope", "hopeth", "hoped", "hopeful", "trust"],
+    peace: ["peace", "peaceable", "reconcile", "reconciliation", "contentment"],
+    wisdom: ["wisdom", "wise", "understanding", "knowledge", "discernment"],
     obedience: ["obey", "obeyed", "obedience", "keep", "commandments"],
     salvation: ["save", "saved", "salvation", "redeemed", "redemption"],
-    temptation: ["tempt", "tempted", "temptation", "sin"],
+    temptation: ["tempt", "tempted", "temptation", "sin", "resist"],
     fasting: ["fast", "fasted", "fasting"],
-    worship: ["worship", "worshipped", "praise", "praises", "praising"],
-    anxiety: ["anxiety", "careful", "worry", "worrying", "trouble"],
-    fear: ["fear", "afraid", "fearing"],
-    strength: ["strength", "strong", "strengthen"],
-    healing: ["heal", "healed", "healing", "sick", "sickness"],
-    patience: ["patience", "patient", "wait", "waiting", "longsuffering"],
+    worship: ["worship", "worshipped", "praise", "praises", "praising", "thanksgiving"],
+    anxiety: ["anxiety", "anxious", "careful", "worry", "worrying", "worried", "trouble", "cares"],
+    fear: ["fear", "afraid", "fearing", "frightened", "courage"],
+    strength: ["strength", "strong", "strengthen", "weakness", "weary"],
+    healing: ["heal", "healed", "healing", "sick", "sickness", "illness"],
+    patience: ["patience", "patient", "wait", "waiting", "longsuffering", "endure"],
     humility: ["humble", "humility", "meek", "meekness"],
-    repentance: ["repent", "repented", "repentance", "turn", "confess"]
+    repentance: ["repent", "repented", "repentance", "turn", "confess", "confession"],
+    grief: ["grief", "grieve", "grieving", "mourning", "mourn", "sorrow", "sorrowful", "comfort"],
+    anger: ["anger", "angry", "wrath", "rage", "resentment", "gentle", "slow to anger"],
+    relationships: ["relationship", "relationships", "marriage", "married", "husband", "wife", "friendship", "friend", "neighbor"],
+    guidance: ["guidance", "guide", "direction", "decision", "decisions", "counsel", "path"],
+    gratitude: ["gratitude", "grateful", "thankful", "thanks", "thanksgiving"],
+    generosity: ["generosity", "generous", "give", "giving", "charity", "alms"],
+    justice: ["justice", "just", "fairness", "oppression", "righteousness"],
+    suffering: ["suffering", "suffer", "affliction", "afflicted", "pain", "endure"],
+    doubt: ["doubt", "doubting", "unbelief", "unbelieving", "question"],
+    loneliness: ["lonely", "loneliness", "alone", "forsaken", "comfort"],
+    courage: ["courage", "brave", "bold", "boldness", "fearless"]
   };
 
-  const terms = [...new Set(rawTerms.flatMap(term =>
-    conceptExpansions[term] || [term]
-  ))].slice(0, 12);
+  // Normalize common inflections and everyday wording to a concept before
+  // expanding it. This makes "forgiving", "worried", and "grieving" retrieve
+  // the same topic family as "forgiveness", "anxiety", and "grief".
+  const conceptAliases: Record<string, string> = {
+    pray: "prayer", praying: "prayer", prayed: "prayer", supplication: "prayer",
+    believe: "faith", believeth: "faith", believed: "faith", believing: "faith", trust: "faith",
+    loving: "love", loved: "love", loveth: "love",
+    forgive: "forgiveness", forgiven: "forgiveness", forgiving: "forgiveness", forgave: "forgiveness",
+    reconcile: "forgiveness", reconciliation: "forgiveness", mercy: "forgiveness",
+    hopeful: "hope", hopeth: "hope", hoped: "hope",
+    anxious: "anxiety", worry: "anxiety", worrying: "anxiety", worried: "anxiety", cares: "anxiety",
+    afraid: "fear", fearing: "fear", frightened: "fear",
+    strong: "strength", strengthen: "strength", weakness: "strength", weary: "strength",
+    heal: "healing", healed: "healing", sick: "healing", sickness: "healing", illness: "healing",
+    patient: "patience", waiting: "patience", endure: "patience",
+    humble: "humility", meek: "humility", meekness: "humility",
+    repent: "repentance", repented: "repentance", confess: "repentance", confession: "repentance",
+    grieve: "grief", grieving: "grief", mourning: "grief", mourn: "grief", sorrow: "grief", sorrowful: "grief",
+    angry: "anger", wrath: "anger", rage: "anger", resentment: "anger",
+    married: "relationships", husband: "relationships", wife: "relationships", friendship: "relationships", friend: "relationships", neighbor: "relationships",
+    guide: "guidance", direction: "guidance", decision: "guidance", decisions: "guidance", counsel: "guidance",
+    grateful: "gratitude", thankful: "gratitude", thanks: "gratitude",
+    generous: "generosity", alms: "generosity",
+    fair: "justice", fairness: "justice", oppression: "justice",
+    suffer: "suffering", afflicted: "suffering", pain: "suffering",
+    doubting: "doubt", unbelief: "doubt", unbelieving: "doubt",
+    lonely: "loneliness", alone: "loneliness", forsaken: "loneliness",
+    brave: "courage", bold: "courage", boldness: "courage", fearless: "courage"
+  };
+
+  const canonicalTerms = rawTerms.map(term => conceptAliases[term] || term);
+  const expandedTerms = canonicalTerms.flatMap(term => conceptExpansions[term] || [term]);
+  const terms = [...new Set([...expandedTerms, ...rawTerms])].slice(0, 12);
 
   if (!terms.length) return {
     books: books || [],
@@ -751,10 +792,10 @@ function buildPrompt(context: any, bible: any, message: string, history: any[]) 
   const recent = JSON.stringify((history || []).slice(-8));
   const languageCode = String(bible?.translationLanguageCode || "").toLowerCase();
   const responseLanguageRule = languageCode === "kam"
-    ? "RESPONSE LANGUAGE: Use Kikamba first for the explanation and conversation. Only use Kikamba wording you can produce reliably; for uncertain or unavailable terms, fall back to Kiswahili or English rather than inventing Kikamba words. Keep quoted Scripture exactly as supplied from Kamba Bible (Mbivilia)."
+    ? "RESPONSE LANGUAGE: Always explain the Scripture and answer the user's question; never return only the non-English quotation. Try clear, natural Kikamba for the explanation first. If you cannot reliably explain a word or idea in Kikamba, explain that part in Kiswahili or English rather than inventing Kikamba. Keep quoted Scripture exactly as supplied from Kamba Bible (Mbivilia)."
     : languageCode === "sw"
-      ? "RESPONSE LANGUAGE: Reply in Kiswahili, while preserving the exact supplied Scripture wording from the selected Kiswahili translation."
-      : "RESPONSE LANGUAGE: Reply in English unless the user explicitly asks for another language. Preserve the exact supplied Scripture wording from the selected translation.";
+      ? "RESPONSE LANGUAGE: Always include an explanation of the Scripture and answer the user's question in Kiswahili. Keep quoted Scripture exactly as supplied from the selected Kiswahili translation."
+      : "RESPONSE LANGUAGE: Always include an explanation of the Scripture and answer the user's question in English unless the user explicitly asks for another language. This applies even when the selected Bible translation is in another language you do not speak fluently: preserve the verse text exactly, then explain its meaning separately in clear English. Never omit the explanation merely because the quotation is non-English.";
 
   return `You are Kanisa Assistant, the official AI assistant and spiritual companion for our Christian church mobile app.
 
@@ -780,6 +821,8 @@ STRICT SOURCE RULES:
 - If the user asks for a specific passage, prioritize that passage instead of adding unrelated verses.
 - If the user asks a contextual follow-up such as "explain this", "what does that mean?", "how do I apply this?", or "more scriptures", use the previous conversation plus the supplied BIBLE CONTEXT to stay on the same subject.
 - When relevant Scripture is supplied, place the explanation immediately before or after the relevant passage.
+- A non-English Scripture quotation is never a reason to skip explanation. Clearly separate the exact quoted text from commentary, then explain the passage's meaning and practical relevance in the response language specified above. If you understand the verse language only partially, be transparent about uncertainty and explain what can be responsibly explained; do not pretend that the translation itself is an explanation.
+- For every Bible question with relevant retrieved verses, include all three where possible: (1) the exact supplied verse text, (2) a plain-language explanation of what it means in context, and (3) one practical application that directly answers the user's question. Avoid generic filler reflections that could fit any verse.
 - Never paraphrase a supplied Scripture passage while presenting it as a quotation.
 - Keep exact Scripture quotations clearly identifiable as Scripture and do not mix commentary into the quotation.
 - Practical application should be framed as thoughtful Christian encouragement.
