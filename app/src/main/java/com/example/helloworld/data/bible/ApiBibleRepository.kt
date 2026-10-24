@@ -138,8 +138,9 @@ class ApiBibleRepository(context: Context) {
         // the whole document rather than parsing every span independently (nested
         // spans caused the previous parser to miss valid verse text).
         val markerPatterns = listOf(
-            Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bv\b[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>"""),
-            Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>""")
+            Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*(?:^|\s)(?:v|verse-number|verse-num)(?:\s|$)[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>"""),
+            Regex("""(?is)<span\b(?=[^>]*\bdata-number\s*=\s*["']?(\d{1,3})["']?)[^>]*>"""),
+            Regex("""(?is)<span\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bv\b[^"']*["'])[^>]*>\s*(\d{1,3})\s*</span>""")
         )
         val markers = markerPatterns.firstNotNullOfOrNull { pattern ->
             pattern.findAll(html).mapNotNull { match ->
@@ -163,12 +164,9 @@ class ApiBibleRepository(context: Context) {
             }
         }
 
-        // Some editions return plain text or omit verse-number markup. Preserve
-        // their content as a single chapter verse rather than silently discarding it.
-        val plain = Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString()
-            .replace(Regex("[\u00a0\\s]+"), " ").trim()
-        return if (plain.isBlank()) emptyList()
-        else listOf(BibleVerseEntity(translationId, bookId, chapter, 1, plain))
+        // Do not store a whole chapter as verse 1: that would corrupt verse
+        // addressing and search. Return empty so the caller can report the issue.
+        emptyList()
     }
 
     private fun canonicalId(apiId: String, name: String, number: Int): String {
