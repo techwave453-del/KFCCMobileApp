@@ -391,7 +391,9 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   // Search terms independently and merge results. A single broad OR query can
   // fill its row limit with early database matches, hiding relevant verses for
   // other concepts. Per-term retrieval gives each synonym a chance to contribute.
-  const discoveryTranslation = translation === "kam" ? "kjv" : translation;
+  // Use the English KJV only as a reference-coordinate discovery index for topic searches.
+  // The quoted verses must always be fetched from the user's selected translation.
+  const discoveryTranslation = "kjv";
   const searchTerms = terms.slice(0, 8);
   const searchResults = await Promise.all(searchTerms.map(async (term) => {
     const safeTerm = term.replace(/[%_]/g, "").trim();
@@ -451,7 +453,7 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const rankedCandidates = candidatesWithScore.slice(0, 20).map((item: any) => item.verse);
   let verses: any[] = rankedCandidates;
 
-  if (translation === "kam") {
+  if (translation !== discoveryTranslation) {
     const translated = await Promise.all(rankedCandidates.slice(0, 12).map(async (candidate: any) => {
       const { data, error } = await supabase
         .from("bible_verses")
@@ -912,7 +914,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
     const scripture = verses.map((v: any) => `${v.verse}. ${v.text}`).join("\n");
 
     if (reference) {
-      return `Mbivilia (Kamba): ${reference}\n\n${translationName}:\n${scripture}\n\n${localBibleExplanation(message, bible)}`;
+      return `Bible passage — ${translationName}: ${reference}\n\n${scripture}\n\n${localBibleExplanation(message, bible)}`;
     }
 
     const references = verses.map((v: any) => {
@@ -920,9 +922,7 @@ function localAnswer(context: any, bible: any, message: string, settings: any) {
       return name ? `${name} ${v.chapter}:${v.verse}` : "";
     }).filter(Boolean);
 
-    const heading = bible.translation === "kam"
-      ? "Kamba Bible (Mbivilia) — selected passages:"
-      : "Scripture Answers:";
+    const heading = `Selected Bible translation — ${translationName}:`;
     const selectedPassages = verses.map((v: any, i: number) =>
       `${references[i] ? references[i] + " — " : ""}${v.text}`
     ).join("\n\n");
