@@ -125,6 +125,16 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
+            _signedIn.value = false
+            _messages.value = emptyList()
+            _roomId.value = null
+            _error.value = null
+        }
+    }
+
     fun clearError() {
         _error.value = null
     }
