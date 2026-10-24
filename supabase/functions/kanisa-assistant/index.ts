@@ -635,31 +635,55 @@ function firstValue(obj: any, keys: string[]) {
 async function enrichBibleContext(bible: any): Promise<any> {
   if (!bible || bible.translationNotAvailable || bible.referenceNotFound ||
       !bible.translation || !Array.isArray(bible.verses) || !bible.verses.length) return bible;
+
   const first = bible.verses[0];
   const last = bible.verses[bible.verses.length - 1];
   if (!first?.book_id || !Number.isFinite(Number(first.chapter)) ||
-      !Number.isFinite(Number(first.verse)) || Number(first.chapter) !== Number(last.chapter)) {
+      !Number.isFinite(Number(first.verse)) || !Number.isFinite(Number(last.chapter))) {
     return { ...bible, contextVerses: [] };
   }
-  const fromVerse = Math.max(1, Number(first.verse) - 4);
-  const toVerse = Number(last.verse) + 4;
+
+  // Search adjacent chapters too, so passages near chapter boundaries and
+  // ranges spanning chapters are interpreted with nearby text where available.
+  const fromChapter = Math.max(1, Number(first.chapter) - 1);
+  const toChapter = Number(last.chapter) + 1;
   const { data, error } = await supabase.from("bible_verses")
-    .select("book_id,chapter,verse,text").eq("translation_id", bible.translation)
-    .eq("book_id", first.book_id).eq("chapter", first.chapter)
-    .gte("verse", fromVerse).lte("verse", toVerse).order("verse").limit(40);
+    .select("book_id,chapter,verse,text")
+    .eq("translation_id", bible.translation)
+    .eq("book_id", first.book_id)
+    .gte("chapter", fromChapter)
+    .lte("chapter", toChapter)
+    .order("chapter", { ascending: true })
+    .order("verse", { ascending: true })
+    .limit(160);
+
   if (error || !Array.isArray(data)) {
     console.warn("Could not load surrounding Bible context", error);
     return { ...bible, contextVerses: [] };
   }
-  const requestedKeys = new Set(bible.verses.map((v: any) => Number(v.verse)));
+
+  const key = (v: any) => `${v.book_id}:${Number(v.chapter)}:${Number(v.verse)}`;
+  const requestedKeys = new Set(bible.verses.map(key));
+  const validRows = data.filter((v: any) => String(v.text || "").trim());
+  const preceding = validRows.filter((v: any) =>
+    !requestedKeys.has(key(v)) &&
+    (Number(v.chapter) < Number(first.chapter) ||
+      (Number(v.chapter) === Number(first.chapter) && Number(v.verse) < Number(first.verse)))
+  );
+  const following = validRows.filter((v: any) =>
+    !requestedKeys.has(key(v)) &&
+    (Number(v.chapter) > Number(last.chapter) ||
+      (Number(v.chapter) === Number(last.chapter) && Number(v.verse) > Number(last.verse)))
+  );
+  const nearby = [...preceding.slice(-4), ...following.slice(0, 4)];
   const books = Array.isArray(bible.books) ? bible.books : [];
   const bookName = books.find((book: any) => String(book.id) === String(first.book_id))?.name || "Bible";
-  const contextVerses = data.filter((v: any) =>
-    !requestedKeys.has(Number(v.verse)) && String(v.text || "").trim()
-  ).map((v: any) => ({
-    ...v, reference: bookName + " " + v.chapter + ":" + v.verse,
+  const contextVerses = nearby.map((v: any) => ({
+    ...v,
+    reference: bookName + " " + v.chapter + ":" + v.verse,
     translation: bible.translationAbbreviation || String(bible.translation).toUpperCase()
   }));
+
   return { ...bible, contextVerses };
 }
 
