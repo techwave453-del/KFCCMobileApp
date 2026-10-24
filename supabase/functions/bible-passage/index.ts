@@ -35,11 +35,12 @@ Deno.serve(async (req: Request) => {
   try {
     if (action === "catalog") {
       const language = typeof body.language === "string" && (/^[a-z]{3}$/.test(body.language) || body.language === "all") ? body.language : "eng";
-      const page = Number.isInteger(body.page) && body.page >= 1 && body.page <= 100 ? body.page : 1;
-      const languageFilter = language === "all" ? "" : `language=${encodeURIComponent(language)}&`;
-      const result = await apiBible(`/bibles?${languageFilter}limit=100&page=${page}`);
+      // API.Bible's /bibles endpoint does not accept generic limit/page query parameters.
+      // Request all editions when language=all; otherwise use its supported language filter.
+      const query = language === "all" ? "" : `?language=${encodeURIComponent(language)}`;
+      const result = await apiBible(`/bibles${query}`);
       if (!result.ok) return jsonResponse({ error: "Unable to list Bible versions from API.Bible", upstreamStatus: result.status }, 502);
-      return jsonResponse({ data: result.body?.data ?? [], meta: result.body?.meta ?? {}, page, language });
+      return jsonResponse({ data: result.body?.data ?? [], meta: result.body?.meta ?? {}, language });
     }
     if (action === "books" || action === "chapters") {
       const bibleId = body.bibleId;
