@@ -7,11 +7,10 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.time.Duration.Companion.minutes
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import java.time.Instant
 import java.util.UUID
 
@@ -148,7 +147,6 @@ class DirectChatRepository {
         require(normalized.length >= 2) { "Enter at least two characters to search members." }
         client.postgrest.rpc(
             "search_chat_members",
-            buildJsonObject { put("p_query", normalized) }
             buildJsonObject { put("p_query", JsonPrimitive(normalized)) }
         ).decodeList<ChatMemberSearchResult>()
     }
@@ -164,7 +162,6 @@ class DirectChatRepository {
         require(otherUserId.isNotBlank()) { "Choose a member first." }
         val response = client.postgrest.rpc(
             "start_direct_conversation",
-            buildJsonObject { put("p_other_user_id", otherUserId) }
             buildJsonObject { put("p_other_user_id", JsonPrimitive(otherUserId)) }
         )
         response.decodeAs<String>()
@@ -210,7 +207,6 @@ class DirectChatRepository {
         require(contactUserId.isNotBlank()) { "Choose a member first." }
         client.postgrest.rpc(
             "add_chat_contact",
-            buildJsonObject { put("p_contact_user_id", contactUserId) }
             buildJsonObject { put("p_contact_user_id", JsonPrimitive(contactUserId)) }
         )
     }
