@@ -58,8 +58,8 @@ async function bibleContext(question: string, history: Array<{ role: "user" | "a
   const bibleSearchQuestion = contextualFollowUp && lastAssistant
     ? q + " " + lastAssistant
     : q;
-  const translation = requestedTranslation && ["kjv", "gnb", "web"].includes(requestedTranslation.toLowerCase())
-    ? requestedTranslation.toLowerCase()
+  const translation = requestedTranslation && requestedTranslation.trim().length > 0
+    ? requestedTranslation.toLowerCase().trim()
     : /\b(web|world english bible)\b/i.test(q) ? "web" : "kjv";
 
   const { data: books } = await supabase

@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BibleTranslationDao {
-    @Query("SELECT * FROM bible_translations WHERE isEnabled = 1 ORDER BY sortOrder ASC")
+    @Query("SELECT * FROM bible_translations WHERE isEnabled = 1 AND id IN (SELECT DISTINCT translationId FROM bible_verses) ORDER BY sortOrder ASC")
     fun observeEnabled(): Flow<List<BibleTranslationEntity>>
-    @Query("SELECT * FROM bible_translations WHERE isEnabled = 1 ORDER BY sortOrder ASC")
+    @Query("SELECT * FROM bible_translations WHERE isEnabled = 1 AND id IN (SELECT DISTINCT translationId FROM bible_verses) ORDER BY sortOrder ASC")
     suspend fun getEnabled(): List<BibleTranslationEntity>
     @Query("SELECT * FROM bible_translations WHERE id = :id LIMIT 1")
     suspend fun get(id: String): BibleTranslationEntity?
@@ -42,4 +42,7 @@ interface BibleVerseDao {
 
     @Query("INSERT OR REPLACE INTO bible_verses (translationId, bookId, chapter, verse, text) SELECT :toTranslation, bookId, chapter, verse, text FROM bible_verses WHERE translationId = :fromTranslation")
     suspend fun copyTranslation(fromTranslation: String, toTranslation: String)
+
+    @Query("DELETE FROM bible_verses WHERE translationId = :translationId")
+    suspend fun deleteTranslation(translationId: String)
 }

@@ -1,5 +1,6 @@
 package com.example.helloworld.data
 
+import android.content.Context
 import com.example.helloworld.data.offline.KfccContentRepository
 import com.example.helloworld.data.offline.KfccDatabase
 import com.example.helloworld.data.offline.NotificationReadEntity
@@ -111,8 +112,9 @@ class NotificationRepository {
     }
 
     private suspend fun getTodayScriptureNotification(userId: String?): AppNotification? {
-        val translations = KfccBibleRepository().getTranslations()
-        val translationId = translations.firstOrNull { it.id.equals("kjv", true) }?.id ?: "kjv"
+        val context = KfccDataContext.appContext
+        val prefs = context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE)
+        val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
         val selected = dailyScriptureRepository.getToday(translationId) ?: return null
         val chapter = dailyScriptureRepository.getPassage(translationId, selected) ?: return null
         val books = KfccBibleRepository().getBooks(translationId)

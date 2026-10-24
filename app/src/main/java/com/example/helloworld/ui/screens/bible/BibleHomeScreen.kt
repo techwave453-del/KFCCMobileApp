@@ -42,6 +42,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Button
@@ -51,6 +53,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -63,6 +67,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -72,20 +78,23 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.helloworld.data.bible.BibleBook
+import com.example.helloworld.data.bible.BebliaXmlParser
 import com.example.helloworld.data.bible.KfccBibleRepository
 import com.example.helloworld.data.bible.DailyScripture
 import com.example.helloworld.data.bible.DailyScriptureRepository
 import com.example.helloworld.data.bible.Testament
 import android.content.Context
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.helloworld.data.bible.BibleChapter
 import com.example.helloworld.data.bible.BibleTranslation
 import com.example.helloworld.ui.screens.ScreenBackgroundImage
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,16 +111,11 @@ fun BibleHomeScreen(
     val savedBook = prefs.getString("continue_book", "GEN") ?: "GEN"
     val savedChapter = prefs.getInt("continue_chapter", 1)
     var selectedTranslationId by remember { mutableStateOf(prefs.getString("translation_id", "kjv") ?: "kjv") }
-    val books by produceState(initialValue = emptyList<BibleBook>(), repository) {
+    val books by produceState(initialValue = emptyList<BibleBook>(), repository, selectedTranslationId) {
         value = runCatching { repository.getBooks(selectedTranslationId) }.getOrDefault(emptyList())
     }
     val translations by produceState(initialValue = emptyList<BibleTranslation>(), repository) {
         value = runCatching { repository.getTranslations() }.getOrDefault(emptyList())
-    }
-    val translationAvailability by produceState(initialValue = emptyMap<String, Int>(), repository, translations) {
-        value = translations.associate { translation ->
-            translation.id to runCatching { repository.getVerseCount(translation.id) }.getOrDefault(0)
-        }
     }
     var selectedBook by remember { mutableStateOf<BibleBook?>(null) }
     var bookQuery by rememberSaveable { mutableStateOf("") }
@@ -119,6 +123,16 @@ fun BibleHomeScreen(
     var showTranslations by remember { mutableStateOf(false) }
     var showBookFinder by rememberSaveable { mutableStateOf(false) }
     var showFullScriptureDialog by remember { mutableStateOf(false) }
+    var showBebliaInstaller by remember { mutableStateOf(false) }
+    var installUrl by remember { mutableStateOf("https://raw.githubusercontent.com/Beblia/Holy-Bible-XML-Format/master/asv.xml") }
+    var installId by remember { mutableStateOf("asv") }
+    var installAbbr by remember { mutableStateOf("ASV") }
+    var installName by remember { mutableStateOf("American Standard Version") }
+    var installLang by remember { mutableStateOf("English") }
+    var installing by remember { mutableStateOf(false) }
+    var installError by remember { mutableStateOf<String?>(null) }
+    var installSuccess by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     val selectedTranslation = translations.firstOrNull { it.id == selectedTranslationId }
     val dailyScriptureRepository = remember { DailyScriptureRepository(repository) }
     val dailyScripture by produceState<DailyScripture>(initialValue = DailyScripture(
@@ -155,7 +169,6 @@ fun BibleHomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     translations.forEach { translation ->
-                        val count = translationAvailability[translation.id] ?: 0
                         TextButton(
                             onClick = {
                                 prefs.edit().putString("translation_id", translation.id).apply()
@@ -164,19 +177,130 @@ fun BibleHomeScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    if (count > 0) "${count} verses available" else "Offline translation",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text("${translation.name} (${translation.abbreviation})", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showTranslations = false }) { Text("Close") } }
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { showBebliaInstaller = true }) {
+                        Text("📥 Install Bible Version")
+                    }
+                    TextButton(onClick = { showTranslations = false }) { Text("Close") }
+                }
+            }
+        )
+    }
+
+    if (showBebliaInstaller) {
+        AlertDialog(
+            onDismissRequest = { if (!installing) showBebliaInstaller = false },
+            title = { Text("Install Bible Version") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(380.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Select a version from the Beblia GitHub repository or enter a custom raw XML URL.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(
+                            Triple("asv", "ASV", "American Standard Version"),
+                            Triple("web", "WEB", "World English Bible"),
+                            Triple("bbe", "BBE", "Bible in Basic English")
+                        ).forEach { (id, abbr, name) ->
+                            OutlinedButton(
+                                onClick = {
+                                    installId = id
+                                    installAbbr = abbr
+                                    installName = name
+                                    installUrl = "https://raw.githubusercontent.com/Beblia/Holy-Bible-XML-Format/master/$id.xml"
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(4.dp)
+                            ) {
+                                Text(abbr, fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = installUrl,
+                        onValueChange = { installUrl = it },
+                        label = { Text("Raw XML URL") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = installName,
+                        onValueChange = { installName = it },
+                        label = { Text("Version Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = installAbbr,
+                        onValueChange = { installAbbr = it },
+                        label = { Text("Abbreviation") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    installError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    installSuccess?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        installing = true
+                        installError = null
+                        installSuccess = null
+                        scope.launch {
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    val url = URL(installUrl)
+                                    val connection = url.openConnection() as HttpURLConnection
+                                    connection.connectTimeout = 15000
+                                    connection.readTimeout = 15000
+                                    connection.connect()
+                                    val stream = connection.inputStream
+                                    BebliaXmlParser.parseAndStore(
+                                        context = context,
+                                        inputStream = stream,
+                                        translationId = installId.trim().lowercase(),
+                                        abbreviation = installAbbr.trim().uppercase(),
+                                        name = installName.trim(),
+                                        language = installLang
+                                    )
+                                    stream.close()
+                                }
+                            }.onSuccess {
+                                installSuccess = "Successfully installed $installName!"
+                                installing = false
+                                delay(1000)
+                                showBebliaInstaller = false
+                                showTranslations = false
+                            }.onFailure {
+                                installError = it.message ?: "Failed to download or parse XML Bible."
+                                installing = false
+                            }
+                        }
+                    },
+                    enabled = !installing && installUrl.isNotBlank() && installId.isNotBlank()
+                ) {
+                    Text(if (installing) "Downloading & Parsing…" else "Download & Install")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showBebliaInstaller = false }, enabled = !installing) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -186,7 +310,7 @@ fun BibleHomeScreen(
             title = {
                 Column {
                     Text("Today’s Scripture", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text(dailyScripture!!.themeName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(dailyScripture.themeName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -199,7 +323,7 @@ fun BibleHomeScreen(
                 ) {
                     val fullVerseText = dailyChapter?.let { loadedChapter ->
                         loadedChapter.verses
-                            .filter { it.number in (dailyScripture!!.verseStart..dailyScripture!!.verseEnd) }
+                            .filter { it.number in (dailyScripture.verseStart..dailyScripture.verseEnd) }
                             .joinToString(" ") { "“${it.text}”" }
                     } ?: "Scripture text loading..."
 
@@ -214,15 +338,15 @@ fun BibleHomeScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(Modifier.height(8.dp))
-                            val refText = dailyScripture?.let { s ->
+                            val refText = dailyScripture.let { s ->
                                 val verses = if (s.verseStart == s.verseEnd) "${s.verseStart}" else "${s.verseStart}-${s.verseEnd}"
                                 "${books.firstOrNull { it.id == s.bookId }?.name ?: s.bookId} ${s.chapter}:$verses"
-                            } ?: ""
+                            }
                             Text(refText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
-                    dailyScripture?.situation?.takeIf { it.isNotBlank() }?.let { situation ->
+                    dailyScripture.situation.takeIf { it.isNotBlank() }?.let { situation ->
                         Column {
                             Text("Situation", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.height(4.dp))
@@ -230,7 +354,7 @@ fun BibleHomeScreen(
                         }
                     }
 
-                    dailyScripture?.reflection?.takeIf { it.isNotBlank() }?.let { reflection ->
+                    dailyScripture.reflection.takeIf { it.isNotBlank() }?.let { reflection ->
                         Column {
                             Text("Reflection & Application", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.height(4.dp))
@@ -242,7 +366,7 @@ fun BibleHomeScreen(
             confirmButton = {
                 Button(onClick = {
                     showFullScriptureDialog = false
-                    dailyScripture?.let { onOpenChapter(it.bookId, it.chapter) }
+                    onOpenChapter(dailyScripture.bookId, dailyScripture.chapter)
                 }) {
                     Text("Read Full Chapter in Bible")
                 }
@@ -266,35 +390,21 @@ fun BibleHomeScreen(
         )
     }
 
-    Box(Modifier.fillMaxSize()) {
-        ScreenBackgroundImage(
-            screenKey = "bible",
-            modifier = Modifier.fillMaxSize(),
-            overlayAlpha = 0.24f
-        )
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-            topBar = {
+    Scaffold(
+        topBar = {
             TopAppBar(
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.42f)
-                    ) {
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                            Text(
-                                text = "Bible",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.86f)
-                            )
-                        }
+                    Column {
+                        Text(
+                            text = "Bible",
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            text = selectedTranslation?.name ?: selectedTranslationId.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 navigationIcon = {
@@ -597,7 +707,6 @@ fun BibleHomeScreen(
                 }
             }
         }
-        }
     }
 }
 
@@ -634,8 +743,8 @@ private fun BibleHero(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.56f)
+                                Color.Black.copy(alpha = 0.3f),
+                                Color.Black.copy(alpha = 0.65f)
                             )
                         )
                     )
@@ -658,27 +767,32 @@ private fun BibleHero(
                 }
 
                 Column {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.Black.copy(alpha = 0.42f)
-                    ) {
-                        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                            Text(
-                                text = "Holy Bible",
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
-                                color = Color.White
+                    Text(
+                        text = "Holy Bible",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.8f),
+                                blurRadius = 8f,
+                                offset = Offset(1f, 2f)
                             )
-                            Text(
-                                text = "Read the Word. Grow in faith.",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                                modifier = Modifier.padding(top = 2.dp)
+                        )
+                    )
+                    Text(
+                        text = "Read the Word. Grow in faith.",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.95f),
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.8f),
+                                blurRadius = 6f,
+                                offset = androidx.compose.ui.geometry.Offset(1f, 1f)
                             )
-                        }
-                    }
+                        ),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Scrollable Hero Action Tiles (featuring Bible Games, Search, and Translation)
@@ -788,8 +902,8 @@ private fun TodaysScriptureCard(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.4f),
-                                Color.Black.copy(alpha = 0.9f)
+                                Color.Black.copy(alpha = 0.3f),
+                                Color.Black.copy(alpha = 0.65f)
                             )
                         )
                     )
@@ -812,20 +926,23 @@ private fun TodaysScriptureCard(
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.42f)
-                    ) {
-                        Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
-                            Text("TODAY’S SCRIPTURE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
-                            Text(
-                                scripture?.themeName ?: "Daily reading",
-                                style = MaterialTheme.typography.titleMedium,
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "TODAY’S SCRIPTURE",
+                            style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White.copy(alpha = 0.9f),
+                                shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 4f)
                             )
-                        }
+                        )
+                        Text(
+                            scripture?.themeName ?: "Daily reading",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 6f)
+                            )
+                        )
                     }
                 }
                 Text(
@@ -834,9 +951,13 @@ private fun TodaysScriptureCard(
                             .filter { it.number in (scripture?.verseStart ?: 1)..(scripture?.verseEnd ?: 1) }
                             .joinToString(" ") { "“${it.text}”" }
                     } ?: "Scripture for today is not available in this translation.",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif, lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3f),
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = FontFamily.Serif,
+                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3f,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White,
+                        shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 6f)
+                    )
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -847,11 +968,20 @@ private fun TodaysScriptureCard(
                             val verses = if (selected.verseStart == selected.verseEnd) "${selected.verseStart}" else "${selected.verseStart}-${selected.verseEnd}"
                             "${bookName} ${selected.chapter}:$verses"
                         } ?: translationName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = Color.White.copy(alpha = 0.85f),
+                            shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 4f)
+                        ),
                         modifier = Modifier.weight(1f)
                     )
-                    Text("Read in Bible  ›", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Read in Bible  ›",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 4f)
+                        )
+                    )
                 }
             }
         }
@@ -881,8 +1011,8 @@ private fun ContinueReadingCard(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.56f)
+                                Color.Black.copy(alpha = 0.3f),
+                                Color.Black.copy(alpha = 0.65f)
                             )
                         )
                     )
@@ -904,23 +1034,37 @@ private fun ContinueReadingCard(
                     }
                 }
                 Column {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.42f)
-                    ) {
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
-                            Text("CONTINUE READING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.92f), fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(4.dp))
-                            Text("$bookName • Chapter $chapter", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
+                    Text(
+                        "CONTINUE READING",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 4f)
+                        )
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "$bookName • Chapter $chapter",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 6f)
+                        )
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Continue Reading  ›", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Continue Reading  ›",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 4f)
+                        )
+                    )
                 }
             }
         }

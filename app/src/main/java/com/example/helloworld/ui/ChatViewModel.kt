@@ -1,6 +1,7 @@
 package com.example.helloworld.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -279,10 +280,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 .trim()
                 .ifBlank { "Please respond to my message in this chat." }
 
+            val prefs = context.getSharedPreferences("kanisa_bible", Context.MODE_PRIVATE)
+            val translationId = prefs.getString("translation_id", "kjv") ?: "kjv"
+
             kanisaAssistantRepository.ask(
                 message = prompt,
                 roomId = roomId,
-                replyToMessageId = replyToMessageId
+                replyToMessageId = replyToMessageId,
+                translation = translationId
             ).onSuccess { response ->
                 addKanisaMessage(
                     roomId = roomId,

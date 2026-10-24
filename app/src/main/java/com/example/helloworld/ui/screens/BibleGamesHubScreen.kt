@@ -120,11 +120,11 @@ fun BibleGamesHubScreen(
                     color = if (hasScreenBackground) Color.Black.copy(alpha = 0.42f) else Color.Transparent
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Text("Bible Games", fontWeight = FontWeight.Bold, color = if (hasScreenBackground) Color.White else Color.Black)
+                        Text("Bible Games", fontWeight = FontWeight.Bold, color = if (hasScreenBackground) Color.White else MaterialTheme.colorScheme.onBackground)
                         Text(
                             "Learn Scripture through play",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (hasScreenBackground) Color.White.copy(alpha = 0.86f) else Color.Black.copy(alpha = 0.72f)
+                            color = if (hasScreenBackground) Color.White.copy(alpha = 0.86f) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

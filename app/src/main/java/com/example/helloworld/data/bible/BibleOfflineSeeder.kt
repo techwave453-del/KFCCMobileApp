@@ -27,9 +27,32 @@ object BibleOfflineSeeder {
                     isOffline = true,
                     isEnabled = true,
                     sortOrder = 20
+                ),
+                BibleTranslationEntity(
+                    id = "kam",
+                    abbreviation = "KAM",
+                    name = "Kamba Bible (Mbivilia)",
+                    language = "Kamba",
+                    isOffline = true,
+                    isEnabled = true,
+                    sortOrder = 25
                 )
             )
         )
+
+        // Always parse Kamba XML from assets to ensure correct Mbivilia verses are loaded
+        runCatching {
+            val inputStream = context.assets.open("bible/kamba/KambaMBIVLIABible.xml")
+            db.bibleVerseDao().deleteTranslation("kam")
+            BebliaXmlParser.parseAndStore(
+                context = context,
+                inputStream = inputStream,
+                translationId = "kam",
+                abbreviation = "KAM",
+                name = "Kamba Bible (Mbivilia)",
+                language = "Kamba"
+            )
+        }
 
         if (db.bibleVerseDao().count("kjv") >= 31_102) {
             if (db.bibleVerseDao().count("gnb") < 31_102) {
