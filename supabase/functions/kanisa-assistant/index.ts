@@ -733,7 +733,7 @@ Deno.serve(async (req: Request) => {
   ) => {
     const references = usableBible.references?.length
       ? usableBible.references
-      : usableBible.reference
+      : usableBible.reference && !usableBible.referenceNotFound
         ? [usableBible.reference]
         : [];
     const allBibleQuotes = (usableBible?.verses || []).slice(0, 20).map((verse: any) => {
