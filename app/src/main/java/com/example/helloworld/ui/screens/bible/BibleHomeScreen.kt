@@ -330,13 +330,16 @@ fun BibleHomeScreen(
                         installProgress = "Preparing " + version.name
                         scope.launch {
                             runCatching {
-                                apiBibleRepository.downloadSampleChapter(version, bookId = "PSA", chapterNumber = 51) { progress -> installProgress = progress }
+                                apiBibleRepository.download(version) { progress -> installProgress = progress }
                             }.onSuccess {
                                 val installedId = version.id.lowercase().replace(Regex("[^a-z0-9_-]"), "_")
                                 prefs.edit().putString("translation_id", installedId).apply()
                                 selectedTranslationId = installedId
-                                installSuccess = "Verified " + version.name + " with Psalm 51. This is a one-chapter test, not a full Bible download."
+                                installSuccess = "Installed " + version.name + " for offline reading."
                                 bibleRefresh++
+                                delay(900)
+                                showBebliaInstaller = false
+                                showTranslations = false
                             }.onFailure {
                                 installError = it.message ?: "Could not download this Bible version."
                             }
@@ -344,7 +347,7 @@ fun BibleHomeScreen(
                         }
                     },
                     enabled = !installing && !catalogLoading && selectedVersion != null
-                ) { Text(if (installing) "Testing…" else "Test Psalm 51 only") }
+                ) { Text(if (installing) "Downloading…" else "Download & Install") }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showBebliaInstaller = false }, enabled = !installing) { Text("Close") }
