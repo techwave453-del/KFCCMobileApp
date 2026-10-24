@@ -97,13 +97,21 @@ class ApiBibleRepository(context: Context) {
         total = chaptersToDownload.size
         if (total == 0) throw IllegalStateException("No downloadable chapters were found.")
 
-        // Persist each chapter immediately. If a later request fails or the app
-        // closes, completed chapters remain available offline instead of being lost.
-        // Keep requests sequential to avoid bursts against the user's limited API quota.
+        // Persist each chapter immediately and skip chapters already stored locally.
+        // This makes retries resumable without spending quota on completed chapters.
         var completed = 0
         var parsedVerses = 0
+        var skipped = 0
         for ((book, bookId, chapterInfo) in chaptersToDownload) {
             val (chapterId, chapterNo) = chapterInfo
+            val existing = db.bibleVerseDao().getChapter(translationId, bookId, chapterNo)
+            if (existing.isNotEmpty()) {
+                completed++
+                skipped++
+                progress("Keeping saved " + book.optString("name", bookId) + " " + chapterNo + " (" + completed + "/" + total + ")")
+                continue
+            }
+
             progress("Downloading " + book.optString("name", bookId) + " " + chapterNo + " (" + completed + "/" + total + ")")
             val response = request(JSONObject().put("action", "chapter").put("bibleId", version.id).put("chapterId", chapterId))
             val html = response.optJSONObject("data")?.optString("content").orEmpty()
@@ -117,7 +125,7 @@ class ApiBibleRepository(context: Context) {
             verses.chunked(500).forEach { batch -> db.bibleVerseDao().upsertAll(batch) }
             parsedVerses += verses.size
             completed++
-            progress("Saved " + completed + " of " + total + " chapters (" + parsedVerses + " verses)")
+            progress("Saved " + completed + " of " + total + " chapters (" + parsedVerses + " new verses; " + skipped + " chapters resumed)")
         }
         val count = db.bibleVerseDao().count(translationId)
         if (count == 0) throw IllegalStateException("No verse text was returned. This edition may not permit downloading through API.Bible.")
