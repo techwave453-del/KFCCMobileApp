@@ -490,7 +490,7 @@ function unsupportedBibleReferences(answer: string, bible: any): string[] {
   if (!answer.trim() || !bible || bible.translationNotAvailable || bible.referenceNotFound) return [];
 
   const books = Array.isArray(bible.books) ? bible.books : [];
-  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
+  const escapeRegex = (value: string) => value.replace(/[|\\{}()[\]^$+*?.]/g, "\\  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");");
   const supplied = new Set<string>(
     [
       ...(Array.isArray(bible.references) ? bible.references : []),
